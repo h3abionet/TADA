@@ -8,10 +8,13 @@ It is recommended to limit the Nextflow Java virtual machines memory. We recomme
 ```bash
 NXF_OPTS='-Xms1g -Xmx4g'
 ```
-For University of Cape Town users who will be running Nextflow on UCT's HPC (hex), you need to include the following two lines in your `~/.bachrc`:
+For University of Cape Town users who will be running Nextflow on UCT's HPC (hex), you also need to include the following lines in your `~/.bashrc`:
 
+```bash
+export JAVA_HOME=/opt/exp_soft/java/jdk1.8.0_31/
 JAVA_CMD=/opt/exp_soft/java/jdk1.8.0_31/bin/java
 export PATH=$PATH:/opt/exp_soft/cbio/nextflow
+```
 
 ## Running the pipeline
 The typical command for running the pipeline is as follows:
