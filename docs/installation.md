@@ -5,7 +5,7 @@ To start using the uct-cbio/16S-rDNA-dada2-pipeline, follow the steps below:
 1. [Install Nextflow](#install-nextflow)
 2. [Install the pipeline](#install-the-pipeline)
 
-## 1) Install NextFlow
+## 1) Install NextFlow (UCT users see below instead)
 Nextflow runs on most POSIX systems (Linux, Mac OSX etc). It can be installed by running the following commands:
 
 ```bash
@@ -29,6 +29,7 @@ curl -fsSL get.nextflow.io | bash
 #Add the following to ~/.bashrc:
 JAVA_HOME=/opt/exp_soft/java/jdk1.8.0_31/
 JAVA_CMD=/opt/exp_soft/java/jdk1.8.0_31/bin/java
+export PATH=$PATH:/opt/exp_soft/cbio/nextflow
 
 #Do not run nextflow from the headnode, it requires substantial memory to run java. Please therefore first start an interactive job as follows: 
 qsub -I -q UCTlong -l nodes=1:series600:ppn=1 -d `pwd`
