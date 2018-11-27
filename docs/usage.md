@@ -10,8 +10,10 @@ NXF_OPTS='-Xms1g -Xmx4g'
 ```
 For University of Cape Town users who will be running Nextflow on UCT's HPC (hex), you also need to include the following two lines in your `~/.bashrc`:
 
+```bash
 JAVA_CMD=/opt/exp_soft/java/jdk1.8.0_31/bin/java
 export PATH=$PATH:/opt/exp_soft/cbio/nextflow
+```
 
 ## Running the pipeline
 The typical command for running the pipeline is as follows:
