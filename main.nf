@@ -11,7 +11,7 @@
 def helpMessage() {
     log.info"""
     ===================================
-     uct-cbio/16S-rDNA-dada2-pipeline  ~  version ${params.version}
+     ${workflow.repository}/16S-rDNA-dada2-pipeline  ~  version ${params.version}
     ===================================
     Usage:
 
