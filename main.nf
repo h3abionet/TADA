@@ -38,8 +38,8 @@ def helpMessage() {
     All available read preparation parameters:
       --trimFor                     integer. headcrop of read1
       --trimRev                     integer. headcrop of read2
-      --truncFor                    integer. tailcrop of read1. enforced before trimming
-      --truncRev                    integer. tailcrop of read2. enforced before trimming
+      --truncFor                    integer. truncate read1 here (i.e. if you want to trim 10bp off the end of a 250bp R1, truncFor should be set to 240). enforced before trimFor/trimRev
+      --truncRev                    integer. truncate read2 here ((i.e. if you want to trim 10bp off the end of a 250bp R2, truncRev should be set to 240). enforced before trimFor/trimRev
       --maxEEFor                    integer. After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2
       --maxEERev                    integer. After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2
       --truncQ                      integer. Truncate reads at the first instance of a quality score less than or equal to truncQ; default=2
