@@ -7,13 +7,16 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
 ## Basic usage:
 
     This pipeline can be run specifying parameters in a config file or with command line flags.
+    
     The typical example for running the pipeline with command line flags is as follows:
     nextflow run uct-cbio/16S-rDNA-dada2-pipeline --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 --reference 'gg_13_8_train_set_97.fa.gz' -profile uct_hex
-    The typical command for running the pipeline with command line flags is as follows:
-    nextflow run -c <dada2.conf>  <dada2.nf>
+    
+    The typical command for running the pipeline with your own config (instead of command line flags) is as follows:
+    nextflow run uct-cbio/16S-rDNA-dada2-pipeline -c dada2_user_input.config -profile uct_hex
     where: 
-    dada2.conf is the configuration file
+    dada2_user_input.config is the configuration file (see example 'dada2_user_input.config')
     dada2.nf   is the pipeline script
+    NB: -profile uct_hex still needs to be specified from the command line
     
     To override existing values from the command line, please type these parameters:
     
