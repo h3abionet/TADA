@@ -15,7 +15,6 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
     nextflow run uct-cbio/16S-rDNA-dada2-pipeline -c dada2_user_input.config -profile uct_hex
     where: 
     dada2_user_input.config is the configuration file (see example 'dada2_user_input.config')
-    dada2.nf   is the pipeline script
     NB: -profile uct_hex still needs to be specified from the command line
     
     To override existing values from the command line, please type these parameters:
@@ -56,7 +55,9 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
      1) Start a 'screen' session from the headnode
      2) Start an interactive job using: qsub -I -q UCTlong -l nodes=1:series600:ppn=1 -d `pwd`
      3) A typical command would look something like:
-        nextflow run uct-cbio/16S-rDNA-dada2-pipeline --trimFor 24 --trimRev 25 --reference       /specify/relevant/directory/gg_13_8_train_set_97.fa.gz --email katieviljoen@gmail.com -profile uct_hex --reads  '/specify/relevant/directory/*{R1,R2}.fastq' -with-singularity /scratch/DB/bio/singularity-containers/1a32017e5935-2018-05-31-db3a9cebe9fc.img --pool 'pseudo'
+
+        nextflow run uct-cbio/16S-rDNA-dada2-pipeline --trimFor 24 --trimRev 25 --reference /specify/relevant/directory/gg_13_8_train_set_97.fa.gz --email katieviljoen@gmail.com -profile uct_hex --reads  '/specify/relevant/directory/*{R1,R2}.fastq' -with-singularity /scratch/DB/bio/singularity-containers/1a32017e5935-2018-05-31- db3a9cebe9fc.img --pool 'pseudo'
+
 
 ## Prerequisites
 
