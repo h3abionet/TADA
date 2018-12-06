@@ -1,4 +1,6 @@
 #!/usr/bin/env nextflow
+vim: syntax=groovy	
+-*- mode: groovy;-*-
 /*
 ========================================================================================
                D A D A 2   P I P E L I N E
