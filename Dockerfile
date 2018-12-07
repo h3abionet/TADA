@@ -13,7 +13,7 @@ RUN R -e 'install.packages(c("phangorn","dplyr"), dependencies=TRUE)'
 CMD ["R"]
 
 ###########################################################
-RUN apt-get update && apt-get install -y procps
+#RUN apt-get update && apt-get install -y procps
 
 ################## Hex specific ###########################
 RUN mkdir -p /researchdata/fhgfs
