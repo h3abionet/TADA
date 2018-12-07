@@ -10,5 +10,12 @@ RUN R -e 'install.packages(c("phangorn","dplyr"), dependencies=TRUE)'
 
 CMD ["R"]
 
+###########################################################
+FROM debian:jessie
+ENV CONDA_INSTALLER="Miniconda3-latest-Linux-x86_64.sh"
+#Exports conda path
+ENV PATH $PATH:/opt/conda/bin/
+RUN apt-get update && apt-get install -y procps
+
 ################## Hex specific ###########################
 RUN mkdir -p /researchdata/fhgfs
