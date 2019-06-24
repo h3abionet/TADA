@@ -26,7 +26,8 @@ RUN R -f /tmp/install.R
 
 CMD ["R"]
 
-################## Hex specific ###########################
-RUN mkdir -p /researchdata/fhgfs
+################## UCT HPC specific ###########################
+RUN mkdir -p /scratch
+RUN mkdir -p /bb/researchdata/
 
 
