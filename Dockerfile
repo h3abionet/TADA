@@ -25,9 +25,3 @@ ADD install.R /tmp/
 RUN R -f /tmp/install.R
 
 CMD ["R"]
-
-################## UCT HPC specific ###########################
-RUN mkdir -p /scratch
-RUN mkdir -p /bb/researchdata/
-RUN mkdir -p /scratch/kviljoen/pipeline_tests/dada2-test/raw_testdata/
-
