@@ -1,7 +1,7 @@
 sudo: required
 language: python
 jdk: openjdk8
-services: singularity
+services: docker
 python: '3.6'
 cache: pip
 matrix:
