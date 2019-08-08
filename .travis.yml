@@ -32,4 +32,4 @@ env:
 script:
   # Run, build reference genome with STAR
   #- nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker
-  - nextflow run main.nf -profile standard --reads="${TRAVIS_BUILD_DIR}/test-data/*_R{1,2}.fastq.gz" --trimFor 24 --trimRev 25 --reference="${TRAVIS_BUILD_DIR}/ref-data/silva_nr_v132_train_set.fa.gz" --species="${TRAVIS_BUILD_DIR}/ref-data/silva_species_assignment_v132.fa.gz" --outdir="${TRAVIS_BUILD_DIR}/out"
+  - nextflow run ${TRAVIS_BUILD_DIR}/main.nf -profile standard --reads="${TRAVIS_BUILD_DIR}/test-data/*_R{1,2}.fastq.gz" --trimFor 24 --trimRev 25 --reference="${TRAVIS_BUILD_DIR}/ref-data/silva_nr_v132_train_set.fa.gz" --species="${TRAVIS_BUILD_DIR}/ref-data/silva_species_assignment_v132.fa.gz" --outdir="${TRAVIS_BUILD_DIR}/out"
