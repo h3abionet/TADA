@@ -1,7 +1,6 @@
 sudo: required
 language: python
 jdk: openjdk8
-services: docker
 python: '3.6'
 cache: pip
 matrix:
@@ -18,6 +17,16 @@ before_install:
   - mkdir ${TRAVIS_BUILD_DIR}/test-data && cd ${TRAVIS_BUILD_DIR}/test-data
   - wget http://web.cbio.uct.ac.za/~gerrit/downloads/dog_stool.tgz
   - tar -xzvf dog_stool.tgz
+  - sudo apt-get install libarchive-dev
+  - sudo apt-get install squashfs-tools
+  - mkdir /tmp/singularity
+  - cd /tmp/singularity
+  - wget https://github.com/singularityware/singularity/releases/download/2.5.2/singularity-2.5.2.tar.gz
+  - tar xvf singularity-2.5.2.tar.gz
+  - cd singularity-2.5.2
+  - "./configure --prefix=/usr/local"
+  - make
+  - sudo make install
 
 install:
   # Install Nextflow
