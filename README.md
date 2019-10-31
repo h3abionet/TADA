@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/grbot/16S-rDNA-dada2-pipeline.svg?branch=master)](https://travis-ci.com/grbot/16S-rDNA-dada2-pipeline)
+[![Build Status](https://travis-ci.com/h3abionet/16S-rDNA-dada2-pipeline.svg?branch=master)](https://travis-ci.com/h3abionet/16S-rDNA-dada2-pipeline)
 
 # ![kviljoen/16S-rDNA-dada2-pipeline](/assets/cbio_logo.png)
 
