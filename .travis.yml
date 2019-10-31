@@ -1,0 +1,43 @@
+sudo: required
+language: python
+jdk: openjdk8
+python: '3.6'
+cache: pip
+matrix:
+  fast_finish: true
+
+before_install:
+  # PRs to master are only ok if coming from dev branch
+  - '[ $TRAVIS_PULL_REQUEST = "false" ] || [ $TRAVIS_BRANCH != "master" ] || ([ $TRAVIS_PULL_REQUEST_SLUG = $TRAVIS_REPO_SLUG ] && [ $TRAVIS_PULL_REQUEST_BRANCH = "dev" ])'
+  # Pulll the reference data
+  - mkdir ${TRAVIS_BUILD_DIR}/ref-data && cd ${TRAVIS_BUILD_DIR}/ref-data
+  - wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz
+  - wget https://zenodo.org/record/1172783/files/silva_species_assignment_v132.fa.gz
+  # Pull the test data
+  - mkdir ${TRAVIS_BUILD_DIR}/test-data && cd ${TRAVIS_BUILD_DIR}/test-data
+  - wget http://web.cbio.uct.ac.za/~gerrit/downloads/dog_stool.tgz
+  - tar -xzvf dog_stool.tgz
+  - sudo apt-get install libarchive-dev
+  - sudo apt-get install squashfs-tools
+  - mkdir /tmp/singularity
+  - cd /tmp/singularity
+  - wget https://github.com/singularityware/singularity/releases/download/2.5.2/singularity-2.5.2.tar.gz
+  - tar xvf singularity-2.5.2.tar.gz
+  - cd singularity-2.5.2
+  - "./configure --prefix=/usr/local"
+  - make
+  - sudo make install
+
+install:
+  # Install Nextflow
+  - mkdir /tmp/nextflow && cd /tmp/nextflow
+  - wget -qO- get.nextflow.io | bash
+  - sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
+
+env:
+  - NXF_VER='' # Plus: get the latest NF version and check that it works
+
+script:
+  # Run, build reference genome with STAR
+  #- nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker
+  - nextflow run ${TRAVIS_BUILD_DIR}/main.nf -profile standard --reads="${TRAVIS_BUILD_DIR}/test-data/*_R{1,2}.fastq.gz" --trimFor 24 --trimRev 25 --reference="${TRAVIS_BUILD_DIR}/ref-data/silva_nr_v132_train_set.fa.gz" --species="${TRAVIS_BUILD_DIR}/ref-data/silva_species_assignment_v132.fa.gz" --outdir="${TRAVIS_BUILD_DIR}/out"
