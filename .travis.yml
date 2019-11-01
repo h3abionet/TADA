@@ -16,7 +16,7 @@ before_install:
   # Pull the test data
   - mkdir ${TRAVIS_BUILD_DIR}/test-data && cd ${TRAVIS_BUILD_DIR}/test-data
   - wget http://web.cbio.uct.ac.za/~gerrit/downloads/dog_stool.tgz
-  - tar -xzvf dog_stool.tgz
+  - tar -xzvf dog_stool_small.tgz
   - sudo apt-get install libarchive-dev
   - sudo apt-get install squashfs-tools
   - mkdir /tmp/singularity
