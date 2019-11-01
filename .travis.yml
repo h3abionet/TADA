@@ -29,10 +29,13 @@ before_install:
   - sudo make install
 
 install:
+  # Setup a wait to get build to complete
+  - travis_wait 30 mvn install
   # Install Nextflow
   - mkdir /tmp/nextflow && cd /tmp/nextflow
   - wget -qO- get.nextflow.io | bash
   - sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
+  
 
 env:
   - NXF_VER='' # Plus: get the latest NF version and check that it works
