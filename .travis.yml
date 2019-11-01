@@ -29,18 +29,14 @@ before_install:
   - sudo make install
 
 install:
-  # Setup a wait to get build to complete
-  - travis_wait 30 mvn install
   # Install Nextflow
   - mkdir /tmp/nextflow && cd /tmp/nextflow
   - wget -qO- get.nextflow.io | bash
   - sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
-  
 
 env:
   - NXF_VER='' # Plus: get the latest NF version and check that it works
 
 script:
-  # Run, build reference genome with STAR
-  #- nextflow run ${TRAVIS_BUILD_DIR} -profile test,docker
-  - nextflow run ${TRAVIS_BUILD_DIR}/main.nf -profile standard --reads="${TRAVIS_BUILD_DIR}/test-data/*_R{1,2}.fastq.gz" --trimFor 24 --trimRev 25 --reference="${TRAVIS_BUILD_DIR}/ref-data/silva_nr_v132_train_set.fa.gz" --species="${TRAVIS_BUILD_DIR}/ref-data/silva_species_assignment_v132.fa.gz" --outdir="${TRAVIS_BUILD_DIR}/out"
+  # Write output to stdout every minute for 30 minutes with travis_wait 30. Assuers build does not fail.
+  - travis_wait 30 nextflow run ${TRAVIS_BUILD_DIR}/main.nf -profile standard --reads="${TRAVIS_BUILD_DIR}/test-data/*_R{1,2}.fastq.gz" --trimFor 24 --trimRev 25 --reference="${TRAVIS_BUILD_DIR}/ref-data/silva_nr_v132_train_set.fa.gz" --species="${TRAVIS_BUILD_DIR}/ref-data/silva_species_assignment_v132.fa.gz" --outdir="${TRAVIS_BUILD_DIR}/out"
