@@ -665,7 +665,7 @@ process RemoveChimeras {
     file st from seqTable
 
     output:
-    file "seqtab_final.RDS" into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable
+    file "seqtab_final.RDS" into seqTableToTax,seqTableToRename
 
     when:
     params.precheck == false
@@ -684,6 +684,7 @@ process RemoveChimeras {
     saveRDS(seqtab, "seqtab_final.RDS")
     """
 }
+
 
 /*
  *
@@ -707,7 +708,7 @@ if (params.reference) {
                 publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
 
                 input:
-                file st from seqTableFinalToTax
+                file st from seqTableToTax
                 file ref from refFile
                 file sp from speciesFile
 
@@ -737,6 +738,8 @@ if (params.reference) {
                 tax <- addSpecies(tax\$tax, "${sp}",
                                  tryRC = TRUE,
                                  verbose = TRUE)
+                                 
+                rownames(tax) <- colnames(seqtab)
 
                 # Write original data
                 saveRDS(tax, "tax_final.RDS")
@@ -751,7 +754,7 @@ if (params.reference) {
                 publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
 
                 input:
-                file st from seqTableFinalToTax
+                file st from seqTableToTax
                 file ref from refFile
 
                 output:
@@ -791,7 +794,7 @@ if (params.reference) {
             publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
 
             input:
-            file st from seqTableFinalToTax
+            file st from seqTableToTax
             file ref from refFile // this needs to be a database from the IDTAXA site
 
             output:
@@ -872,6 +875,53 @@ if (params.reference) {
 // any downstream steps (e.g. alignment/tree), then munge the seq names back
 // from the mapping table
 
+/*
+ *
+ * Step 8.5: Rename ASVs
+ *  
+ * A number of downstream programs have issues with sequences as IDs, here we 
+ * (optionally) rename these
+ *
+ */
+
+// TODO: make this optional, and allow QIIME2-like IDs (md5sum)
+
+process RenameASVs {
+    tag { "RenameASVs" }
+    publishDir "${params.outdir}/dada2-Tables", mode: "copy", overwrite: true
+
+    input:
+    file st from seqTableToRename
+
+    output:
+    file "seqtab_final.simple.RDS" into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
+    file "asvs.simple.fna" into seqsToAln, seqsToQIIME2
+    file "readmap.RDS" into readsToRenameTaxIDs // needed for remapping tax IDs
+    
+    script:
+    """
+    #!/usr/bin/env Rscript
+    library(dada2)
+    library(ShortRead)
+
+    st.all <- readRDS("${st}")
+    
+    seqs <- colnames(st.all)
+    ids_study <- paste("ASV", 1:ncol(st.all), sep = "")
+    colnames(st.all) <- ids_study
+    
+    # generate FASTA
+    seqs.dna <- ShortRead(sread = DNAStringSet(seqs), id = BStringSet(ids_study))
+    # Write out fasta file.
+    writeFasta(seqs.dna, file = 'asvs.simple.fna')
+
+    # Write modified data
+    saveRDS(st.all, "seqtab_final.simple.RDS")
+    saveRDS(data.frame(id = ids_study, seq = seqs), "readmap.RDS")
+    """
+}
+
+
 process GenerateSeqTables {
     tag { "GenerateSeqTables" }
     publishDir "${params.outdir}/dada2-Tables", mode: "link", overwrite: true
@@ -880,8 +930,6 @@ process GenerateSeqTables {
     file st from seqTableToTable
 
     output:
-    file "seqtab_final.simple.RDS" into seqtabToPhyloseq,seqtabToTaxTable
-    file "asvs.simple.fna" into seqsToAln, seqsToQIIME2 // this will likely be used downstream for alignment and analysis
     file "seqtab_final.simple.qiime2.txt" into featuretableToQIIME2
     file "*.txt"
 
@@ -911,11 +959,6 @@ process GenerateSeqTables {
     # https://github.com/LangilleLab/microbiome_helper/blob/master/convert_dada2_out.R#L69
     ######################################################################
 
-    # replace names
-    seqs <- colnames(seqtab)
-    ids_study <- paste("ASV", 1:ncol(seqtab), sep = "")
-    colnames(seqtab) <- ids_study
-
     # Generate OTU table output (rows = samples, cols = ASV)
     write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
         file = 'seqtab_final.simple.txt',
@@ -931,11 +974,6 @@ process GenerateSeqTables {
         quote=FALSE,
         sep = "\t")
 
-    # generate FASTA
-    seqs.dna <- ShortRead(sread = DNAStringSet(seqs), id = BStringSet(ids_study))
-    # Write out fasta file.
-    writeFasta(seqs.dna, file = 'asvs.simple.fna')
-
     # Write modified data
     saveRDS(seqtab, "seqtab_final.simple.RDS")
     """
@@ -946,9 +984,9 @@ process GenerateTaxTables {
     publishDir "${params.outdir}/dada2-Tables", mode: "link", overwrite: true
 
     input:
-    file st from seqtabToTaxTable
     file tax from taxTableToTable
     file bt from bootstrapFinal
+    file map from readsToRenameTaxIDs
 
     output:
     file "tax_final.simple.RDS" into taxtabToPhyloseq
@@ -964,25 +1002,22 @@ process GenerateTaxTables {
     library(dada2)
     library(ShortRead)
 
-    seqtab <- readRDS("${st}")
     tax <- readRDS("${tax}")
+    map <- readRDS("${map}")
 
     # Note that we use the old ASV ID for output here
     write.table(data.frame('ASVID' = row.names(tax), tax),
         file = 'tax_final.txt',
         row.names = FALSE,
         col.names=c('#OTU ID', colnames(tax)), sep = "\t")
-
-    # replace names
-    seqs <- colnames(seqtab)
-
+	
     # Tax table
-    if(!identical(rownames(tax), seqs)){
+    if(!identical(rownames(tax), as.character(map\$seq))){
         stop("sequences in taxa and sequence table are not ordered the same.")
     }
 
     tax[is.na(tax)] <- "Unclassified"
-    rownames(tax) <- ids_study
+    rownames(tax) <- map\$id
     taxa_combined <- apply(tax, 1, function(x) paste(x, collapse=";"))
     taxa_out <- data.frame(names(taxa_combined), taxa_combined)
     colnames(taxa_out) <- c("#OTU ID", "taxonomy")
@@ -999,10 +1034,10 @@ process GenerateTaxTables {
 
     if (file.exists('bootstrap_final.RDS')) {
         boots <- readRDS("${bt}")
-        if(!identical(rownames(boots), seqs)){
+        if(!identical(rownames(boots), as.character(map\$seq))){
             stop("sequences in bootstrap and sequence table are not ordered the same.")
         }
-        rownames(boots) <- ids_study
+        rownames(boots) <- map\$id
         write.table(data.frame('ASVID' = row.names(boots), boots),
             file = 'tax_final.bootstraps.simple.full.txt',
             row.names = FALSE,
