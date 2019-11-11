@@ -126,28 +126,29 @@ log.info "==================================="
 log.info " ${params.base}/16S-rDNA-dada2-pipeline  ~  version ${params.version}"
 log.info "==================================="
 def summary = [:]
-summary['Run Name']     = custom_runName ?: workflow.runName
-summary['Reads']        = params.reads
+summary['Run Name']       = custom_runName ?: workflow.runName
+summary['Reads']          = params.reads
 summary['Forward primer'] = params.fwdprimer
 summary['Reverse primer'] = params.revprimer
-summary['Amplicon type'] = params.amplicon
-summary['trimFor'] = params.trimFor
-summary['trimRev'] = params.trimRev
-summary['truncFor'] = params.truncFor
-summary['truncRev'] = params.truncRev
-summary['truncQ'] = params.truncQ
-summary['maxEEFor'] = params.maxEEFor
-summary['maxEERev'] = params.maxEERev
-summary['maxN'] = params.maxN
-summary['maxLen'] = params.maxLen
-summary['minLen'] = params.minLen
-summary['rmPhiX'] = params.rmPhiX
-summary['minOverlap'] = params.minOverlap
-summary['maxMismatch'] = params.maxMismatch
-summary['trimOverhang'] = params.trimOverhang
-summary['species'] = params.species
-summary['pool'] = params.pool
-summary['Reference'] = params.reference
+summary['Amplicon type']  = params.amplicon
+summary['trimFor']        = params.trimFor
+summary['trimRev']        = params.trimRev
+summary['truncFor']       = params.truncFor
+summary['truncRev']       = params.truncRev
+summary['truncQ']         = params.truncQ
+summary['maxEEFor']       = params.maxEEFor
+summary['maxEERev']       = params.maxEERev
+summary['maxN']           = params.maxN
+summary['maxLen']         = params.maxLen
+summary['minLen']         = params.minLen
+summary['rmPhiX']         = params.rmPhiX
+summary['minOverlap']     = params.minOverlap
+summary['maxMismatch']    = params.maxMismatch
+summary['trimOverhang']   = params.trimOverhang
+summary['species']  	  = params.species
+summary['pool']           = params.pool
+summary['qualityBinning'] = params.qualityBinning
+summary['Reference']      = params.reference
 summary['Max Memory']     = params.max_memory
 summary['Max CPUs']       = params.max_cpus
 summary['Max Time']       = params.max_time
@@ -408,6 +409,7 @@ process LearnErrorsFor {
 
     output:
     file "errorsF.RDS" into errorsFor
+    file "*.pdf"
 
     when:
     params.precheck == false
@@ -425,9 +427,17 @@ process LearnErrorsFor {
 
     # Learn forward error rates
     errF <- learnErrors(filtFs, multithread=${task.cpus})
+    
+    if (as.logical('${params.qualityBinning}') == TRUE ) {
+        print("Running binning correction")
+        errs <- t(apply(getErrors(errF), 1, function(x) { x[x < x[40]] = x[40]; return(x)} ))
+        errF\$err_out <- errs
+    }
+
     pdf("R1.err.pdf")
     plotErrors(errF, nominalQ=TRUE)
     dev.off()
+
     saveRDS(errF, "errorsF.RDS")
     """
 }
@@ -441,6 +451,7 @@ process LearnErrorsRev {
 
     output:
     file "errorsR.RDS" into errorsRev
+    file "*.pdf"
 
     when:
     params.precheck == false
@@ -457,12 +468,21 @@ process LearnErrorsRev {
     filtRs <- list.files('.', pattern="R2.filtered.fastq.gz", full.names = TRUE)
     sample.namesR <- sapply(strsplit(basename(filtRs), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
     set.seed(100)
-
+	
     # Learn forward error rates
     errR <- learnErrors(filtRs, multithread=${task.cpus})
+
+    # optional NovaSeq binning error correction    
+    if (as.logical('${params.qualityBinning}') == TRUE) {
+        print("Running binning correction")
+        errs <- t(apply(getErrors(errR), 1, function(x) { x[x < x[40]] = x[40]; return(x)} ))
+        errR\$err_out <- errs
+    }
+
     pdf("R2.err.pdf")
     plotErrors(errR, nominalQ=TRUE)
     dev.off()
+
     saveRDS(errR, "errorsR.RDS")
     """
 }
