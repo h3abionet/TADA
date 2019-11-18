@@ -3,32 +3,32 @@
 # ![kviljoen/16S-rDNA-dada2-pipeline](/assets/cbio_logo.png)
 
 # 16S rRNA gene amplicon sequencing pipeline using DADA2, implemented in Nextflow
- 
+
 A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline is currently implemented, including some basic read-tracking. This pipeline is adapted from https://github.com/HPCBio/dada2-Nextflow for implementation on the UCT high-performance compute cluster
 
 ## Basic usage:
 
     This pipeline can be run specifying parameters in a config file or with command line flags.
-    
+
     The typical example for running the pipeline with command line flags is as follows:
     nextflow run uct-cbio/16S-rDNA-dada2-pipeline --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 --reference 'gg_13_8_train_set_97.fa.gz' -profile uct_hex
-    
+
     The typical command for running the pipeline with your own config (instead of command line flags) is as follows:
     nextflow run uct-cbio/16S-rDNA-dada2-pipeline -c dada2_user_input.config -profile uct_hex
-    where: 
+    where:
     dada2_user_input.config is the configuration file (see example 'dada2_user_input.config')
     NB: -profile uct_hex still needs to be specified from the command line
-    
+
     To override existing values from the command line, please type these parameters:
-    
+
     Mandatory arguments:
       --reads                       Path to input data (must be surrounded with quotes)
       -profile                      Hardware config to use. Currently profile available for UCT's HPC 'uct_hex' - create your own if necessary
       --trimFor                     integer. headcrop of read1 (set 0 if no trimming is needed)
       --trimRev                     integer. headcrop of read2 (set 0 if no trimming is needed)
       --reference                   Path to taxonomic database to be used for annotation (e.g. gg_13_8_train_set_97.fa.gz)
-      --amplicon		    Type of analysis (16S or ITS).
-    
+      --amplicon		                Type of analysis (16S or ITS)
+
     All available read preparation parameters:
       --trimFor                     integer. headcrop of read1
       --trimRev                     integer. headcrop of read2
@@ -44,13 +44,13 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
       --minOverlap                  integer. minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
       --maxMismatch                 integer. The maximum mismatches allowed in the overlap region; default=0
       --trimOverhang                {"T","F"}. If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off. "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen when reads are longer than the amplicon and read into the other-direction primer region. Default="F" (false)
-  
+
     Other arguments:
       --pool                        Should sample pooling be used to aid identification of low-abundance ASVs? Options are  pseudo pooling: "pseudo", true: "T", false: "F"
       --outdir                      The output directory where the results will be saved
       --email                       Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits
       -name                         Name for the pipeline run. If not specified, Nextflow will automatically generate a random  mnemonic.
-    
+
      Help:
       --help                        Will print out summary above when executing nextflow run uct-cbio/16S-rDNA-dada2-pipeline                                   
 
@@ -88,5 +88,3 @@ The initial implementation of the DADA2 pipeline as a Nextflow workflow (https:/
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-
