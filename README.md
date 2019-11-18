@@ -28,6 +28,7 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
       --trimRev                     integer. headcrop of read2 (set 0 if no trimming is needed)
       --reference                   Path to taxonomic database to be used for annotation (e.g. gg_13_8_train_set_97.fa.gz)
       --amplicon		                Type of analysis (16S or ITS)
+      --runtree                     phangorn or fasttree
 
     All available read preparation parameters:
       --trimFor                     integer. headcrop of read1
