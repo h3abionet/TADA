@@ -19,13 +19,13 @@ def helpMessage() {
     This pipeline can be run specifying parameters in a config file or with command line flags.
     The typical example for running the pipeline with command line flags is as follows:
     nextflow run uct-cbio/16S-rDNA-dada2-pipeline --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 --reference 'gg_13_8_train_set_97.fa.gz' -profile uct_hex
-    
+
     The typical command for running the pipeline with your own config (instead of command line flags) is as follows:
     nextflow run uct-cbio/16S-rDNA-dada2-pipeline -c dada2_user_input.config -profile uct_hex
-    where: 
+    where:
     dada2_user_input.config is the configuration file (see example 'dada2_user_input.config')
     NB: -profile uct_hex still needs to be specified from the command line
-    
+
     To override existing values from the command line, please type these parameters:
 
     Mandatory arguments:
@@ -427,7 +427,7 @@ process LearnErrorsFor {
 
     # Learn forward error rates
     errF <- learnErrors(filtFs, multithread=${task.cpus})
-    
+
     if (as.logical('${params.qualityBinning}') == TRUE ) {
         print("Running binning correction")
         errs <- t(apply(getErrors(errF), 1, function(x) { x[x < x[40]] = x[40]; return(x)} ))
@@ -468,11 +468,11 @@ process LearnErrorsRev {
     filtRs <- list.files('.', pattern="R2.filtered.fastq.gz", full.names = TRUE)
     sample.namesR <- sapply(strsplit(basename(filtRs), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
     set.seed(100)
-	
+
     # Learn forward error rates
     errR <- learnErrors(filtRs, multithread=${task.cpus})
 
-    # optional NovaSeq binning error correction    
+    # optional NovaSeq binning error correction
     if (as.logical('${params.qualityBinning}') == TRUE) {
         print("Running binning correction")
         errs <- t(apply(getErrors(errR), 1, function(x) { x[x < x[40]] = x[40]; return(x)} ))
@@ -758,7 +758,7 @@ if (params.reference) {
                 tax <- addSpecies(tax\$tax, "${sp}",
                                  tryRC = TRUE,
                                  verbose = TRUE)
-                                 
+
                 rownames(tax) <- colnames(seqtab)
 
                 # Write original data
@@ -898,8 +898,8 @@ if (params.reference) {
 /*
  *
  * Step 8.5: Rename ASVs
- *  
- * A number of downstream programs have issues with sequences as IDs, here we 
+ *
+ * A number of downstream programs have issues with sequences as IDs, here we
  * (optionally) rename these
  *
  */
@@ -917,7 +917,7 @@ process RenameASVs {
     file "seqtab_final.simple.RDS" into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
     file "asvs.simple.fna" into seqsToAln, seqsToQIIME2
     file "readmap.RDS" into readsToRenameTaxIDs // needed for remapping tax IDs
-    
+
     script:
     """
     #!/usr/bin/env Rscript
@@ -925,11 +925,11 @@ process RenameASVs {
     library(ShortRead)
 
     st.all <- readRDS("${st}")
-    
+
     seqs <- colnames(st.all)
     ids_study <- paste("ASV", 1:ncol(st.all), sep = "")
     colnames(st.all) <- ids_study
-    
+
     # generate FASTA
     seqs.dna <- ShortRead(sread = DNAStringSet(seqs), id = BStringSet(ids_study))
     # Write out fasta file.
@@ -1030,7 +1030,7 @@ process GenerateTaxTables {
         file = 'tax_final.txt',
         row.names = FALSE,
         col.names=c('#OTU ID', colnames(tax)), sep = "\t")
-	
+
     # Tax table
     if(!identical(rownames(tax), as.character(map\$seq))){
         stop("sequences in taxa and sequence table are not ordered the same.")
@@ -1340,6 +1340,7 @@ if (params.toQIIME2) {
 
     process toQIIME2FeatureTable {
         tag { "QIIME2-Output" }
+        label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
 
         input:
@@ -1365,6 +1366,7 @@ if (params.toQIIME2) {
 
     process toQIIME2TaxTable {
         tag { "QIIME2-Output" }
+        label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
 
         input:
@@ -1389,6 +1391,7 @@ if (params.toQIIME2) {
 
     process toQIIME2Seq {
         tag { "QIIME2-Output" }
+        label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
 
         input:
@@ -1408,6 +1411,7 @@ if (params.toQIIME2) {
 
     process toQIIME2Aln {
         tag { "QIIME2-Output" }
+        label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
 
         input:
@@ -1430,6 +1434,7 @@ if (params.toQIIME2) {
 
     process toQIIME2Tree {
         tag { "QIIME2-Output" }
+        label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
 
         input:
