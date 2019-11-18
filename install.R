@@ -9,7 +9,8 @@ pkgs <- c(
   "dplyr",
   "dada2",
   "DECIPHER",
-  "biomformat"
+  "biomformat",
+  "optparse"
 )
 
 # check that desired packages are available
