@@ -1122,13 +1122,14 @@ if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
         process AlignReadsDECIPHER {
             tag { "AlignReadsDECIPHER" }
             publishDir "${params.outdir}/dada2-DECIPHER", mode: "copy", overwrite: true
+            errorStrategy 'ignore'
 
             input:
             file seqs from seqsToAln
 
             output:
-            file "aligned_seqs.fasta" into alnFile,alnToQIIME2
-
+            file "aligned_seqs.fasta" optional true into alnFile,alnToQIIME2
+            
             script:
             """
             #!/usr/bin/env Rscript
