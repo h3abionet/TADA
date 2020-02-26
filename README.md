@@ -1,8 +1,9 @@
 [![Build Status](https://travis-ci.com/h3abionet/16S-rDNA-dada2-pipeline.svg?branch=master)](https://travis-ci.com/h3abionet/16S-rDNA-dada2-pipeline)
 
-<p align="left">
-  <img src="./assets/cbio_logo.png" width="240">
-  <img src="./assets/HPCBio.png" width="240">
+<p>
+<img align="left" src="./assets/cbio_logo.png" width="240" hspace="50"/>
+<img align="left" src="./assets/HPCBio.png" width="350" hspace="50"/>
+</br></br></br>
 </p>
 
 # 16S rRNA gene amplicon sequencing pipeline using DADA2, implemented in Nextflow
