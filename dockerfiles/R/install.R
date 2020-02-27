@@ -9,6 +9,7 @@ pkgs <- c(
   "dplyr",
   "dada2",
   "DECIPHER",
+  "digest",
   "biomformat",
   "optparse"
 )
