@@ -923,11 +923,13 @@ process RenameASVs {
     #!/usr/bin/env Rscript
     library(dada2)
     library(ShortRead)
+    library(digest)
 
     st.all <- readRDS("${st}")
 
     seqs <- colnames(st.all)
-    ids_study <- paste("ASV", 1:ncol(st.all), sep = "")
+    ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.all), sep = ""),
+                                md5=sapply(colnames(st.all), digest, algo="md5"))
     colnames(st.all) <- ids_study
 
     # generate FASTA
