@@ -60,6 +60,9 @@ def helpMessage() {
       --email                       Set this parameter to your e-mail address to get a summary e-mail with details of the run
                                     sent to you when the workflow exits
       -name                         Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic.
+      --idType                      The ASV IDs are renamed to simplify downstream analysis, in particular with downstream tools.  The
+                                    default is "ASV", which simply renames the sequences in sequencial order.  Alternatively, this can be
+                                    set to "md5" which will run MD5 on the sequence and generate a QIIME2-like unique hash.
 
     Help:
       --help                        Will print out summary above when executing nextflow run uct-cbio/16S-rDNA-dada2-pipeline
@@ -699,7 +702,7 @@ process RemoveChimeras {
     st.all <- readRDS("${st}")
 
     # Remove chimeras
-    seqtab <- removeBimeraDenovo(st.all, method="consensus", multithread=${task.cpus})
+    seqtab <- removeBimeraDenovo(st.all, method="consensus", multithread=${task.cpus}, verbose=TRUE)
 
     saveRDS(seqtab, "seqtab_final.RDS")
     """
@@ -752,6 +755,7 @@ if (params.reference) {
                                         multithread=${task.cpus},
                                         tryRC = TRUE,
                                         outputBootstraps = TRUE,
+                                        minBoot = ${params.minBoot},
                                         verbose = TRUE)
                 boots <- tax\$boot
 
@@ -785,6 +789,7 @@ if (params.reference) {
                 params.precheck == false
 
                 script:
+                taxLevels = params.taxLevels ? "c( ${params.taxLevels} )," : ''
                 """
                 #!/usr/bin/env Rscript
                 library(dada2)
@@ -795,9 +800,11 @@ if (params.reference) {
                 # Assign taxonomy
                 tax <- assignTaxonomy(seqtab, "${ref}",
                                       multithread=${task.cpus},
+                                      minBoot = ${params.minBoot},
                                       tryRC = TRUE,
-                                      outputBootstraps = TRUE,
-                                      verbose = TRUE)
+                                      outputBootstraps = TRUE, ${taxLevels}
+                                      verbose = TRUE 
+                                      )
 
                 # Write to disk
                 saveRDS(tax\$tax, "tax_final.RDS")
@@ -923,11 +930,13 @@ process RenameASVs {
     #!/usr/bin/env Rscript
     library(dada2)
     library(ShortRead)
+    library(digest)
 
     st.all <- readRDS("${st}")
 
     seqs <- colnames(st.all)
-    ids_study <- paste("ASV", 1:ncol(st.all), sep = "")
+    ids_study <- switch("${params.idType}", ASV=paste("ASV", 1:ncol(st.all), sep = ""),
+                                md5=sapply(colnames(st.all), digest, algo="md5"))
     colnames(st.all) <- ids_study
 
     # generate FASTA
