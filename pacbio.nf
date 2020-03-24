@@ -691,11 +691,13 @@ process RenameASVs {
     #!/usr/bin/env Rscript
     library(dada2)
     library(ShortRead)
+    library(digest)
 
     st.all <- readRDS("${st}")
 
     seqs <- colnames(st.all)
-    ids_study <- paste("ASV", 1:ncol(st.all), sep = "")
+    ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.all), sep = ""),
+                                md5=sapply(colnames(st.all), digest, algo="md5"))
     colnames(st.all) <- ids_study
 
     # generate FASTA
@@ -1048,62 +1050,54 @@ process BiomFile {
  *
  */
 
-// Broken?: needs a left-join on the initial table
+// TODO: stub, needs testing but has been run manually
 
-// process ReadTracking {
-//     tag { "ReadTracking" }
-//     publishDir "${params.outdir}/dada2-ReadTracking", mode: "copy", overwrite: true
-// 
-//     input:
-//     file trimmedTable from trimmedReadTracking
-//     file sTable from seqTableFinalTracking
-//     file mergers from mergerTracking
-//     file ddFs from dadaForReadTracking
-//     file ddRs from dadaRevReadTracking
-// 
-//     output:
-//     file "all.readtracking.txt"
-// 
-//     when:
-//     params.precheck == false
-// 
-//     script:
-//     """
-//     #!/usr/bin/env Rscript
-//     library(dada2)
-//     packageVersion("dada2")
-//     library(dplyr)
-// 
-//     getN <- function(x) sum(getUniques(x))
-// 
-//     # the gsub here might be a bit brittle...
-//     dadaFs <- as.data.frame(sapply(readRDS("${ddFs}"), getN))
-//     rownames(dadaFs) <- gsub('.R1.filtered.fastq.gz', '',rownames(dadaFs))
-//     dadaFs\$SampleID <- rownames(dadaFs)
-// 
-//     dadaRs <- as.data.frame(sapply(readRDS("${ddRs}"), getN))
-//     rownames(dadaRs) <- gsub('.R2.filtered.fastq.gz', '',rownames(dadaRs))
-//     dadaRs\$SampleID <- rownames(dadaRs)
-// 
-//     mergers <- as.data.frame(sapply(readRDS("${mergers}"), getN))
-//     rownames(mergers) <- gsub('.R1.filtered.fastq.gz', '',rownames(mergers))
-//     mergers\$SampleID <- rownames(mergers)
-// 
-//     seqtab.nochim <- as.data.frame(rowSums(readRDS("${sTable}")))
-//     rownames(seqtab.nochim) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.nochim))
-//     seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
-// 
-//     trimmed <- read.csv("${trimmedTable}")
-// 
-//     track <- Reduce(function(...) merge(..., by = "SampleID",  all.x=TRUE),  list(trimmed, dadaFs, dadaRs, mergers, seqtab.nochim))
-//     # dropped data in later steps gets converted to NA on the join
-//     # these are effectively 0
-//     track[is.na(track)] <- 0
-// 
-//     colnames(track) <- c("SampleID", "SequenceR1", "input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
-//     write.table(track, "all.readtracking.txt", sep = "\t", row.names = FALSE)
-//     """
-// }
+process ReadTracking {
+    tag { "ReadTracking" }
+    publishDir "${params.outdir}/dada2-ReadTracking", mode: "copy", overwrite: true
+
+    input:
+    file trimmedTable from trimmedReadTracking
+    file sTable from seqTableFinalTracking
+    file dds from dadaReadTracking
+
+    output:
+    file "all.readtracking.txt"
+
+    when:
+    params.precheck == false
+
+    script:
+    """
+    #!/usr/bin/env Rscript
+    library(dada2)
+    packageVersion("dada2")
+    library(dplyr)
+
+    getN <- function(x) sum(getUniques(x))
+
+    # we need to modify the gsub call, note the primer-specific substitutions
+    dadas <- as.data.frame(sapply(readRDS("${dds}"), getN))
+    rownames(dadas) <- gsub('-16S_For.*', '',rownames(dadas))
+    dadas\$SampleID <- rownames(dadas)
+
+    seqtab.nochim <- as.data.frame(rowSums(readRDS("${sTable}")))
+    rownames(seqtab.nochim) <- gsub('-16S_For.*', '',rownames(seqtab.nochim))
+    seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
+
+    trimmed <- read.csv("${trimmedTable}")
+    rownames(trimmed) <- gsub('-16S_For.*', '',trimmed$Sequence)
+    trimmed\$SampleID <- rownames(trimmed)
+
+    track <- Reduce(function(...) merge(..., by = "SampleID",  all.x=TRUE),  list(trimmed, dadas, seqtab.nochim))
+    # dropped data in later steps gets converted to NA on the join
+    # these are effectively 0
+    track[is.na(track)] <- 0
+
+    colnames(track) <- c("SampleID", "Sequence", "input", "filtered", "denoised", "nonchim")
+    write.table(track, "all.readtracking.txt", sep = "\t", row.names = FALSE)
+    """
+}
 
 if (params.toQIIME2) {
 
