@@ -70,6 +70,7 @@ blast_formatter -archive $NAME.blastn.asn1 -outfmt 5 -max_target_seqs 10 -out $N
 Rank information (along with scientific name and common name data) is appended to the BLAST output using the  `blast-taxid-summary.pl` script:
 
 ```
-perl blast-taxid-summary.pl 
+perl blast_taxid_summary.pl -f asvs.simple.fna.blastn.txt \
+-t taxonomy.sqlite -a acc2taxid.sqlite
 ```
 
