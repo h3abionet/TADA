@@ -734,10 +734,6 @@ process GenerateSeqTables {
 
     seqtab <- readRDS("${st}")
 
-    if (as.logical('${params.sampleRegex}' != FALSE )) {
-        rownames(seqtab) <- gsub('${params.sampleRegex}', "\\\\1", rownames(seqtab), perl = TRUE)
-    }
-
     # Generate table output
     write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
         file = 'seqtab_final.txt',
@@ -1086,7 +1082,7 @@ process ReadTracking {
     seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
 
     trimmed <- read.csv("${trimmedTable}")
-    rownames(trimmed) <- gsub('-16S_For.*', '',trimmed$Sequence)
+    rownames(trimmed) <- gsub('-16S_For.*', '',trimmed\$Sequence)
     trimmed\$SampleID <- rownames(trimmed)
 
     track <- Reduce(function(...) merge(..., by = "SampleID",  all.x=TRUE),  list(trimmed, dadas, seqtab.nochim))
