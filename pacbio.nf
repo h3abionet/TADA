@@ -60,9 +60,6 @@ def helpMessage() {
       --email                       Set this parameter to your e-mail address to get a summary e-mail with details of the run
                                     sent to you when the workflow exits
       -name                         Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic.
-      --idType                      The ASV IDs are renamed to simplify downstream analysis, in particular with downstream tools.  The
-                                    default is "ASV", which simply renames the sequences in sequencial order.  Alternatively, this can be
-                                    set to "md5" which will run MD5 on the sequence and generate a QIIME2-like unique hash.
 
     Help:
       --help                        Will print out summary above when executing nextflow run uct-cbio/16S-rDNA-dada2-pipeline
@@ -88,29 +85,29 @@ if (params.help){
 }
 
 //Validate inputs
-if ( params.trimFor == false && params.amplicon == '16S') {
-    exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
-}
-
-if ( params.trimRev == false && params.amplicon == '16S') {
-    exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
-}
+// if ( params.trimFor == false && params.amplicon == '16S') {
+//     exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
+// }
+// 
+// if ( params.trimRev == false && params.amplicon == '16S') {
+//     exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
+// }
 
 // if ( params.reference == false ) {
 //     exit 1, "Must set reference database using --reference"
 // }
 
-if (params.fwdprimer == false && params.amplicon == 'ITS'){
-    exit 1, "Must set forward primer using --fwdprimer"
-}
-
-if (params.revprimer == false && params.amplicon == 'ITS'){
-    exit 1, "Must set reverse primer using --revprimer"
-}
-
-if (params.aligner == 'infernal' && params.infernalCM == false){
-    exit 1, "Must set covariance model using --infernalCM when using Infernal"
-}
+// if (params.fwdprimer == false && params.amplicon == 'ITS'){
+//     exit 1, "Must set forward primer using --fwdprimer"
+// }
+// 
+// if (params.revprimer == false && params.amplicon == 'ITS'){
+//     exit 1, "Must set reverse primer using --revprimer"
+// }
+// 
+// if (params.aligner == 'infernal' && params.infernalCM == false){
+//     exit 1, "Must set covariance model using --infernalCM when using Infernal"
+// }
 
 // Has the run name been specified by the user?
 //  this has the bonus effect of catching both -name and --name
@@ -120,9 +117,9 @@ if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
 }
 
 Channel
-    .fromFilePairs( params.reads )
+    .fromFilePairs( params.reads, size: 1 )
     .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
-    .into { dada2ReadPairsToQual; dada2ReadPairs }
+    .into { dada2ReadsToQual; dada2Reads }
 
 // Header log info
 log.info "==================================="
@@ -176,199 +173,132 @@ log.info "========================================="
  *
  */
 
-process runFastQC {
-    tag { "rFQC.${pairId}" }
-    publishDir "${params.outdir}/FASTQC-Raw", mode: "copy", overwrite: true
+// process runFastQC {
+//     tag { "rFQC.${id}" }
+//     publishDir "${params.outdir}/FASTQC-Raw", mode: "copy", overwrite: true
+//     memory 72.GB
+//     
+//     input:
+//     set id, file(in_fastq) from dada2ReadsToQual
+// 
+//     output:
+//     file '*_fastqc.{zip,html}' into fastqc_files,fastqc_files2
+// 
+//     """
+//     fastqc --nogroup -q ${in_fastq} 
+//     """
+// }
+// 
+// process runMultiQC {
+//     tag { "runMultiQC" }
+//     publishDir "${params.outdir}/MultiQC-Raw", mode: 'copy', overwrite: true
+// 
+//     input:
+//     file('./raw-seq/*') from fastqc_files.collect()
+// 
+//     output:
+//     file "*_report.html" into multiqc_report
+//     file "*_data"
+// 
+//     script:
+//     interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
+//     """
+//     multiqc ${interactivePlots} .
+//     """
+// }
 
-    input:
-    set pairId, file(in_fastq) from dada2ReadPairsToQual
-
-    output:
-    file '*_fastqc.{zip,html}' into fastqc_files,fastqc_files2
-
-    """
-    fastqc --nogroup -q ${in_fastq.get(0)} ${in_fastq.get(1)}
-    """
-}
-
-process runMultiQC {
-    tag { "runMultiQC" }
-    publishDir "${params.outdir}/MultiQC-Raw", mode: 'copy', overwrite: true
-
-    input:
-    file('./raw-seq/*') from fastqc_files.collect()
-
-    output:
-    file "*_report.html" into multiqc_report
-    file "*_data"
-
-    script:
-    interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
-    """
-    multiqc ${interactivePlots} .
-    """
-}
-
-/* ITS amplicon filtering */
+/* PacBio amplicon filtering */
 
 // Note: should explore cutadapt options more: https://github.com/benjjneb/dada2/issues/785
 // https://cutadapt.readthedocs.io/en/stable/guide.html#more-than-one
 
-if (params.amplicon == 'ITS') {
 
-    process itsFilterAndTrim {
-        tag { "ITS_${pairId}" }
-        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
-
-        input:
-        set pairId, file(reads) from dada2ReadPairs
-
-        output:
-        set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-        file "*.R1.filtered.fastq.gz" optional true into forReads
-        file "*.R2.filtered.fastq.gz" optional true into revReads
-        file "*.trimmed.txt" into trimTracking
-        file "*.cutadapt.out" into cutadaptToMultiQC
-        file "*.R1.cutadapt.fastq.gz"
-        file "*.R2.cutadapt.fastq.gz"
-
-        when:
-        params.precheck == false
-
-        script:
-        """
-        #!/usr/bin/env Rscript
-        library(dada2); packageVersion("dada2")
-        library(ShortRead); packageVersion("ShortRead")
-        library(Biostrings); packageVersion("Biostrings")
-
-        #Filter out reads with N's
-        out1 <- filterAndTrim(fwd = "${reads[0]}",
-                            filt = paste0("${pairId}", ".R1.noN.fastq.gz"),
-                            rev = "${reads[1]}",
-                            filt.rev = paste0("${pairId}", ".R2.noN.fastq.gz"),
-                            maxN = 0,
-                            multithread = ${task.cpus})
-        FWD.RC <- dada2:::rc("${params.fwdprimer}")
-        REV.RC <- dada2:::rc("${params.revprimer}")
-        # Trim FWD and the reverse-complement of REV off of R1 (forward reads)
-        R1.flags <- paste("-g", "${params.fwdprimer}", "-a", REV.RC)
-        # Trim REV and the reverse-complement of FWD off of R2 (reverse reads)
-        R2.flags <- paste("-G", "${params.revprimer}", "-A", FWD.RC)
-        system2('cutadapt', stdout = paste0("${pairId}",".cutadapt.out"),
-                            args = c(R1.flags, R2.flags,
-                            "--cores", ${task.cpus},
-                            "-n", 2,
-                            "-o", paste0("${pairId}",".R1.cutadapt.fastq.gz"),
-                            "-p", paste0("${pairId}",".R2.cutadapt.fastq.gz"),
-                            paste0("${pairId}",".R1.noN.fastq.gz"),
-                            paste0("${pairId}",".R2.noN.fastq.gz")))
-
-        out2 <- filterAndTrim(fwd = paste0("${pairId}",".R1.cutadapt.fastq.gz"),
-                            filt = paste0("${pairId}", ".R1.filtered.fastq.gz"),
-                            rev = paste0("${pairId}",".R2.cutadapt.fastq.gz"),
-                            filt.rev = paste0("${pairId}", ".R2.filtered.fastq.gz"),
-                            maxEE = c(${params.maxEEFor},${params.maxEERev}),
-                            truncLen = c(${params.truncFor},${params.truncRev}),
-                            truncQ = ${params.truncQ},
-                            maxN = ${params.maxN},
-                            rm.phix = as.logical(${params.rmPhiX}),
-                            maxLen = ${params.maxLen},
-                            minLen = ${params.minLen},
-                            compress = TRUE,
-                            verbose = TRUE,
-                            multithread = ${task.cpus})
-        #Change input read counts to actual raw read counts
-        out2[1] <- out1[1]
-        write.csv(out2, paste0("${pairId}", ".trimmed.txt"))
-        """
-    }
-}
-/* 16S amplicon filtering */
-else if (params.amplicon == '16S'){
-    process filterAndTrim {
-        tag { "16s_${pairId}" }
-        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
-
-        input:
-        set pairId, file(reads) from dada2ReadPairs
-
-        output:
-        set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-        file "*.R1.filtered.fastq.gz" optional true into forReads
-        file "*.R2.filtered.fastq.gz" optional true into revReads
-        file "*.trimmed.txt" into trimTracking
-
-        when:
-        params.precheck == false
-
-        script:
-        phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
-        """
-        16S_FilterAndTrim.R ${phix} --id ${pairId} \\
-            --fwd ${reads[0]} \\
-            --rev ${reads[1]} \\
-            --cpus ${task.cpus} \\
-            --trimFor ${params.trimFor} \\
-            --trimRev ${params.trimRev} \\
-            --truncFor ${params.truncFor} \\
-            --truncRev ${params.truncRev} \\
-            --truncQ ${params.truncQ} \\
-            --maxEEFor ${params.maxEEFor} \\
-            --maxEERev ${params.maxEERev} \\
-            --maxN ${params.maxN} \\
-            --maxLen ${params.maxLen} \\
-            --minLen ${params.minLen}
-        """
-    }
-    cutadaptToMultiQC = Channel.empty()
-} else {
-    // We need to shut this down!
-    cutadaptToMultiQC = Channel.empty()
-    filteredReads = Channel.empty()
-    filteredReadsforQC = Channel.empty()
-}
-
-process runFastQC_postfilterandtrim {
-    tag { "rFQC_post_FT.${pairId}" }
-    publishDir "${params.outdir}/FastQC-Post-FilterTrim", mode: "copy", overwrite: true
+process PacBioFilterAndTrim {
+    tag { "PacBio_${pairId}" }
+    publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
     input:
-    set val(pairId), file(filtFor), file(filtRev) from filteredReadsforQC
+    set val(id), file(reads) from dada2Reads
 
     output:
-    file '*_fastqc.{zip,html}' into fastqc_files_post
-
-    when:
-    params.precheck == false
-
-    """
-    fastqc --nogroup -q ${filtFor} ${filtRev}
-    """
-}
-
-process runMultiQC_postfilterandtrim {
-    tag { "runMultiQC_postfilterandtrim" }
-    publishDir "${params.outdir}/MultiQC-Post-FilterTrim", mode: 'copy', overwrite: true
-
-    input:
-    file('./raw-seq/*') from fastqc_files2.collect()
-    file('./trimmed-seq/*') from fastqc_files_post.collect()
-    file('./cutadapt/*') from cutadaptToMultiQC.collect()
-
-    output:
-    file "*_report.html" into multiqc_report_post
-    file "*_data"
+    set val(id), "*.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReadsToDeRep, filteredReads
+    file "*.trimmed.txt" into trimTracking
 
     when:
     params.precheck == false
 
     script:
-    interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
     """
-    multiqc ${interactivePlots} .
+    #!/usr/bin/env Rscript
+    library(dada2); packageVersion("dada2")
+    library(ShortRead); packageVersion("ShortRead")
+    library(Biostrings); packageVersion("Biostrings")
+
+    # Remove primers
+    out1 <- removePrimers("${reads}", 
+        paste0("${id}",".noprimer.fastq.gz"), 
+        primer.fwd="${params.fwdprimer}", 
+        primer.rev=dada2:::rc("${params.revprimer}"), 
+        orient=TRUE, 
+        compress=TRUE,
+        verbose=TRUE)
+
+    # filterAndTrim(nops2, filts2, minQ=3, minLen=1000, maxLen=1600, maxN=0, rm.phix=FALSE, maxEE=2)
+
+    out2 <- filterAndTrim(fwd = paste0("${id}",".noprimer.fastq.gz"),
+                        filt = paste0("${id}",".filtered.fastq.gz"),
+                        maxEE = ${params.maxEEFor},
+                        maxN = ${params.maxN},
+                        maxLen = ${params.maxLen},
+                        minLen = ${params.minLen},
+                        compress = TRUE,
+                        verbose = TRUE,
+                        multithread = ${task.cpus})
+    #Change input read counts to actual raw read counts
+    # out2[1] <- out1[1]
+    write.csv(out2, paste0("${id}", ".trimmed.txt"))
     """
 }
+
+// process runFastQC_postfilterandtrim {
+//     tag { "rFQC_post_FT.${id}" }
+//     publishDir "${params.outdir}/FastQC-Post-FilterTrim", mode: "copy", overwrite: true
+// 
+//     input:
+//     set val(id), file(filt) from filteredReadsforQC
+// 
+//     output:
+//     file '*_fastqc.{zip,html}' into fastqc_files_post
+// 
+//     when:
+//     params.precheck == false
+// 
+//     """
+//     fastqc --nogroup -q ${filt} 
+//     """
+// }
+// 
+// process runMultiQC_postfilterandtrim {
+//     tag { "runMultiQC_postfilterandtrim" }
+//     publishDir "${params.outdir}/MultiQC-Post-FilterTrim", mode: 'copy', overwrite: true
+// 
+//     input:
+//     file('./raw-seq/*') from fastqc_files2.collect()
+//     file('./trimmed-seq/*') from fastqc_files_post.collect()
+// 
+//     output:
+//     file "*_report.html" into multiqc_report_post
+//     file "*_data"
+// 
+//     when:
+//     params.precheck == false
+// 
+//     script:
+//     interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
+//     """
+//     multiqc ${interactivePlots} .
+//     """
+// }
 
 process mergeTrimmedTable {
     tag { "mergeTrimmedTable" }
@@ -401,17 +331,15 @@ process mergeTrimmedTable {
  *
  */
 
-// TODO: combine For and Rev process to reduce code duplication?
-
-process LearnErrorsFor {
+process PacBioLearnErrors {
     tag { "LearnErrorsFor" }
     publishDir "${params.outdir}/dada2-LearnErrors", mode: "copy", overwrite: true
 
     input:
-    file fReads from forReads.collect()
+    file reads from filteredReads.collect()
 
     output:
-    file "errorsF.RDS" into errorsFor
+    file "errors.RDS" into errorsPacBio
     file "*.pdf"
 
     when:
@@ -420,73 +348,25 @@ process LearnErrorsFor {
     script:
     """
     #!/usr/bin/env Rscript
-    library(dada2);
+    library(dada2)
     packageVersion("dada2")
-
+     
     # File parsing
-    filtFs <- list.files('.', pattern="R1.filtered.fastq.gz", full.names = TRUE)
-    sample.namesF <- sapply(strsplit(basename(filtFs), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
+    filts <- list.files('.', pattern="filtered.fastq.gz", full.names = TRUE)
+    sample.namesF <- sapply(strsplit(basename(filts), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
     set.seed(100)
-
+ 
     # Learn forward error rates
-    errF <- learnErrors(filtFs, multithread=${task.cpus})
-
-    if (as.logical('${params.qualityBinning}') == TRUE ) {
-        print("Running binning correction")
-        errs <- t(apply(getErrors(errF), 1, function(x) { x[x < x[40]] = x[40]; return(x)} ))
-        errF\$err_out <- errs
-    }
-
-    pdf("R1.err.pdf")
-    plotErrors(errF, nominalQ=TRUE)
+    errs <- learnErrors(filts, 
+        errorEstimationFunction=PacBioErrfun, 
+        BAND_SIZE=32, 
+        multithread=${task.cpus})
+ 
+    pdf("PacBio.err.pdf")
+    plotErrors(errs, nominalQ=TRUE)
     dev.off()
-
-    saveRDS(errF, "errorsF.RDS")
-    """
-}
-
-process LearnErrorsRev {
-    tag { "LearnErrorsRev" }
-    publishDir "${params.outdir}/dada2-LearnErrors", mode: "copy", overwrite: true
-
-    input:
-    file rReads from revReads.collect()
-
-    output:
-    file "errorsR.RDS" into errorsRev
-    file "*.pdf"
-
-    when:
-    params.precheck == false
-
-    script:
-    """
-    #!/usr/bin/env Rscript
-    library(dada2);
-    packageVersion("dada2")
-
-    # load error profiles
-
-    # File parsing
-    filtRs <- list.files('.', pattern="R2.filtered.fastq.gz", full.names = TRUE)
-    sample.namesR <- sapply(strsplit(basename(filtRs), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
-    set.seed(100)
-
-    # Learn forward error rates
-    errR <- learnErrors(filtRs, multithread=${task.cpus})
-
-    # optional NovaSeq binning error correction
-    if (as.logical('${params.qualityBinning}') == TRUE) {
-        print("Running binning correction")
-        errs <- t(apply(getErrors(errR), 1, function(x) { x[x < x[40]] = x[40]; return(x)} ))
-        errR\$err_out <- errs
-    }
-
-    pdf("R2.err.pdf")
-    plotErrors(errR, nominalQ=TRUE)
-    dev.off()
-
-    saveRDS(errR, "errorsR.RDS")
+    
+    saveRDS(errs, "errors.RDS")
     """
 }
 
@@ -502,176 +382,61 @@ process LearnErrorsRev {
  *
  */
 
-if (params.pool == "T" || params.pool == 'pseudo') {
+process PacBioPoolSamplesInferDerep {
+    tag { "PoolSamplesInferDerepAndMerge" }
+    publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
 
-    process PoolSamplesInferDerepAndMerge {
-        tag { "PoolSamplesInferDerepAndMerge" }
-        publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+    // TODO: filteredReads channel has ID and two files, should fix this
+    // with a closure, something like  { it[1:2] }, or correct the channel
+    // as the ID can't be used anyway
 
-        // TODO: filteredReads channel has ID and two files, should fix this
-        // with a closure, something like  { it[1:2] }, or correct the channel
-        // as the ID can't be used anyway
+    input:
+    file filts from filteredReadsToDeRep.collect()
+    file errs from errorsPacBio
 
-        input:
-        file filts from filteredReads.collect( )
-        file errFor from errorsFor
-        file errRev from errorsRev
+    output:
+    file "seqtab.RDS" into seqTable
+    file "all.dds.RDS" into dadaReadTracking
+    file "all.dereps.RDS" into dadaDerep
 
-        output:
-        file "seqtab.RDS" into seqTable
-        file "all.mergers.RDS" into mergerTracking
-        file "all.ddF.RDS" into dadaForReadTracking
-        file "all.ddR.RDS" into dadaRevReadTracking
-        file "all.derepFs.RDS" into dadaForDerep
-        file "all.derepRs.RDS" into dadaRevDerep
+    when:
+    params.precheck == false
 
-        when:
-        params.precheck == false
+    """
+    #!/usr/bin/env Rscript
+    library(dada2)
+    packageVersion("dada2")
+    
+    filts <- list.files('.', pattern="filtered.fastq.gz", full.names = TRUE)
+    
+    errs <- readRDS("${errs}")
+    cat("Processing all samples\n")
 
-        script:
-        if (params.rescueUnmerged == true) {
-        """
-        VariableLenMergePairs-Pooled.R --errFor ${errFor} \\
-            --errRev ${errRev} \\
-            --pool ${params.pool} \\
-            --cpus ${task.cpus} \\
-            --minOverlap ${params.minOverlap} \\
-            --maxMismatch ${params.maxMismatch} \\
-            --trimOverhang ${params.trimOverhang} \\
-            --justConcatenate ${params.justConcatenate} \\
-            --rescueUnmerged ${params.rescueUnmerged}
-        """
-        } else {  // This is the normal route
-        """
-        MergePairs-Pooled.R --errFor ${errFor} \\
-            --errRev ${errRev} \\
-            --pool ${params.pool} \\
-            --cpus ${task.cpus} \\
-            --minOverlap ${params.minOverlap} \\
-            --maxMismatch ${params.maxMismatch} \\
-            --trimOverhang ${params.trimOverhang} \\
-            --justConcatenate ${params.justConcatenate}
-        """
-        }
-    }
-} else {
-    // pool = F, process per sample
-    process PerSampleInferDerepAndMerge {
-        tag { "PerSampleInferDerepAndMerge" }
-        publishDir "${params.outdir}/dada2-Derep", mode: "copy", overwrite: true
-
-        input:
-        set val(pairId), file(filtFor), file(filtRev) from filteredReads
-        file errFor from errorsFor
-        file errRev from errorsRev
-
-        output:
-        file "seqtab.RDS" into seqTable
-        file "all.mergers.RDS" into mergerTracking
-        file "all.ddF.RDS" into dadaForReadTracking
-        file "all.ddR.RDS" into dadaRevReadTracking
-        file "all.derepF.RDS" into dadaForDerep
-        file "all.derepR.RDS" into dadaRevDerep
-
-        when:
-        params.precheck == false
-
-        script:
-        """
-        #!/usr/bin/env Rscript
-        library(dada2)
-        packageVersion("dada2")
-
-        errF <- readRDS("${errFor}")
-        errR <- readRDS("${errRev}")
-        cat("Processing:", "${pairId}", "\\n")
-
-        derepF <- derepFastq("${filtFor}")
-
-        ddF <- dada(derepF, err=errF, multithread=${task.cpus}, pool=as.logical("${params.pool}"))
-
-        derepR <- derepFastq("${filtRev}")
-        ddR <- dada(derepR, err=errR, multithread=${task.cpus}, pool=as.logical("${params.pool}"))
-
-        merger <- mergePairs(ddF, derepF, ddR, derepR,
-            returnRejects = TRUE,
-            minOverlap = ${params.minOverlap},
-            maxMismatch = ${params.maxMismatch},
-            trimOverhang = as.logical("${params.trimOverhang}"),
-            justConcatenate=as.logical("${params.justConcatenate}")
-            )
-
-        saveRDS(merger, paste("${pairId}", "merged", "RDS", sep="."))
-
-        saveRDS(ddFs, "all.ddF.RDS")
-        saveRDS(derepFs, "all.derepFs.RDS")
-
-        saveRDS(ddRs, "all.ddR.RDS")
-        saveRDS(derepRs, "all.derepRs.RDS")
-        """
+    #Variable selection from CLI input flag --pool
+    pool <- "${params.pool}"
+    if(pool == "T" || pool == "TRUE"){
+      pool <- as.logical(pool)
     }
 
-    process mergeDadaRDS {
-        tag { "mergeDadaRDS" }
-        publishDir "${params.outdir}/dada2-Inference", mode: "copy", overwrite: true
+    dereps <- derepFastq(filts, qualityType = "FastqQuality", verbose=TRUE)
 
-        input:
-        file ddFs from dadaFor.collect()
-        file ddRs from dadaRev.collect()
+    dds <- dada(dereps, err=errs, multithread=${task.cpus}, pool=pool)
 
-        output:
-        file "all.ddF.RDS" into dadaForReadTracking
-        file "all.ddR.RDS" into dadaRevReadTracking
+    # TODO: make this a single item list with ID as the name, this is lost
+    # further on
 
-        when:
-        params.precheck == false
+    saveRDS(dds, "all.dds.RDS")
+    saveRDS(dereps, "all.dereps.RDS")
 
-        script:
-        '''
-        #!/usr/bin/env Rscript
-        library(dada2)
-        packageVersion("dada2")
+    # go ahead and make seqtable
+    seqtab <- makeSequenceTable(dds)
 
-        dadaFs <- lapply(list.files(path = '.', pattern = '.ddF.RDS$'), function (x) readRDS(x))
-        names(dadaFs) <- sub('.ddF.RDS', '', list.files('.', pattern = '.ddF.RDS'))
-        dadaRs <- lapply(list.files(path = '.', pattern = '.ddR.RDS$'), function (x) readRDS(x))
-        names(dadaRs) <- sub('.ddR.RDS', '', list.files('.', pattern = '.ddR.RDS'))
-        saveRDS(dadaFs, "all.ddF.RDS")
-        saveRDS(dadaRs, "all.ddR.RDS")
-        '''
-    }
-
-    process SequenceTable {
-        tag { "SequenceTable" }
-        publishDir "${params.outdir}/dada2-SeqTable", mode: "copy", overwrite: true
-
-        input:
-        file mr from mergedReads.collect()
-
-        output:
-        file "seqtab.RDS" into seqTable
-        file "all.mergers.RDS" into mergerTracking
-
-        when:
-        params.precheck == false
-
-        script:
-        '''
-        #!/usr/bin/env Rscript
-        library(dada2)
-        packageVersion("dada2")
-
-        mergerFiles <- list.files(path = '.', pattern = '.*.RDS$')
-        pairIds <- sub('.merged.RDS', '', mergerFiles)
-        mergers <- lapply(mergerFiles, function (x) readRDS(x))
-        names(mergers) <- pairIds
-        seqtab <- makeSequenceTable(mergers)
-        seqtab <- seqtab[,nchar(colnames(seqtab)) >= ${params.minLen}]
-
-        saveRDS(seqtab, "seqtab.RDS")
-        saveRDS(mergers, "all.mergers.RDS")
-        '''
-    }
+    saveRDS(seqtab, "seqtab.RDS")
+    
+    # PacBio-dada2.R --errs ${errs} \\
+    #    --pool ${params.pool} \\
+    #    --cpus ${task.cpus} 
+    """
 }
 
 /*
@@ -702,7 +467,7 @@ process RemoveChimeras {
     st.all <- readRDS("${st}")
 
     # Remove chimeras
-    seqtab <- removeBimeraDenovo(st.all, method="consensus", multithread=${task.cpus}, verbose=TRUE)
+    seqtab <- removeBimeraDenovo(st.all, method="consensus", multithread=${task.cpus})
 
     saveRDS(seqtab, "seqtab_final.RDS")
     """
@@ -717,10 +482,10 @@ process RemoveChimeras {
 
 
 if (params.reference) {
+    refFile = file(params.reference)
 
     if (params.taxassignment == 'rdp') {
         // TODO: we could combine these into the same script
-        refFile = file(params.reference)
 
         if (params.species) {
 
@@ -755,7 +520,6 @@ if (params.reference) {
                                         multithread=${task.cpus},
                                         tryRC = TRUE,
                                         outputBootstraps = TRUE,
-                                        minBoot = ${params.minBoot},
                                         verbose = TRUE)
                 boots <- tax\$boot
 
@@ -789,7 +553,6 @@ if (params.reference) {
                 params.precheck == false
 
                 script:
-                taxLevels = params.taxLevels ? "c( ${params.taxLevels} )," : ''
                 """
                 #!/usr/bin/env Rscript
                 library(dada2)
@@ -800,11 +563,9 @@ if (params.reference) {
                 # Assign taxonomy
                 tax <- assignTaxonomy(seqtab, "${ref}",
                                       multithread=${task.cpus},
-                                      minBoot = ${params.minBoot},
                                       tryRC = TRUE,
-                                      outputBootstraps = TRUE, ${taxLevels}
-                                      verbose = TRUE 
-                                      )
+                                      outputBootstraps = TRUE,
+                                      verbose = TRUE)
 
                 # Write to disk
                 saveRDS(tax\$tax, "tax_final.RDS")
@@ -890,7 +651,7 @@ if (params.reference) {
     taxTableToTable = Channel.empty()
     bootstrapFinal = Channel.empty()
 }
-
+ 
 // Note: this is currently a text dump.  We've found the primary issue with
 // downstream analysis is getting the data in a form that can be useful as
 // input, and there isn't much consistency with this as of yet.  So for now
@@ -972,10 +733,6 @@ process GenerateSeqTables {
     library(ShortRead)
 
     seqtab <- readRDS("${st}")
-
-    if (as.logical('${params.sampleRegex}' != FALSE )) {
-        rownames(seqtab) <- gsub('${params.sampleRegex}', "\\\\1", rownames(seqtab), perl = TRUE)
-    }
 
     # Generate table output
     write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
@@ -1289,7 +1046,7 @@ process BiomFile {
  *
  */
 
-// Broken?: needs a left-join on the initial table
+// TODO: stub, needs testing but has been run manually
 
 process ReadTracking {
     tag { "ReadTracking" }
@@ -1298,9 +1055,7 @@ process ReadTracking {
     input:
     file trimmedTable from trimmedReadTracking
     file sTable from seqTableFinalTracking
-    file mergers from mergerTracking
-    file ddFs from dadaForReadTracking
-    file ddRs from dadaRevReadTracking
+    file dds from dadaReadTracking
 
     output:
     file "all.readtracking.txt"
@@ -1317,31 +1072,25 @@ process ReadTracking {
 
     getN <- function(x) sum(getUniques(x))
 
-    # the gsub here might be a bit brittle...
-    dadaFs <- as.data.frame(sapply(readRDS("${ddFs}"), getN))
-    rownames(dadaFs) <- gsub('.R1.filtered.fastq.gz', '',rownames(dadaFs))
-    dadaFs\$SampleID <- rownames(dadaFs)
-
-    dadaRs <- as.data.frame(sapply(readRDS("${ddRs}"), getN))
-    rownames(dadaRs) <- gsub('.R2.filtered.fastq.gz', '',rownames(dadaRs))
-    dadaRs\$SampleID <- rownames(dadaRs)
-
-    mergers <- as.data.frame(sapply(readRDS("${mergers}"), getN))
-    rownames(mergers) <- gsub('.R1.filtered.fastq.gz', '',rownames(mergers))
-    mergers\$SampleID <- rownames(mergers)
+    # we need to modify the gsub call, note the primer-specific substitutions
+    dadas <- as.data.frame(sapply(readRDS("${dds}"), getN))
+    rownames(dadas) <- gsub('-16S_For.*', '',rownames(dadas))
+    dadas\$SampleID <- rownames(dadas)
 
     seqtab.nochim <- as.data.frame(rowSums(readRDS("${sTable}")))
-    rownames(seqtab.nochim) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.nochim))
+    rownames(seqtab.nochim) <- gsub('-16S_For.*', '',rownames(seqtab.nochim))
     seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
 
     trimmed <- read.csv("${trimmedTable}")
+    rownames(trimmed) <- gsub('-16S_For.*', '',trimmed\$Sequence)
+    trimmed\$SampleID <- rownames(trimmed)
 
-    track <- Reduce(function(...) merge(..., by = "SampleID",  all.x=TRUE),  list(trimmed, dadaFs, dadaRs, mergers, seqtab.nochim))
+    track <- Reduce(function(...) merge(..., by = "SampleID",  all.x=TRUE),  list(trimmed, dadas, seqtab.nochim))
     # dropped data in later steps gets converted to NA on the join
     # these are effectively 0
     track[is.na(track)] <- 0
 
-    colnames(track) <- c("SampleID", "SequenceR1", "input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+    colnames(track) <- c("SampleID", "Sequence", "input", "filtered", "denoised", "nonchim")
     write.table(track, "all.readtracking.txt", sep = "\t", row.names = FALSE)
     """
 }
