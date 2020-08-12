@@ -83,7 +83,7 @@ The uct-cbio/16S-rDNA-dada2-pipeline pipeline comes with documentation about the
 
 * [Nextflow](https://www.nextflow.io/)
 * [Docker](https://www.docker.com/what-docker)
-* [Singularity](https://singularity.lbl.gov/)
+* [Singularity](https://sylabs.io/docs/)
 
 
 ## Credits
