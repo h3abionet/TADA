@@ -112,6 +112,11 @@ if (params.aligner == 'infernal' && params.infernalCM == false){
     exit 1, "Must set covariance model using --infernalCM when using Infernal"
 }
 
+if (params.idType != 'simple' || params.idType != 'md5'){
+    exit 1, "--idType must be 'simple' or 'md5', got '${params.idType}'"
+}
+
+
 // Has the run name been specified by the user?
 //  this has the bonus effect of catching both -name and --name
 custom_runName = params.name
