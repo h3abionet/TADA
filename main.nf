@@ -220,21 +220,17 @@ process runMultiQC {
 
 if (params.amplicon == 'ITS') {
 
-    process itsFilterAndTrim {
-        tag { "ITS_${pairId}" }
-        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+    process itsFilterAndTrimStep1 {
+        tag { "ITS_Step1_${pairId}" }
 
         input:
         set pairId, file(reads) from dada2ReadPairs
 
         output:
-        set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-        file "*.R1.filtered.fastq.gz" optional true into forReads
-        file "*.R2.filtered.fastq.gz" optional true into revReads
-        file "*.trimmed.txt" into trimTracking
-        file "*.cutadapt.out" into cutadaptToMultiQC
-        file "*.R1.cutadapt.fastq.gz"
-        file "*.R2.cutadapt.fastq.gz"
+        set val(pairId), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
+        set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // nneded for join() later
+        file('forward_rc') into forwardP
+        file('reverse_rc') into reverseP
 
         when:
         params.precheck == false
@@ -255,19 +251,78 @@ if (params.amplicon == 'ITS') {
                             multithread = ${task.cpus})
         FWD.RC <- dada2:::rc("${params.fwdprimer}")
         REV.RC <- dada2:::rc("${params.revprimer}")
-        # Trim FWD and the reverse-complement of REV off of R1 (forward reads)
-        R1.flags <- paste("-g", "${params.fwdprimer}", "-a", REV.RC)
-        # Trim REV and the reverse-complement of FWD off of R2 (reverse reads)
-        R2.flags <- paste("-G", "${params.revprimer}", "-A", FWD.RC)
-        system2('cutadapt', stdout = paste0("${pairId}",".cutadapt.out"),
-                            args = c(R1.flags, R2.flags,
-                            "--cores", ${task.cpus},
-                            "-n", 2,
-                            "-o", paste0("${pairId}",".R1.cutadapt.fastq.gz"),
-                            "-p", paste0("${pairId}",".R2.cutadapt.fastq.gz"),
-                            paste0("${pairId}",".R1.noN.fastq.gz"),
-                            paste0("${pairId}",".R2.noN.fastq.gz")))
+        
+        # this may switch to 'env' in the process at some point: 
+        # https://www.nextflow.io/docs/latest/process.html?highlight=env#output-env
+        # untested within R though
+        
+        forP <- file("forward_rc")
+        writeLines(FWD.RC, forP)
+        close(forP)
 
+        revP <- file("reverse_rc")
+        writeLines(REV.RC, revP)
+        close(revP)
+        
+        saveRDS(out1, "${pairId}.out.RDS")
+        """
+    }
+    
+    process itsFilterAndTrimStep2 {
+        tag { "ITS_Step2_${pairId}" }
+        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+        input:
+        set pairId, reads from itsStep2
+        file(forP) from forwardP
+        file(revP) from reverseP
+        
+        output:
+        set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
+        file "*.cutadapt.out" into cutadaptToMultiQC
+
+        when:
+        params.precheck == false
+
+        script:
+        """
+        FWD_PRIMER=\$(<forward_rc)
+        REV_PRIMER=\$(<reverse_rc)
+        
+        cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
+            -G "${params.revprimer}" -A \$REV_PRIMER \\
+            --cores ${task.cpus} \\
+            -n 2 \\
+            -o "${pairId}.R1.cutadapt.fastq.gz" \\
+            -p "${pairId}.R2.cutadapt.fastq.gz" \\
+            "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
+        """
+    }
+
+    process itsFilterAndTrimStep3 {
+        tag { "ITS_Step3_${pairId}" }
+        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+        input:
+        set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
+
+        output:
+        set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
+        file "*.R1.filtered.fastq.gz" optional true into forReads
+        file "*.R2.filtered.fastq.gz" optional true into revReads
+        file "*.trimmed.txt" into trimTracking
+
+        when:
+        params.precheck == false
+
+        script:
+        """
+        #!/usr/bin/env Rscript
+        library(dada2); packageVersion("dada2")
+        library(ShortRead); packageVersion("ShortRead")
+        library(Biostrings); packageVersion("Biostrings")
+
+        out1 <- readRDS("${trimming}")
         out2 <- filterAndTrim(fwd = paste0("${pairId}",".R1.cutadapt.fastq.gz"),
                             filt = paste0("${pairId}", ".R1.filtered.fastq.gz"),
                             rev = paste0("${pairId}",".R2.cutadapt.fastq.gz"),
@@ -287,6 +342,7 @@ if (params.amplicon == 'ITS') {
         write.csv(out2, paste0("${pairId}", ".trimmed.txt"))
         """
     }
+    
 }
 /* 16S amplicon filtering */
 else if (params.amplicon == '16S'){
