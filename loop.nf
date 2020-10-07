@@ -846,7 +846,7 @@ if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
             output:
             file "phangorn.tree.RDS" into treeRDS
             file "tree.newick" into treeFile
-            file "tree.GTR.newick" into treeGTRFile
+            file "tree.GTR.newick" into treeGTRFile, treeToQIIME2
 
             script:
             """
