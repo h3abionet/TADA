@@ -196,7 +196,7 @@ log.info "========================================="
     library(Biostrings); packageVersion("Biostrings")
 
 
-    out2 <- filterAndTrim(fwd = paste0("${id}",".fq"),
+    out2 <- filterAndTrim(fwd = "${reads}",
                         filt = paste0("${id}",".filtered.fastq.gz"),
                         maxEE = ${params.maxEEFor},
                         maxN = ${params.maxN},
