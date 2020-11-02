@@ -35,6 +35,8 @@ def helpMessage() {
       --trimFor                     integer. headcrop of read1 (set 0 if no trimming is needed)
       --trimRev                     integer. headcrop of read2 (set 0 if no trimming is needed)
       --reference                   Path to taxonomic database to be used for annotation (e.g. gg_13_8_train_set_97.fa.gz)
+      --fwdprimer                   Forward primer sequence
+      --revprimer                   Reverse primer sequence
 
     All available read preparation parameters:
       --trimFor                     integer. headcrop of read1
@@ -97,13 +99,13 @@ if (params.help){
 //     exit 1, "Must set reference database using --reference"
 // }
 
-// if (params.fwdprimer == false && params.amplicon == 'ITS'){
-//     exit 1, "Must set forward primer using --fwdprimer"
-// }
-// 
-// if (params.revprimer == false && params.amplicon == 'ITS'){
-//     exit 1, "Must set reverse primer using --revprimer"
-// }
+ if (params.fwdprimer == false){
+     exit 1, "Must set forward primer using --fwdprimer"
+ }
+ 
+ if (params.revprimer == false){
+     exit 1, "Must set reverse primer using --revprimer"
+ }
 // 
 // if (params.aligner == 'infernal' && params.infernalCM == false){
 //     exit 1, "Must set covariance model using --infernalCM when using Infernal"
@@ -169,17 +171,63 @@ log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
 log.info "========================================="
 
 
-/* PacBio amplicon filtering */
+/* Loop amplicon filtering */
 
 // Note: should explore cutadapt options more: https://github.com/benjjneb/dada2/issues/785
 // https://cutadapt.readthedocs.io/en/stable/guide.html#more-than-one
 
- process LoopTrim {
-    tag { "Loop_${pairId}" }
+process removePrimers {
+tag { "Loop_${id}" }
     publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
     input:
     set val(id), file(reads) from dada2Reads
+
+    output:
+    set val(id), "*.primer.removed.fastq.gz" optional true into primerRemovedReads
+
+    when:
+    params.precheck == false
+    script:
+    """
+    #!/usr/bin/env Rscript
+    library(dada2); packageVersion("dada2")
+ #   library(ShortRead); packageVersion("ShortRead")
+    library(Biostrings); packageVersion("Biostrings") 
+
+    FWD <- "${params.fwdprimer}"
+    REV <- "${params.revprimer}"
+    allOrients <- function(primer) {
+       # Create all orientations of the input sequence
+       require(Biostrings)
+       dna <- DNAString(primer)
+       orients <- c(Forward = dna, Complement = complement(dna), Reverse = reverse(dna), 
+           RevComp = reverseComplement(dna))
+       return(sapply(orients, toString))  # Convert back to character vector
+    }
+    #primerHits <- function(primer, fn) {
+       # Counts number of reads in which the primer is found
+    #   nhits <- vcountPattern(primer, sread(readFastq(fn)), fixed = FALSE)
+    #   return(sum(nhits > 0))
+    #}
+    #rbind(FWD.Primer = sapply(allOrients(FWD), primerHits, fn = fn), 
+    #      REV.Primer = sapply(allOrients(REV), primerHits, fn = fn))   
+    out <- removePrimers(
+       fn = "${reads}", 
+       fout = paste0("${id}",".primer.removed.fastq.gz"), 
+       primer.fwd = FWD, 
+       primer.rev = rc(REV), 
+       verbose = TRUE)
+    """
+}
+
+
+process LoopTrim {
+    tag { "Loop_${id}" }
+    publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+    input:
+    set val(id), file(reads) from primerRemovedReads
 
     output:
     set val(id), "*.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReadsToDeRep, filteredReads
