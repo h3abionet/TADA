@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/h3abionet/16S-rDNA-dada2-pipeline.svg?branch=master)](https://travis-ci.com/h3abionet/16S-rDNA-dada2-pipeline)
+[![Build Status](https://travis-ci.com/h3abionet/TADA.svg?branch=master)](https://travis-ci.com/h3abionet/TADA)
 
 <p>
 <img align="left" src="./assets/cbio_logo.png" width="240" hspace="50"/>
@@ -6,7 +6,7 @@
 </br></br></br>
 </p>
 
-# 16S rRNA gene amplicon sequencing pipeline using DADA2, implemented in Nextflow
+# TADA - Targeted Amplicon Diversity Analysis using DADA2, implemented in Nextflow
 
 A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline is currently implemented, including some basic read-tracking. This pipeline is adapted from https://github.com/HPCBio/dada2-Nextflow for implementation on the UCT high-performance compute cluster
 
