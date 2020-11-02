@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.com/h3abionet/TADA.svg?branch=master)](https://travis-ci.com/h3abionet/TADA)
+[![DOI](https://zenodo.org/badge/218786496.svg)](https://zenodo.org/badge/latestdoi/218786496)
 
 <p>
 <img align="left" src="./assets/cbio_logo.png" width="240" hspace="50"/>
