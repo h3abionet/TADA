@@ -1074,15 +1074,15 @@ process ReadTracking {
 
     # we need to modify the gsub call, note the primer-specific substitutions
     dadas <- as.data.frame(sapply(readRDS("${dds}"), getN))
-    rownames(dadas) <- gsub('-16S_For.*', '',rownames(dadas))
+    rownames(dadas) <- gsub('.filtered.fastq.gz', '',rownames(dadas))
     dadas\$SampleID <- rownames(dadas)
 
     seqtab.nochim <- as.data.frame(rowSums(readRDS("${sTable}")))
-    rownames(seqtab.nochim) <- gsub('-16S_For.*', '',rownames(seqtab.nochim))
+    rownames(seqtab.nochim) <- gsub('.filtered.fastq.gz', '',rownames(seqtab.nochim))
     seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
 
     trimmed <- read.csv("${trimmedTable}")
-    rownames(trimmed) <- gsub('-16S_For.*', '',trimmed\$Sequence)
+    rownames(trimmed) <- gsub('.noprimer.fastq.gz', '',trimmed\$Sequence)
     trimmed\$SampleID <- rownames(trimmed)
 
     track <- Reduce(function(...) merge(..., by = "SampleID",  all.x=TRUE),  list(trimmed, dadas, seqtab.nochim))
