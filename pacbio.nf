@@ -401,7 +401,9 @@ process PacBioPoolSamplesInferDerep {
 
     when:
     params.precheck == false
-
+    
+    script:
+    dadaParams = params.dadaParams ? ", ${params.dadaParams}" : ''
     """
     #!/usr/bin/env Rscript
     library(dada2)
@@ -420,7 +422,7 @@ process PacBioPoolSamplesInferDerep {
 
     dereps <- derepFastq(filts, qualityType = "FastqQuality", verbose=TRUE)
 
-    dds <- dada(dereps, err=errs, multithread=${task.cpus}, pool=pool)
+    dds <- dada(dereps, err=errs, multithread=${task.cpus}, pool=pool ${dadaParams})
 
     # TODO: make this a single item list with ID as the name, this is lost
     # further on
