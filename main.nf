@@ -45,7 +45,7 @@ def helpMessage() {
       --maxEERev                    integer. After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2
       --truncQ                      integer. Truncate reads at the first instance of a quality score less than or equal to truncQ; default=2
       --maxN                        integer. Discard reads with more than maxN number of Ns in read; default=0
-      --maxLen                      integer. maximum length of sequence; maxLen is enforced before trimming and truncation; default=Inf (no maximum)
+      --maxLen                      integer. maximum length of trimmed sequence; maxLen is enforced before trimming and truncation; default=Inf (no maximum)
       --minLen                      integer. minLen is enforced after trimming and truncation; default=50
       --rmPhiX                      {"T","F"}. remove PhiX from read
       --minOverlap                  integer. minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
@@ -72,6 +72,8 @@ def helpMessage() {
       --maxMismatch                 The maximum mismatches allowed in the overlap region; default=0.
       --trimOverhang                If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off. "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen
                                     when reads are longer than the amplicon and read into the other-direction primer region. Default="F" (false)
+      --minMergedLen                Minimum length of fragment *after* merging
+      --maxMergedLen                Maximum length of fragment *after* merging
 
     Taxonomic arguments (optional):
       --species                     Specify path to fasta file. See dada2 addSpecies() for more detail.
@@ -584,6 +586,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         file "all.ddR.RDS" into dadaRevReadTracking
         file "all.derepFs.RDS" into dadaForDerep
         file "all.derepRs.RDS" into dadaRevDerep
+        file "seqtab.*"
 
         when:
         params.precheck == false
@@ -599,7 +602,9 @@ if (params.pool == "T" || params.pool == 'pseudo') {
             --maxMismatch ${params.maxMismatch} \\
             --trimOverhang ${params.trimOverhang} \\
             --justConcatenate ${params.justConcatenate} \\
-            --rescueUnmerged ${params.rescueUnmerged}
+            --rescueUnmerged ${params.rescueUnmerged} \\
+            --minMergedLen ${params.minMergedLen} \\
+            --maxMergedLen ${params.maxMergedLen}
         """
         } else {  // This is the normal route
         """
@@ -610,6 +615,8 @@ if (params.pool == "T" || params.pool == 'pseudo') {
             --minOverlap ${params.minOverlap} \\
             --maxMismatch ${params.maxMismatch} \\
             --trimOverhang ${params.trimOverhang} \\
+            --minMergedLen ${params.minMergedLen} \\
+            --maxMergedLen ${params.maxMergedLen} \\
             --justConcatenate ${params.justConcatenate}
         """
         }
@@ -632,6 +639,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         file "all.ddR.RDS" into dadaRevReadTracking
         file "all.derepF.RDS" into dadaForDerep
         file "all.derepR.RDS" into dadaRevDerep
+        file "seqtab.*"
 
         when:
         params.precheck == false
