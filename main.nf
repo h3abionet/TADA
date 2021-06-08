@@ -762,6 +762,7 @@ process RemoveChimeras {
     params.precheck == false
 
     script:
+    chimOpts = params.removeBimeraDenovoOptions != false ? ", ${params.removeBimeraDenovoOptions}" : ''
     """
     #!/usr/bin/env Rscript
     library(dada2)
@@ -770,7 +771,12 @@ process RemoveChimeras {
     st.all <- readRDS("${st}")
 
     # Remove chimeras
-    seqtab <- removeBimeraDenovo(st.all, method="consensus", multithread=${task.cpus}, verbose=TRUE)
+    seqtab <- removeBimeraDenovo(
+        st.all, 
+        method="consensus", 
+        multithread=${task.cpus}, 
+        verbose=TRUE ${chimOpts} 
+        )
 
     saveRDS(seqtab, "seqtab_final.RDS")
     """
