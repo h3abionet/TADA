@@ -185,11 +185,11 @@ saveRDS(derepRs, "all.derepRs.RDS")
 seqtab <- makeSequenceTable(mergers)
 
 if (opt$minMergedLen > 0) {
-   seqtab <- seqtab[,nchar(colnames(seqtab)) >= opt$minMergedLen
+   seqtab <- seqtab[,nchar(colnames(seqtab)) >= opt$minMergedLen]
 }
 
 if (opt$maxMergedLen > 0) {
-   seqtab <- seqtab[,nchar(colnames(seqtab)) <= opt$maxMergedLen
+   seqtab <- seqtab[,nchar(colnames(seqtab)) <= opt$maxMergedLen]
 }
 
 saveRDS(seqtab, "seqtab.RDS")
