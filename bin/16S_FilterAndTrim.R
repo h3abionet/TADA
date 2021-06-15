@@ -47,6 +47,6 @@ out <- filterAndTrim(fwd        = opt$fwd,
                     multithread = opt$cpus
                     )
 
-colnames(out) <- <- c('input', 'filtered')
+colnames(out) <- c('input', 'filtered')
 
 write.csv(out, paste0(opt$id, ".trimmed.txt"))
