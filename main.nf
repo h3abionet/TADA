@@ -197,6 +197,8 @@ process runFastQC {
     """
 }
 
+
+// TODO: combine MultiQC reports and split by directory (no need for two)
 process runMultiQC {
     tag { "runMultiQC" }
     publishDir "${params.outdir}/MultiQC-Raw", mode: 'copy', overwrite: true
@@ -230,7 +232,7 @@ if (params.amplicon == 'ITS') {
 
         output:
         set val(pairId), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
-        set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // nneded for join() later
+        set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
         file('forward_rc') into forwardP
         file('reverse_rc') into reverseP
 
@@ -340,8 +342,9 @@ if (params.amplicon == 'ITS') {
                             verbose = TRUE,
                             multithread = ${task.cpus})
         #Change input read counts to actual raw read counts
-        out2[1] <- out1[1]
-        write.csv(out2, paste0("${pairId}", ".trimmed.txt"))
+        out3 <- cbind(out1, out2)
+        colnames(out3) <- c('input', 'filterN', 'cutadapt', 'filtered')
+        write.csv(out3, paste0("${pairId}", ".trimmed.txt"))
         """
     }
     
@@ -1394,18 +1397,22 @@ process ReadTracking {
     # the gsub here might be a bit brittle...
     dadaFs <- as.data.frame(sapply(readRDS("${ddFs}"), getN))
     rownames(dadaFs) <- gsub('.R1.filtered.fastq.gz', '',rownames(dadaFs))
+    colnames(dadaFs) <- c("denoisedF")
     dadaFs\$SampleID <- rownames(dadaFs)
 
     dadaRs <- as.data.frame(sapply(readRDS("${ddRs}"), getN))
     rownames(dadaRs) <- gsub('.R2.filtered.fastq.gz', '',rownames(dadaRs))
+    colnames(dadaRs) <- c("denoisedR")
     dadaRs\$SampleID <- rownames(dadaRs)
 
     mergers <- as.data.frame(sapply(readRDS("${mergers}"), getN))
     rownames(mergers) <- gsub('.R1.filtered.fastq.gz', '',rownames(mergers))
+    colnames(mergers) <- c("merged")
     mergers\$SampleID <- rownames(mergers)
 
     seqtab.nochim <- as.data.frame(rowSums(readRDS("${sTable}")))
     rownames(seqtab.nochim) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.nochim))
+    colnames(seqtab.nochim) <- c("seqtab.nochim")
     seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
 
     trimmed <- read.csv("${trimmedTable}")
@@ -1414,8 +1421,7 @@ process ReadTracking {
     # dropped data in later steps gets converted to NA on the join
     # these are effectively 0
     track[is.na(track)] <- 0
-
-    colnames(track) <- c("SampleID", "SequenceR1", "input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+    
     write.table(track, "all.readtracking.txt", sep = "\t", row.names = FALSE)
     """
 }
