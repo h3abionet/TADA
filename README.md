@@ -16,10 +16,10 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
     This pipeline can be run specifying parameters in a config file or with command line flags.
 
     The typical example for running the pipeline with command line flags is as follows:
-    nextflow run uct-cbio/16S-rDNA-dada2-pipeline --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 --reference 'gg_13_8_train_set_97.fa.gz' -profile uct_hex
+    nextflow run h3abionet/TADA --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 --reference 'gg_13_8_train_set_97.fa.gz' -profile uct_hex
 
     The typical command for running the pipeline with your own config (instead of command line flags) is as follows:
-    nextflow run uct-cbio/16S-rDNA-dada2-pipeline -c dada2_user_input.config -profile uct_hex
+    nextflow run h3abionet/TADA -c dada2_user_input.config -profile uct_hex
     where:
     dada2_user_input.config is the configuration file (see example 'dada2_user_input.config')
     NB: -profile uct_hex still needs to be specified from the command line
@@ -58,7 +58,7 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
       -name                         Name for the pipeline run. If not specified, Nextflow will automatically generate a random  mnemonic.
 
      Help:
-      --help                        Will print out summary above when executing nextflow run uct-cbio/16S-rDNA-dada2-pipeline                                   
+      --help                        Will print out summary above when executing nextflow run h3abionet/TADA                                   
 
      Example run:
      To run on UCT hex
@@ -66,7 +66,7 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
      2) Start an interactive job using: qsub -I -q UCTlong -l nodes=1:series600:ppn=1 -d `pwd`
      3) A typical command would look something like:
 
-        nextflow run uct-cbio/16S-rDNA-dada2-pipeline --trimFor 24 --trimRev 25 --reference /specify/relevant/directory/gg_13_8_train_set_97.fa.gz --email katieviljoen@gmail.com -profile uct_hex --reads  '/specify/relevant/directory/*{R1,R2}.fastq' -with-singularity /scratch/DB/bio/singularity-containers/1a32017e5935-2018-05-31- db3a9cebe9fc.img --pool 'pseudo'
+        nextflow run h3abionet/TADA --trimFor 24 --trimRev 25 --reference /specify/relevant/directory/gg_13_8_train_set_97.fa.gz --email katieviljoen@gmail.com -profile uct_hex --reads  '/specify/relevant/directory/*{R1,R2}.fastq' -with-singularity /scratch/DB/bio/singularity-containers/1a32017e5935-2018-05-31- db3a9cebe9fc.img --pool 'pseudo'
 
 
 ## Prerequisites
@@ -75,7 +75,7 @@ Nextflow, dada2 (>= 1.8), R (>= 3.2.0), Rcpp (>= 0.11.2), methods (>= 3.2.0), DE
 Note: if you are working on UCT hex you can simply use the singularity image specified in the uct_hex profile (no need to install these R packages)
 
 ## Documentation
-The uct-cbio/16S-rDNA-dada2-pipeline pipeline comes with documentation about the pipeline, found in the `docs/` directory:
+The h3abionet/TADA pipeline comes with documentation about the pipeline, found in the `docs/` directory:
 
 1. [Installation](docs/installation.md)
 2. [Running the pipeline](docs/usage.md)
