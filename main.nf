@@ -583,7 +583,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         file errRev from errorsRev
 
         output:
-        file "seqtab.RDS" into seqTable
+        file "seqtab.RDS" into seqTable,rawSeqTableToRename
         file "all.mergers.RDS" into mergerTracking
         file "all.ddF.RDS" into dadaForReadTracking
         file "all.ddR.RDS" into dadaRevReadTracking
@@ -720,7 +720,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         file mr from mergedReads.collect()
 
         output:
-        file "seqtab.RDS" into seqTable
+        file "seqtab.RDS" into seqTable,rawSeqTableToRename
         file "all.mergers.RDS" into mergerTracking
 
         when:
@@ -731,7 +731,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         #!/usr/bin/env Rscript
         library(dada2)
         packageVersion("dada2")
-
+        
         mergerFiles <- list.files(path = '.', pattern = '.*.RDS$')
         pairIds <- sub('.merged.RDS', '', mergerFiles)
         mergers <- lapply(mergerFiles, function (x) readRDS(x))
@@ -751,40 +751,43 @@ if (params.pool == "T" || params.pool == 'pseudo') {
  *
  */
 
-process RemoveChimeras {
-    tag { "RemoveChimeras" }
-    publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
+if (!params.skipChimeraDetection) {
+    process RemoveChimeras {
+        tag { "RemoveChimeras" }
+        publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
 
-    input:
-    file st from seqTable
+        input:
+        file st from seqTable
 
-    output:
-    file "seqtab_final.RDS" into seqTableToTax,seqTableToRename
+        output:
+        file "seqtab_final.RDS" into seqTableToTax,seqTableToRename
 
-    when:
-    params.precheck == false
+        when:
+        params.precheck == false
 
-    script:
-    chimOpts = params.removeBimeraDenovoOptions != false ? ", ${params.removeBimeraDenovoOptions}" : ''
-    """
-    #!/usr/bin/env Rscript
-    library(dada2)
-    packageVersion("dada2")
+        script:
+        chimOpts = params.removeBimeraDenovoOptions != false ? ", ${params.removeBimeraDenovoOptions}" : ''
+        """
+        #!/usr/bin/env Rscript
+        library(dada2)
+        packageVersion("dada2")
 
-    st.all <- readRDS("${st}")
+        st.all <- readRDS("${st}")
 
-    # Remove chimeras
-    seqtab <- removeBimeraDenovo(
-        st.all, 
-        method="consensus", 
-        multithread=${task.cpus}, 
-        verbose=TRUE ${chimOpts} 
-        )
+        # Remove chimeras
+        seqtab <- removeBimeraDenovo(
+            st.all, 
+            method="consensus", 
+            multithread=${task.cpus}, 
+            verbose=TRUE ${chimOpts} 
+            )
 
-    saveRDS(seqtab, "seqtab_final.RDS")
-    """
+        saveRDS(seqtab, "seqtab_final.RDS")
+        """
+    }
+} else {
+    seqTable.into {seqTableToTax;seqTableToRename}
 }
-
 
 /*
  *
@@ -988,19 +991,19 @@ if (params.reference) {
  *
  */
 
-// TODO: make this optional, and allow QIIME2-like IDs (md5sum)
-
 process RenameASVs {
     tag { "RenameASVs" }
     publishDir "${params.outdir}/dada2-Tables", mode: "copy", overwrite: true
 
     input:
     file st from seqTableToRename
+    file rawst from rawSeqTableToRename
 
     output:
     file "seqtab_final.simple.RDS" into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
-    file "asvs.simple.fna" into seqsToAln, seqsToQIIME2
+    file "asvs.${params.idType}.nochim.fna" into seqsToAln, seqsToQIIME2
     file "readmap.RDS" into readsToRenameTaxIDs // needed for remapping tax IDs
+    file "asvs.${params.idType}.raw.fna"
 
     script:
     """
@@ -1009,24 +1012,37 @@ process RenameASVs {
     library(ShortRead)
     library(digest)
 
-    st.all <- readRDS("${st}")
+    # read RDS w/ data
+    st <- readRDS("${st}")
+    st.raw <- readRDS("${rawst}")
 
-    seqs <- colnames(st.all)
-    ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.all), sep = ""),
-                                md5=sapply(colnames(st.all), digest, algo="md5"))
-    colnames(st.all) <- ids_study
+    # get sequences
+    seqs <- colnames(st)
+    seqs.raw <- colnames(st.raw)
+
+    # get IDs based on idType
+    ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st), sep = ""),
+                                md5=sapply(colnames(st), digest, algo="md5"))
+    ids_study.raw <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.raw), sep = ""),
+                                md5=sapply(colnames(st.raw), digest, algo="md5"))
+    
+    # sub IDs
+    colnames(st) <- ids_study
+    colnames(st.raw) <- ids_study.raw
 
     # generate FASTA
     seqs.dna <- ShortRead(sread = DNAStringSet(seqs), id = BStringSet(ids_study))
     # Write out fasta file.
-    writeFasta(seqs.dna, file = 'asvs.simple.fna')
+    writeFasta(seqs.dna, file = 'asvs.${params.idType}.nochim.fna')
 
-    # Write modified data
-    saveRDS(st.all, "seqtab_final.simple.RDS")
+    seqs.dna.raw <- ShortRead(sread = DNAStringSet(seqs.raw), id = BStringSet(ids_study.raw))
+    writeFasta(seqs.dna.raw, file = 'asvs.${params.idType}.raw.fna')
+
+    # Write modified data (note we only keep the no-chimera reads for the next stage)
+    saveRDS(st, "seqtab_final.simple.RDS")
     saveRDS(data.frame(id = ids_study, seq = seqs), "readmap.RDS")
     """
 }
-
 
 process GenerateSeqTables {
     tag { "GenerateSeqTables" }
@@ -1405,7 +1421,8 @@ process ReadTracking {
     colnames(dadaRs) <- c("denoisedR")
     dadaRs\$SampleID <- rownames(dadaRs)
 
-    mergers <- as.data.frame(sapply(readRDS("${mergers}"), getN))
+    all.mergers <- readRDS("${mergers}")
+    mergers <- as.data.frame(sapply(all.mergers, function(x) sum(getUniques(x %>% filter(accept)))))
     rownames(mergers) <- gsub('.R1.filtered.fastq.gz', '',rownames(mergers))
     colnames(mergers) <- c("merged")
     mergers\$SampleID <- rownames(mergers)
