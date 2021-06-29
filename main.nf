@@ -1187,7 +1187,7 @@ process GenerateTaxTables {
 // NOTE: 'when' directive doesn't work if channels have the same name in
 // two processes
 
-if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
+if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
     if (params.aligner == 'infernal') {
 
@@ -1255,7 +1255,7 @@ if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
      *
      */
 
-    if (params.runtree == 'phangorn') {
+    if (params.runTree == 'phangorn') {
 
         process GenerateTreePhangorn {
             tag { "GenerateTreePhangorn" }
@@ -1291,7 +1291,7 @@ if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
             write.tree(fitGTR\$tree, file = "tree.GTR.newick")
             """
         }
-    } else if (params.runtree == 'fasttree') {
+    } else if (params.runTree == 'fasttree') {
 
         process GenerateTreeFasttree {
             tag { "GenerateTreeFasttree" }
