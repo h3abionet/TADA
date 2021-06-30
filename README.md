@@ -52,6 +52,7 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
       --trimOverhang                {"T","F"}. If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off. "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen when reads are longer than the amplicon and read into the other-direction primer region. Default="F" (false)
 
     Other arguments:
+      --dadaOpt.XXX                 Set as e.g. --dadaOpt.HOMOPOLYMER_GAP_PENALTY=-1 Options for the dada function, see ?setDadaOpt in R for available options and their defaults
       --pool                        Should sample pooling be used to aid identification of low-abundance ASVs? Options are  pseudo pooling: "pseudo", true: "T", false: "F"
       --outdir                      The output directory where the results will be saved
       --email                       Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits
@@ -71,7 +72,7 @@ A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline 
 
 ## Prerequisites
 
-Nextflow, dada2 (>= 1.8), R (>= 3.2.0), Rcpp (>= 0.11.2), methods (>= 3.2.0), DECIPHER, phangorn, biomformat
+Nextflow (>=20.11.0), dada2 (>= 1.8), R (>= 3.2.0), Rcpp (>= 0.11.2), methods (>= 3.2.0), DECIPHER, phangorn, biomformat
 Note: if you are working on UCT hex you can simply use the singularity image specified in the uct_hex profile (no need to install these R packages)
 
 ## Documentation

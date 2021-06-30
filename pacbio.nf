@@ -54,6 +54,7 @@ def helpMessage() {
                                     "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen when reads are longer than the amplicon and read into the other-direction                                               primer region. Default="F" (false)
 
     Other arguments:
+      --dadaOpt.XXX                 Set as e.g. --dadaOpt.HOMOPOLYMER_GAP_PENALTY=-1 Global defaults for the dada function, see ?setDadaOpt in R for available options and their defaults
       --pool                        Should sample pooling be used to aid identification of low-abundance ASVs? Options are
                                     pseudo pooling: "pseudo", true: "T", false: "F"
       --outdir                      The output directory where the results will be saved
@@ -356,6 +357,7 @@ process PacBioLearnErrors {
     sample.namesF <- sapply(strsplit(basename(filts), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
     set.seed(100)
  
+    setDadaOpt(${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")})
     # Learn forward error rates
     errs <- learnErrors(filts, 
         errorEstimationFunction=PacBioErrfun, 
@@ -422,6 +424,7 @@ process PacBioPoolSamplesInferDerep {
 
     dereps <- derepFastq(filts, qualityType = "FastqQuality", verbose=TRUE)
 
+    setDadaOpt(${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")})
     dds <- dada(dereps, err=errs, multithread=${task.cpus}, pool=pool ${dadaParams})
 
     # TODO: make this a single item list with ID as the name, this is lost

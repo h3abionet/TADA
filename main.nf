@@ -54,6 +54,7 @@ def helpMessage() {
                                     "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen when reads are longer than the amplicon and read into the other-direction                                               primer region. Default="F" (false)
 
     Other arguments:
+      --dadaOpt.XXX                 Set as e.g. --dadaOpt.HOMOPOLYMER_GAP_PENALTY=-1 Global defaults for the dada function, see ?setDadaOpt in R for available options and their defaults
       --pool                        Should sample pooling be used to aid identification of low-abundance ASVs? Options are
                                     pseudo pooling: "pseudo", true: "T", false: "F"
       --outdir                      The output directory where the results will be saved
@@ -154,7 +155,8 @@ summary['rmPhiX']         = params.rmPhiX
 summary['minOverlap']     = params.minOverlap
 summary['maxMismatch']    = params.maxMismatch
 summary['trimOverhang']   = params.trimOverhang
-summary['species']  	  = params.species
+summary['species']        = params.species
+summary['dadaOpt']        = params.dadaOpt
 summary['pool']           = params.pool
 summary['qualityBinning'] = params.qualityBinning
 summary['Reference']      = params.reference
@@ -487,6 +489,7 @@ process LearnErrorsFor {
     #!/usr/bin/env Rscript
     library(dada2);
     packageVersion("dada2")
+    setDadaOpt(${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")})
 
     # File parsing
     filtFs <- list.files('.', pattern="R1.filtered.fastq.gz", full.names = TRUE)
@@ -529,6 +532,7 @@ process LearnErrorsRev {
     #!/usr/bin/env Rscript
     library(dada2);
     packageVersion("dada2")
+    setDadaOpt(${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")})
 
     # load error profiles
 
@@ -652,6 +656,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         #!/usr/bin/env Rscript
         library(dada2)
         packageVersion("dada2")
+        setDadaOpt(${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")})
 
         errF <- readRDS("${errFor}")
         errR <- readRDS("${errRev}")

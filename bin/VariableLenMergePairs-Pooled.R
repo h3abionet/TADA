@@ -15,9 +15,11 @@ option_list = list(
     make_option(c("--rescueUnmerged"), default=FALSE, action="store_true", help="Rescue unmerged sequences"),
     make_option(c("--minMergedLen"), type="numeric", default=1, help="Minimum length post merging"),
     make_option(c("--maxMergedLen"), type="numeric", default=Inf, help="Maximum length post merging")    
+    make_option(c("--dadaOptStr"), type="character", default='', help="values for setDadaOpt passed as one string")
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))
+eval(parse(text=paste0("setDadaOpt(", opt$dadaOptStr, ")")))
 
 # Note: this is a modified copy of the default mergePairs() method; this can
 # retain unmerged reads in case they don't overlap (this happens with some
