@@ -12,7 +12,9 @@ option_list = list(
     make_option(c("--maxMismatch"), type="numeric", help="Max mismatch"),
     make_option(c("--trimOverhang"), default=FALSE, action="store_true", help="Trim overhanging sequence if overlapping"),
     make_option(c("--justConcatenate"), default=FALSE, action="store_true", help="Just concatenate sequences"),
-    make_option(c("--rescueUnmerged"), default=FALSE, action="store_true", help="Rescue unmerged sequences")
+    make_option(c("--rescueUnmerged"), default=FALSE, action="store_true", help="Rescue unmerged sequences"),
+    make_option(c("--minMergedLen"), type="numeric", default=1, help="Minimum length post merging"),
+    make_option(c("--maxMergedLen"), type="numeric", default=Inf, help="Maximum length post merging")    
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -181,5 +183,13 @@ saveRDS(derepRs, "all.derepRs.RDS")
 
 # go ahead and make seqtable
 seqtab <- makeSequenceTable(mergers)
+
+if (opt$minMergedLen > 0) {
+   seqtab <- seqtab[,nchar(colnames(seqtab)) >= opt$minMergedLen]
+}
+
+if (opt$maxMergedLen > 0) {
+   seqtab <- seqtab[,nchar(colnames(seqtab)) <= opt$maxMergedLen]
+}
 
 saveRDS(seqtab, "seqtab.RDS")

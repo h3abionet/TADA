@@ -45,7 +45,7 @@ def helpMessage() {
       --maxEERev                    integer. After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2
       --truncQ                      integer. Truncate reads at the first instance of a quality score less than or equal to truncQ; default=2
       --maxN                        integer. Discard reads with more than maxN number of Ns in read; default=0
-      --maxLen                      integer. maximum length of sequence; maxLen is enforced before trimming and truncation; default=Inf (no maximum)
+      --maxLen                      integer. maximum length of trimmed sequence; maxLen is enforced before trimming and truncation; default=Inf (no maximum)
       --minLen                      integer. minLen is enforced after trimming and truncation; default=50
       --rmPhiX                      {"T","F"}. remove PhiX from read
       --minOverlap                  integer. minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
@@ -72,6 +72,8 @@ def helpMessage() {
       --maxMismatch                 The maximum mismatches allowed in the overlap region; default=0.
       --trimOverhang                If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off. "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen
                                     when reads are longer than the amplicon and read into the other-direction primer region. Default="F" (false)
+      --minMergedLen                Minimum length of fragment *after* merging
+      --maxMergedLen                Maximum length of fragment *after* merging
 
     Taxonomic arguments (optional):
       --species                     Specify path to fasta file. See dada2 addSpecies() for more detail.
@@ -195,6 +197,8 @@ process runFastQC {
     """
 }
 
+
+// TODO: combine MultiQC reports and split by directory (no need for two)
 process runMultiQC {
     tag { "runMultiQC" }
     publishDir "${params.outdir}/MultiQC-Raw", mode: 'copy', overwrite: true
@@ -228,7 +232,7 @@ if (params.amplicon == 'ITS') {
 
         output:
         set val(pairId), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
-        set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // nneded for join() later
+        set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
         file('forward_rc') into forwardP
         file('reverse_rc') into reverseP
 
@@ -338,8 +342,9 @@ if (params.amplicon == 'ITS') {
                             verbose = TRUE,
                             multithread = ${task.cpus})
         #Change input read counts to actual raw read counts
-        out2[1] <- out1[1]
-        write.csv(out2, paste0("${pairId}", ".trimmed.txt"))
+        out3 <- cbind(out1, out2)
+        colnames(out3) <- c('input', 'filterN', 'cutadapt', 'filtered')
+        write.csv(out3, paste0("${pairId}", ".trimmed.txt"))
         """
     }
     
@@ -578,12 +583,13 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         file errRev from errorsRev
 
         output:
-        file "seqtab.RDS" into seqTable
+        file "seqtab.RDS" into seqTable,rawSeqTableToRename
         file "all.mergers.RDS" into mergerTracking
         file "all.ddF.RDS" into dadaForReadTracking
         file "all.ddR.RDS" into dadaRevReadTracking
         file "all.derepFs.RDS" into dadaForDerep
         file "all.derepRs.RDS" into dadaRevDerep
+        file "seqtab.*"
 
         when:
         params.precheck == false
@@ -599,7 +605,9 @@ if (params.pool == "T" || params.pool == 'pseudo') {
             --maxMismatch ${params.maxMismatch} \\
             --trimOverhang ${params.trimOverhang} \\
             --justConcatenate ${params.justConcatenate} \\
-            --rescueUnmerged ${params.rescueUnmerged}
+            --rescueUnmerged ${params.rescueUnmerged} \\
+            --minMergedLen ${params.minMergedLen} \\
+            --maxMergedLen ${params.maxMergedLen}
         """
         } else {  // This is the normal route
         """
@@ -610,6 +618,8 @@ if (params.pool == "T" || params.pool == 'pseudo') {
             --minOverlap ${params.minOverlap} \\
             --maxMismatch ${params.maxMismatch} \\
             --trimOverhang ${params.trimOverhang} \\
+            --minMergedLen ${params.minMergedLen} \\
+            --maxMergedLen ${params.maxMergedLen} \\
             --justConcatenate ${params.justConcatenate}
         """
         }
@@ -632,6 +642,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         file "all.ddR.RDS" into dadaRevReadTracking
         file "all.derepF.RDS" into dadaForDerep
         file "all.derepR.RDS" into dadaRevDerep
+        file "seqtab.*"
 
         when:
         params.precheck == false
@@ -709,7 +720,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         file mr from mergedReads.collect()
 
         output:
-        file "seqtab.RDS" into seqTable
+        file "seqtab.RDS" into seqTable,rawSeqTableToRename
         file "all.mergers.RDS" into mergerTracking
 
         when:
@@ -720,7 +731,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         #!/usr/bin/env Rscript
         library(dada2)
         packageVersion("dada2")
-
+        
         mergerFiles <- list.files(path = '.', pattern = '.*.RDS$')
         pairIds <- sub('.merged.RDS', '', mergerFiles)
         mergers <- lapply(mergerFiles, function (x) readRDS(x))
@@ -740,34 +751,43 @@ if (params.pool == "T" || params.pool == 'pseudo') {
  *
  */
 
-process RemoveChimeras {
-    tag { "RemoveChimeras" }
-    publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
+if (!params.skipChimeraDetection) {
+    process RemoveChimeras {
+        tag { "RemoveChimeras" }
+        publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
 
-    input:
-    file st from seqTable
+        input:
+        file st from seqTable
 
-    output:
-    file "seqtab_final.RDS" into seqTableToTax,seqTableToRename
+        output:
+        file "seqtab_final.RDS" into seqTableToTax,seqTableToRename
 
-    when:
-    params.precheck == false
+        when:
+        params.precheck == false
 
-    script:
-    """
-    #!/usr/bin/env Rscript
-    library(dada2)
-    packageVersion("dada2")
+        script:
+        chimOpts = params.removeBimeraDenovoOptions != false ? ", ${params.removeBimeraDenovoOptions}" : ''
+        """
+        #!/usr/bin/env Rscript
+        library(dada2)
+        packageVersion("dada2")
 
-    st.all <- readRDS("${st}")
+        st.all <- readRDS("${st}")
 
-    # Remove chimeras
-    seqtab <- removeBimeraDenovo(st.all, method="consensus", multithread=${task.cpus}, verbose=TRUE)
+        # Remove chimeras
+        seqtab <- removeBimeraDenovo(
+            st.all, 
+            method="consensus", 
+            multithread=${task.cpus}, 
+            verbose=TRUE ${chimOpts} 
+            )
 
-    saveRDS(seqtab, "seqtab_final.RDS")
-    """
+        saveRDS(seqtab, "seqtab_final.RDS")
+        """
+    }
+} else {
+    seqTable.into {seqTableToTax;seqTableToRename}
 }
-
 
 /*
  *
@@ -971,19 +991,19 @@ if (params.reference) {
  *
  */
 
-// TODO: make this optional, and allow QIIME2-like IDs (md5sum)
-
 process RenameASVs {
     tag { "RenameASVs" }
     publishDir "${params.outdir}/dada2-Tables", mode: "copy", overwrite: true
 
     input:
     file st from seqTableToRename
+    file rawst from rawSeqTableToRename
 
     output:
     file "seqtab_final.simple.RDS" into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
-    file "asvs.simple.fna" into seqsToAln, seqsToQIIME2
+    file "asvs.${params.idType}.nochim.fna" into seqsToAln, seqsToQIIME2
     file "readmap.RDS" into readsToRenameTaxIDs // needed for remapping tax IDs
+    file "asvs.${params.idType}.raw.fna"
 
     script:
     """
@@ -992,24 +1012,37 @@ process RenameASVs {
     library(ShortRead)
     library(digest)
 
-    st.all <- readRDS("${st}")
+    # read RDS w/ data
+    st <- readRDS("${st}")
+    st.raw <- readRDS("${rawst}")
 
-    seqs <- colnames(st.all)
-    ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.all), sep = ""),
-                                md5=sapply(colnames(st.all), digest, algo="md5"))
-    colnames(st.all) <- ids_study
+    # get sequences
+    seqs <- colnames(st)
+    seqs.raw <- colnames(st.raw)
+
+    # get IDs based on idType
+    ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st), sep = ""),
+                                md5=sapply(colnames(st), digest, algo="md5"))
+    ids_study.raw <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.raw), sep = ""),
+                                md5=sapply(colnames(st.raw), digest, algo="md5"))
+    
+    # sub IDs
+    colnames(st) <- ids_study
+    colnames(st.raw) <- ids_study.raw
 
     # generate FASTA
     seqs.dna <- ShortRead(sread = DNAStringSet(seqs), id = BStringSet(ids_study))
     # Write out fasta file.
-    writeFasta(seqs.dna, file = 'asvs.simple.fna')
+    writeFasta(seqs.dna, file = 'asvs.${params.idType}.nochim.fna')
 
-    # Write modified data
-    saveRDS(st.all, "seqtab_final.simple.RDS")
+    seqs.dna.raw <- ShortRead(sread = DNAStringSet(seqs.raw), id = BStringSet(ids_study.raw))
+    writeFasta(seqs.dna.raw, file = 'asvs.${params.idType}.raw.fna')
+
+    # Write modified data (note we only keep the no-chimera reads for the next stage)
+    saveRDS(st, "seqtab_final.simple.RDS")
     saveRDS(data.frame(id = ids_study, seq = seqs), "readmap.RDS")
     """
 }
-
 
 process GenerateSeqTables {
     tag { "GenerateSeqTables" }
@@ -1154,7 +1187,7 @@ process GenerateTaxTables {
 // NOTE: 'when' directive doesn't work if channels have the same name in
 // two processes
 
-if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
+if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
     if (params.aligner == 'infernal') {
 
@@ -1222,7 +1255,7 @@ if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
      *
      */
 
-    if (params.runtree == 'phangorn') {
+    if (params.runTree == 'phangorn') {
 
         process GenerateTreePhangorn {
             tag { "GenerateTreePhangorn" }
@@ -1258,7 +1291,7 @@ if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
             write.tree(fitGTR\$tree, file = "tree.GTR.newick")
             """
         }
-    } else if (params.runtree == 'fasttree') {
+    } else if (params.runTree == 'fasttree') {
 
         process GenerateTreeFasttree {
             tag { "GenerateTreeFasttree" }
@@ -1380,18 +1413,23 @@ process ReadTracking {
     # the gsub here might be a bit brittle...
     dadaFs <- as.data.frame(sapply(readRDS("${ddFs}"), getN))
     rownames(dadaFs) <- gsub('.R1.filtered.fastq.gz', '',rownames(dadaFs))
+    colnames(dadaFs) <- c("denoisedF")
     dadaFs\$SampleID <- rownames(dadaFs)
 
     dadaRs <- as.data.frame(sapply(readRDS("${ddRs}"), getN))
     rownames(dadaRs) <- gsub('.R2.filtered.fastq.gz', '',rownames(dadaRs))
+    colnames(dadaRs) <- c("denoisedR")
     dadaRs\$SampleID <- rownames(dadaRs)
 
-    mergers <- as.data.frame(sapply(readRDS("${mergers}"), getN))
+    all.mergers <- readRDS("${mergers}")
+    mergers <- as.data.frame(sapply(all.mergers, function(x) sum(getUniques(x %>% filter(accept)))))
     rownames(mergers) <- gsub('.R1.filtered.fastq.gz', '',rownames(mergers))
+    colnames(mergers) <- c("merged")
     mergers\$SampleID <- rownames(mergers)
 
     seqtab.nochim <- as.data.frame(rowSums(readRDS("${sTable}")))
     rownames(seqtab.nochim) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.nochim))
+    colnames(seqtab.nochim) <- c("seqtab.nochim")
     seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
 
     trimmed <- read.csv("${trimmedTable}")
@@ -1400,8 +1438,7 @@ process ReadTracking {
     # dropped data in later steps gets converted to NA on the join
     # these are effectively 0
     track[is.na(track)] <- 0
-
-    colnames(track) <- c("SampleID", "SequenceR1", "input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+    
     write.table(track, "all.readtracking.txt", sep = "\t", row.names = FALSE)
     """
 }
