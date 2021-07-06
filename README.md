@@ -1,4 +1,5 @@
-![Build Status](https://github.com/grbot/TADA/actions/workflows/ci.yml/badge.svg)
+![Github CI Status](https://github.com/grbot/TADA/actions/workflows/ci.yml/badge.svg)
+[![Travis-CI Build Status](https://travis-ci.com/h3abionet/TADA.svg?branch=master)](https://travis-ci.com/h3abionet/TADA)
 [![DOI](https://zenodo.org/badge/218786496.svg)](https://zenodo.org/badge/latestdoi/218786496)
 
 <p>
