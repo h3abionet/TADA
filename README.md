@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/grbot/TADA/actions/workflows/ci.yml/badge.svg)]
+![Build Status](https://github.com/grbot/TADA/actions/workflows/ci.yml/badge.svg)
 [![DOI](https://zenodo.org/badge/218786496.svg)](https://zenodo.org/badge/latestdoi/218786496)
 
 <p>
