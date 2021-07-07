@@ -7,7 +7,6 @@ option_list = list(
     make_option(c("--errRev"), type="character", default=NULL, help="Reverse RDS file"),
     make_option(c("--cpus"), type="numeric", , default=1, help="cpus"),
     make_option(c("--pool"), type="character", help="Pooling"),
-
     make_option(c("--minOverlap"), type="numeric", help="Min overlap"),
     make_option(c("--maxMismatch"), type="numeric", help="Max mismatch"),
     make_option(c("--trimOverhang"), default=FALSE, action="store_true", help="Trim overhanging sequence if overlapping"),
