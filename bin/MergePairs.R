@@ -7,14 +7,15 @@ option_list = list(
     make_option(c("--errRev"), type="character", default=NULL, help="Reverse RDS file"),
     make_option(c("--cpus"), type="numeric", , default=1, help="cpus"),
     make_option(c("--pool"), type="character", help="Pooling"),
-
     make_option(c("--minOverlap"), type="numeric", help="Min overlap"),
     make_option(c("--maxMismatch"), type="numeric", help="Max mismatch"),
     make_option(c("--trimOverhang"), default=FALSE, action="store_true", help="Trim overhanging sequence if overlapping"),
-    make_option(c("--justConcatenate"), default=FALSE, action="store_true", help="Just concatenate sequences")
+    make_option(c("--justConcatenate"), default=FALSE, action="store_true", help="Just concatenate sequences"),
+    make_option(c("--dadaOptStr"), type="character", default='', help="values for setDadaOpt passed as one string")
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))
+eval(parse(text=paste0("setDadaOpt(", opt$dadaOptStr, ")")))
 
 environment(mergePairsRescue) <- asNamespace('dada2')
 
