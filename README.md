@@ -1,6 +1,7 @@
 ![Github CI Status](https://github.com/grbot/TADA/actions/workflows/ci.yml/badge.svg)
 [![Travis-CI Build Status](https://travis-ci.com/h3abionet/TADA.svg?branch=master)](https://travis-ci.com/h3abionet/TADA)
 [![DOI](https://zenodo.org/badge/218786496.svg)](https://zenodo.org/badge/latestdoi/218786496)
+[![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8B-orange)](https://fair-software.eu)
 
 <p>
 <img align="left" src="./assets/cbio_logo.png" width="240" hspace="50"/>
