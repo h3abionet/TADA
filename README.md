@@ -94,6 +94,18 @@ The h3abionet/TADA pipeline comes with documentation about the pipeline, found i
 
 The initial implementation of the DADA2 pipeline as a Nextflow workflow (https://github.com/HPCBio/dada2-Nextflow) was done by Chris Fields from the high performance computational biology unit at the University of Illinois (http://www.hpcbio.illinois.edu). Please remember to cite the authors of [DADA2](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4927377/) when using this pipeline. Further development to the Nextflow workflow and containerisation in Docker and Singularity for implementation on UCT's HPC was done by Dr Katie Lennard and Gerrit Botha, with inspiration and code snippets from Phil Ewels http://nf-co.re/
 
+## Contributors
+
+The following have contributed to the development, testing, and deployment of this workflow. For the most up-to-date listing see the [Contributors](https://github.com/h3abionet/TADA/graphs/contributors) link.
+
+* [Katie Lennard](https://github.com/kviljoen)
+* [Gerrit Botha](https://github.com/grbot)
+* [Chris Fields](https://github.com/cjfields)
+* [Jessica Holmes](https://github.com/jrkirk61)
+* [Gloria Rendon](https://github.com/grendon)
+* [Lindsay Clark](https://github.com/lvclark)
+* [Wojtek Bażant](https://github.com/wbazant)
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
