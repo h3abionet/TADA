@@ -1,7 +1,3 @@
-![Github CI Status](https://github.com/grbot/TADA/actions/workflows/ci.yml/badge.svg)
-[![Travis-CI Build Status](https://travis-ci.com/h3abionet/TADA.svg?branch=master)](https://travis-ci.com/h3abionet/TADA)
-[![DOI](https://zenodo.org/badge/218786496.svg)](https://zenodo.org/badge/latestdoi/218786496)
-
 <p>
 <img align="left" src="./assets/cbio_logo.png" width="240" hspace="50"/>
 <img align="left" src="./assets/HPCBio.png" width="350" hspace="50"/>
@@ -11,6 +7,19 @@
 # TADA - Targeted Amplicon Diversity Analysis using DADA2, implemented in Nextflow
 
 A dada2-based workflow using the Nextflow workflow manager.  The basic pipeline is currently implemented, including some basic read-tracking. This pipeline is adapted from https://github.com/HPCBio/dada2-Nextflow for implementation on the UCT high-performance compute cluster
+
+## Badges
+| fair-software.nl recommendations                        |                             |
+| ------------------------------------------------------- | --------------------------- |
+|(1/5) code repository                                    |[![GitHub Repo Status](https://img.shields.io/badge/github-repo-000.svg?logo=github&labelColor=gray&color=blue)](https://github.com/h3abionet/TADA)|
+|(2/5) license                                            |[![GitHub License Status](https://img.shields.io/github/license/h3abionet/TADA)](https://github.com/h3abionet/TADA)|
+|(2/5) community registry                                 | |
+|(3/5) citation                                           |[![Zenodo Status](https://zenodo.org/badge/DOI/10.5281/zenodo.4208836.svg)](https://doi.org/10.5281/zenodo.42088362)|
+|(3/5) checklist                                          | |
+|overall                                                  |[![FAIR-software Status](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B%20%20%E2%97%8F%20%20%E2%97%8B-orange)](https://fair-software.eu)|
+**GitHub Actions**
+|Docker build                                             | [![GitHub Docker Status](https://github.com/h3abionet/TADA/actions/workflows/docker.yml/badge.svg)](https://github.com/h3abionet/TADA/actions?query=workflow%3A%22Docker%22)|
+|Continuous integration                                   | [![GitHub CI Status](https://github.com/h3abionet/TADA/actions/workflows/ci.yml/badge.svg)](https://github.com/h3abionet/TADA/actions?query=workflow%3A%22CI%22)|
 
 ## Basic usage:
 
