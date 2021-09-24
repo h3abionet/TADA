@@ -1090,7 +1090,7 @@ process GenerateSeqTables {
 
     # Generate OTU table for QIIME2 import (rows = ASVs, cols = samples)
     write.table(
-        data.frame('Taxa' = colnames(seqtab), t(seqtab)),
+        data.frame('Taxa' = colnames(seqtab), t(seqtab), check.names = FALSE),
         file = 'seqtab_final.simple.qiime2.txt',
         row.names = FALSE,
         quote=FALSE,
