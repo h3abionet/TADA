@@ -1,4 +1,4 @@
-FROM rocker/verse
+FROM rocker/verse:4.1.1
 #Modified from here https://github.com/davismcc/r-tidybioc-img/blob/master/Dockerfile
 LABEL description="Docker image containing latest R with tidyverse and Bioconductor packages"
  
