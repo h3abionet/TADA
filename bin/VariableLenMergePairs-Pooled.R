@@ -7,14 +7,13 @@ option_list = list(
     make_option(c("--errRev"), type="character", default=NULL, help="Reverse RDS file"),
     make_option(c("--cpus"), type="numeric", , default=1, help="cpus"),
     make_option(c("--pool"), type="character", help="Pooling"),
-
     make_option(c("--minOverlap"), type="numeric", help="Min overlap"),
     make_option(c("--maxMismatch"), type="numeric", help="Max mismatch"),
     make_option(c("--trimOverhang"), default=FALSE, action="store_true", help="Trim overhanging sequence if overlapping"),
     make_option(c("--justConcatenate"), default=FALSE, action="store_true", help="Just concatenate sequences"),
     make_option(c("--rescueUnmerged"), default=FALSE, action="store_true", help="Rescue unmerged sequences"),
     make_option(c("--minMergedLen"), type="numeric", default=1, help="Minimum length post merging"),
-    make_option(c("--maxMergedLen"), type="numeric", default=Inf, help="Maximum length post merging")    
+    make_option(c("--maxMergedLen"), type="numeric", default=Inf, help="Maximum length post merging"),
     make_option(c("--dadaOptStr"), type="character", default='', help="values for setDadaOpt passed as one string")
 )
 
