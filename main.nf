@@ -129,7 +129,7 @@ if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
 Channel
     .fromFilePairs( params.reads )
     .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
-    .into { dada2ReadPairsToQual; dada2ReadPairs }
+    .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
 
 // Header log info
 log.info "==================================="
@@ -196,6 +196,36 @@ process runFastQC {
 
     """
     fastqc --nogroup -q ${in_fastq.get(0)} ${in_fastq.get(1)}
+    """
+}
+
+process runDADA2QC {
+    tag { "rDQC.${pairId}" }
+    publishDir "${params.outdir}/dada2-RawQC", mode: "copy", overwrite: true
+
+    input:
+    path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
+
+    output:
+    file '*.pdf'
+
+    """
+    #!/usr/bin/env Rscript
+    library(dada2); packageVersion("dada2")
+
+    fns <- list.files("./fastq", full.names=TRUE)
+    
+    # this may switch to 'env' in the process at some point: 
+    # https://www.nextflow.io/docs/latest/process.html?highlight=env#output-env
+    # untested within R though
+
+    pdf("qualities.pdf", onefile = TRUE)
+    for (i in seq(1, length(fns), by = 4)) {
+        pl <- plotQualityProfile(fns[i:(i+3)])
+        print(pl)
+    }
+
+    dev.off()
     """
 }
 
