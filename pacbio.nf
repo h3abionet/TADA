@@ -397,7 +397,7 @@ process PacBioPoolSamplesInferDerep {
     file errs from errorsPacBio
 
     output:
-    file "seqtab.RDS" into seqTable
+    file "seqtab.RDS" into seqTable,rawSeqTableToRename
     file "all.dds.RDS" into dadaReadTracking
     file "all.dereps.RDS" into dadaDerep
 
@@ -677,19 +677,19 @@ if (params.reference) {
  *
  */
 
-// TODO: make this optional, and allow QIIME2-like IDs (md5sum)
-
 process RenameASVs {
     tag { "RenameASVs" }
     publishDir "${params.outdir}/dada2-Tables", mode: "copy", overwrite: true
 
     input:
     file st from seqTableToRename
+    file rawst from rawSeqTableToRename
 
     output:
     file "seqtab_final.simple.RDS" into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
-    file "asvs.simple.fna" into seqsToAln, seqsToQIIME2
+    file "asvs.${params.idType}.nochim.fna" into seqsToAln, seqsToQIIME2
     file "readmap.RDS" into readsToRenameTaxIDs // needed for remapping tax IDs
+    file "asvs.${params.idType}.raw.fna"
 
     script:
     """
@@ -698,20 +698,34 @@ process RenameASVs {
     library(ShortRead)
     library(digest)
 
-    st.all <- readRDS("${st}")
+    # read RDS w/ data
+    st <- readRDS("${st}")
+    st.raw <- readRDS("${rawst}")
 
-    seqs <- colnames(st.all)
-    ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.all), sep = ""),
-                                md5=sapply(colnames(st.all), digest, algo="md5"))
-    colnames(st.all) <- ids_study
+    # get sequences
+    seqs <- colnames(st)
+    seqs.raw <- colnames(st.raw)
+
+    # get IDs based on idType
+    ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st), sep = ""),
+                                md5=sapply(colnames(st), digest, algo="md5"))
+    ids_study.raw <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.raw), sep = ""),
+                                md5=sapply(colnames(st.raw), digest, algo="md5"))
+    
+    # sub IDs
+    colnames(st) <- ids_study
+    colnames(st.raw) <- ids_study.raw
 
     # generate FASTA
     seqs.dna <- ShortRead(sread = DNAStringSet(seqs), id = BStringSet(ids_study))
     # Write out fasta file.
-    writeFasta(seqs.dna, file = 'asvs.simple.fna')
+    writeFasta(seqs.dna, file = 'asvs.${params.idType}.nochim.fna')
 
-    # Write modified data
-    saveRDS(st.all, "seqtab_final.simple.RDS")
+    seqs.dna.raw <- ShortRead(sread = DNAStringSet(seqs.raw), id = BStringSet(ids_study.raw))
+    writeFasta(seqs.dna.raw, file = 'asvs.${params.idType}.raw.fna')
+
+    # Write modified data (note we only keep the no-chimera reads for the next stage)
+    saveRDS(st, "seqtab_final.simple.RDS")
     saveRDS(data.frame(id = ids_study, seq = seqs), "readmap.RDS")
     """
 }
@@ -856,7 +870,7 @@ process GenerateTaxTables {
 // NOTE: 'when' directive doesn't work if channels have the same name in
 // two processes
 
-if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
+if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
     if (params.aligner == 'infernal') {
 
@@ -924,7 +938,7 @@ if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
      *
      */
 
-    if (params.runtree == 'phangorn') {
+    if (params.runTree == 'phangorn') {
 
         process GenerateTreePhangorn {
             tag { "GenerateTreePhangorn" }
@@ -960,7 +974,7 @@ if (!params.precheck && params.runtree && params.amplicon != 'ITS') {
             write.tree(fitGTR\$tree, file = "tree.GTR.newick")
             """
         }
-    } else if (params.runtree == 'fasttree') {
+    } else if (params.runTree == 'fasttree') {
 
         process GenerateTreeFasttree {
             tag { "GenerateTreeFasttree" }
