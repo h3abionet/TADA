@@ -185,7 +185,7 @@ log.info "========================================="
  */
 
 process runFastQC {
-    tag { "rFQC.${pairId}" }
+    tag { "FASTQC-${pairId}" }
     publishDir "${params.outdir}/FASTQC-Raw", mode: "copy", overwrite: true
 
     input:
@@ -199,8 +199,12 @@ process runFastQC {
     """
 }
 
+// TODO: this may be a step we make optional, it may take a long time if the
+// sample # are huge (100s or 1000s). Maybe an overall quality score heat map (per base)
+// would be better?
+
 process runDADA2QC {
-    tag { "rDQC.${pairId}" }
+    tag { "DADA2-FASTQ-QC" }
     publishDir "${params.outdir}/dada2-RawQC", mode: "copy", overwrite: true
 
     input:
@@ -232,7 +236,7 @@ process runDADA2QC {
 
 // TODO: combine MultiQC reports and split by directory (no need for two)
 process runMultiQC {
-    tag { "runMultiQC" }
+    tag { "MultiQC" }
     publishDir "${params.outdir}/MultiQC-Raw", mode: 'copy', overwrite: true
 
     input:
