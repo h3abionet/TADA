@@ -753,6 +753,10 @@ process GenerateSeqTables {
 
     seqtab <- readRDS("${st}")
 
+    if (as.logical('${params.sampleRegex}' != FALSE )) {
+        rownames(seqtab) <- gsub('${params.sampleRegex}', "\\\\1", rownames(seqtab), perl = TRUE)
+    }
+
     # Generate table output
     write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
         file = 'seqtab_final.txt',
