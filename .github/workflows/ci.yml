@@ -1,17 +1,32 @@
 name: CI
 
-on: [push]
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+  release:
+    types: [published]
 
 jobs:
   build:
-
+    name: Run workflow tests
+    if: ${{ github.event_name != 'push' || (github.event_name == 'push' && github.repository == 'h3abionet/TADA') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
+    env:
+      NXF_VER: ${{ matrix.nxf_ver }}
+      NXF_ANSI_LOG: false
+    strategy:
+      matrix:
+        # Nextflow versions: check pipeline minimum and current latest
+        nxf_ver: ["21.04.0", ""]
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout pipeline code
+      uses: actions/checkout@v2
+
     - name: Set up JDK 11
       uses: actions/setup-java@v2
       with:
@@ -27,17 +42,14 @@ jobs:
         cd $HOME/test-data/illumina 
         wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/dog_stool_small.tgz 
         tar -xzvf dog_stool_small.tgz
-    - name: Set up Nextflow
+    - name: Set up and install Nextflow
       run: |
         mkdir /tmp/nextflow && cd /tmp/nextflow
         wget -qO- get.nextflow.io | bash
         sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
     - name: Run Nextflow on test data (Illumina V4)
       run: |
-        NXF_VER=21.04.3 nextflow run ${{ github.workspace }}/main.nf -profile test,docker \
-        --reads="$HOME/test-data/illumina/*_R{1,2}.fastq.gz" --trimFor 24 --trimRev 25 \
-        --reference="$HOME/ref-data/silva_nr_v132_train_set.fa.gz" --species="$HOME/ref-data/silva_species_assignment_v132.fa.gz" \
-        --outdir="$HOME/out" --runTree fasttree
+        NXF_VER=21.04.3 nextflow run ${{ github.workspace }}/main.nf -profile test,docker
     # - name: Set up Singularity
     #   run: |
     #     sudo apt-get update && sudo apt-get install -y build-essential \
