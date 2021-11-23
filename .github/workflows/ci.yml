@@ -24,32 +24,6 @@ jobs:
       run: cd $HOME/ref-data && wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz && wget https://zenodo.org/record/1172783/files/silva_species_assignment_v132.fa.gz
     - name: Download test-data and untar
       run: cd $HOME/test-data && wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/dog_stool_small.tgz && tar -xzvf dog_stool_small.tgz
-    - name: Set up Singularity
-      run: |
-        sudo apt-get update && sudo apt-get install -y build-essential \
-        libssl-dev \
-        uuid-dev \
-        libgpgme11-dev \
-        squashfs-tools \
-        libseccomp-dev \
-        pkg-config
-        export VERSION=1.16.5 OS=linux ARCH=amd64 && \
-        wget https://dl.google.com/go/go$VERSION.$OS-$ARCH.tar.gz && \
-        sudo tar -C /usr/local -xzvf go$VERSION.$OS-$ARCH.tar.gz && \
-        rm go$VERSION.$OS-$ARCH.tar.gz
-        echo 'export GOPATH=${HOME}/go' >> $HOME/.bashrc && \
-        echo 'export PATH=/usr/local/go/bin:${PATH}:${GOPATH}/bin' >> $HOME/.bashrc && \
-        source $HOME/.bashrc
-        export GOPATH=${HOME}/go # Sourcing does not work, need to explicitly set GOPATH
-        go get -u github.com/golang/dep/cmd/dep
-        go get -d github.com/sylabs/singularity ||:
-        export VERSION=v3.8.0 && \
-        cd $GOPATH/src/github.com/sylabs/singularity && \
-        git fetch && \
-        git checkout $VERSION
-        ./mconfig && \
-        make -C ./builddir && \
-        sudo make -C ./builddir install
     - name: Set up Nextflow
       run: |
         mkdir /tmp/nextflow && cd /tmp/nextflow
@@ -57,7 +31,7 @@ jobs:
         sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
     - name: Run Nextflow on test data (Illumina V4)
       run: |
-        NXF_VER=21.04.3 nextflow run ${{ github.workspace }}/main.nf -profile standard \
+        NXF_VER=21.04.3 nextflow run ${{ github.workspace }}/main.nf -profile test,docker \
         --reads="$HOME/test-data/*_R{1,2}.fastq.gz" --trimFor 24 --trimRev 25 \
         --reference="$HOME/ref-data/silva_nr_v132_train_set.fa.gz" --species="$HOME/ref-data/silva_species_assignment_v132.fa.gz" \
-        --outdir="$HOME/out"
+        --outdir="$HOME/out" --runTree fasttree
