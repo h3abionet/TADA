@@ -215,7 +215,7 @@ log.info "========================================="
 
 
 process PacBioFilterAndTrim {
-    tag { "PacBio_${pairId}" }
+    tag { "PacBio_${id}" }
     publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
     input:
