@@ -10,8 +10,9 @@ on:
     types: [published]
 
 jobs:
-  build:
-    name: Run workflow tests
+
+  test-illumina:
+    name: Run workflow tests (Illumina V4)
     if: ${{ github.event_name != 'push' || (github.event_name == 'push' && github.repository == 'h3abionet/TADA') }}
     runs-on: ubuntu-latest
     permissions:
@@ -36,16 +37,13 @@ jobs:
 
       - name: Setup ref-data and test-data directories 
         run: |
-          mkdir -p $HOME/ref-data $HOME/test-data/illumina $HOME/test-data/pacbio
-          cd $HOME/ref-data 
+          mkdir -p $HOME/ref-data $HOME/test-data/illumina
+          cd $HOME/ref-data
           wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz 
           wget https://zenodo.org/record/1172783/files/silva_species_assignment_v132.fa.gz
           cd $HOME/test-data/illumina 
           wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/dog_stool_small.tgz 
           tar -xzvf dog_stool_small.tgz
-          cd $HOME/test-data/pacbio
-          wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/Small_PacBio.tgz 
-          tar -xzvf Small_PacBio.tgz
       - name: Set up and install Nextflow
         run: |
           mkdir /tmp/nextflow && cd /tmp/nextflow
@@ -54,9 +52,48 @@ jobs:
       - name: Run Nextflow on test data (Illumina V4)
         run: |
           nextflow run ${{ github.workspace }}/main.nf -profile test_illumina,docker
+  
+  test-pacbio:
+    name: Run workflow tests (PacBio HiFi)
+    if: ${{ github.event_name != 'push' || (github.event_name == 'push' && github.repository == 'h3abionet/TADA') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      NXF_VER: ${{ matrix.nxf_ver }}
+      NXF_ANSI_LOG: false
+    strategy:
+      matrix:
+        # Nextflow versions: check pipeline minimum and current latest
+        nxf_ver: ["21.04.0", ""]
+    steps:
+      - name: Checkout pipeline code
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+
+      - name: Setup ref-data and test-data directories 
+        run: |
+          mkdir -p $HOME/ref-data $HOME/test-data/pacbio
+          cd $HOME/ref-data 
+          wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz 
+          wget https://zenodo.org/record/1172783/files/silva_species_assignment_v132.fa.gz
+          cd $HOME/test-data/pacbio
+          wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/Small_PacBio.tgz 
+          tar -xzvf Small_PacBio.tgz
+      - name: Set up and install Nextflow
+        run: |
+          mkdir /tmp/nextflow && cd /tmp/nextflow
+          wget -qO- get.nextflow.io | bash
+          sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
       - name: Run Nextflow on test data (PacBio HiFi)
         run: |
-          nextflow run ${{ github.workspace }}/pacbio.nf -profile test_pacbio,docker
+          nextflow run ${{ github.workspace }}/pacbio.nf -profile test_pacbio,docker          
       # - name: Set up Singularity
       #   run: |
       #     sudo apt-get update && sudo apt-get install -y build-essential \
