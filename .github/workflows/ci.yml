@@ -36,13 +36,16 @@ jobs:
 
       - name: Setup ref-data and test-data directories 
         run: |
-          mkdir -p $HOME/ref-data $HOME/test-data/illumina
+          mkdir -p $HOME/ref-data $HOME/test-data/illumina $HOME/test-data/pacbio
           cd $HOME/ref-data 
           wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz 
           wget https://zenodo.org/record/1172783/files/silva_species_assignment_v132.fa.gz
           cd $HOME/test-data/illumina 
           wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/dog_stool_small.tgz 
           tar -xzvf dog_stool_small.tgz
+          cd $HOME/test-data/pacbio
+          wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/Small_PacBio.tgz 
+          tar -xzvf Small_PacBio.tgz
       - name: Set up and install Nextflow
         run: |
           mkdir /tmp/nextflow && cd /tmp/nextflow
@@ -51,6 +54,9 @@ jobs:
       - name: Run Nextflow on test data (Illumina V4)
         run: |
           nextflow run ${{ github.workspace }}/main.nf -profile test_illumina,docker
+      - name: Run Nextflow on test data (PacBio HiFi)
+        run: |
+          nextflow run ${{ github.workspace }}/pacbio.nf -profile test_pacbio,docker
       # - name: Set up Singularity
       #   run: |
       #     sudo apt-get update && sudo apt-get install -y build-essential \
