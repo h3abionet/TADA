@@ -5,6 +5,8 @@ BiocManager::install()
 
 pkgs <- c(
   "RCurl",
+  "tidyverse",
+  "pander",
   "phangorn",
   "dplyr",
   "dada2",
