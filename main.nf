@@ -1382,9 +1382,9 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
     }
 } else {
     // Note these are caught downstream
-    alnToQIIME2 = false
-    treeToQIIME2 = false
-    rootedToQIIME2 = false
+    alnToQIIME2 = Channel.empty()
+    treeToQIIME2 = Channel.empty()
+    rootedToQIIME2 = Channel.empty()
 }
 
 // TODO: rewrite using the python BIOM tools
@@ -1589,9 +1589,6 @@ if (params.toQIIME2) {
 
         output:
         file "*.qza"
-
-        when:
-        treeToQIIME2 != false
 
         script:
         """
