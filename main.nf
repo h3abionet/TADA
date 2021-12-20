@@ -1605,6 +1605,39 @@ if (params.toQIIME2) {
     }
 }
 
+// TODO: this could eventually go into a report process to consolidate workflow info;
+//       deciding between pander, knitr, or combination of the two
+process sessionInfo {
+        tag { "R-sessionInfo" }
+        label 'sessionInfo'
+        publishDir "${params.outdir}/sessionInfo", mode: "link"
+
+        output:
+        file "sessionInfo.Rmd"
+
+        script:
+        """
+        #!/usr/bin/env Rscript
+        pkgs <- c(
+          "RCurl",
+          "tidyverse",
+          "pander",
+          "phangorn",
+          "dplyr",
+          "dada2",
+          "DECIPHER",
+          "digest",
+          "biomformat",
+          "optparse"
+        )
+        lapply(pkgs, require, character.only = TRUE)
+
+        sink('sessionInfo.Rmd')
+        rmd <- pander(sessionInfo(), compact = FALSE)
+        sink()
+        """
+}
+
 /*
  * Completion e-mail notification
  */
