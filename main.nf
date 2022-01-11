@@ -210,6 +210,9 @@ process runDADA2QC {
     input:
     path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
 
+    when:
+    params.skipDadaQC = false
+
     output:
     file '*.pdf'
 
