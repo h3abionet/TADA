@@ -211,7 +211,7 @@ process runDADA2QC {
     path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
 
     when:
-    params.skipDadaQC = false
+    params.skip_dadaQC = false
 
     output:
     file '*.pdf'
@@ -236,7 +236,6 @@ process runDADA2QC {
     """
 }
 
-
 // TODO: combine MultiQC reports and split by directory (no need for two)
 process runMultiQC {
     tag { "MultiQC" }
@@ -248,6 +247,9 @@ process runMultiQC {
     output:
     file "*_report.html" into multiqc_report
     file "*_data"
+
+    when:
+    params.skip_multiQC = false
 
     script:
     interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
