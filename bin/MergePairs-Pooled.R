@@ -33,14 +33,15 @@ if(pool == "T" || pool == "TRUE"){
   pool <- as.logical(pool)
 }
 
-derepFs <- derepFastq(filtFs)
+# derepFs <- derepFastq(filtFs)
+cat(paste0("Denoising forward reads: pool: \n", pool))
+ddFs <- dada(filtFs, err=errF, multithread=opt$cpus, pool=pool)
 
-ddFs <- dada(derepFs, err=errF, multithread=opt$cpus, pool=pool)
+# derepRs <- derepFastq(filtRs)
+cat(paste0("Denoising reverse reads: pool: \n", pool))
+ddRs <- dada(filtRs, err=errR, multithread=opt$cpus, pool=pool)
 
-derepRs <- derepFastq(filtRs)
-
-ddRs <- dada(derepRs, err=errR, multithread=opt$cpus, pool=pool)
-
+cat("Merging reads"))
 mergers <- mergePairs(ddFs, derepFs, ddRs, derepRs,
     returnRejects = TRUE,
     minOverlap = opt$minOverlap,

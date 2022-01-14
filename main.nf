@@ -621,7 +621,9 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         // as the ID can't be used anyway
 
         input:
-        file filts from filteredReads.collect( )
+        file filts from filteredReads
+            .map{ it[1,2] } // keep only reads, toss ID
+            .collect( )
         file errFor from errorsFor
         file errRev from errorsRev
 
