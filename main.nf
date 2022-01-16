@@ -615,6 +615,7 @@ process LearnErrorsRev {
     // In this track we run pooling (either complete or 'pseudopooling')
 filteredReads.into{ filteredReadsR1;filteredReadsR2;filteredReadsMerge }
 
+    // pretty sure we can do some Nextflow magic to combine the next two steps into one, using crossmapping or similar
     process InferFor {
         tag { "InferFor" }
         publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
@@ -634,7 +635,7 @@ filteredReads.into{ filteredReadsR1;filteredReadsR2;filteredReadsMerge }
         script:
         """
         dadaPooled.R --err ${err} \\
-            --read 'R1' \\
+            --reads 'R1' \\
             --pool ${params.pool} \\
             --cpus ${task.cpus} \\
             --dadaOpt ${params.dadaOpt}
@@ -660,7 +661,7 @@ filteredReads.into{ filteredReadsR1;filteredReadsR2;filteredReadsMerge }
         script:
         """
         dadaPooled.R --err ${err} \\
-            --read 'R2' \\
+            --reads 'R2' \\
             --pool ${params.pool} \\
             --cpus ${task.cpus} \\
             --dadaOpt ${params.dadaOpt}
