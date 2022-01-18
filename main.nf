@@ -519,117 +519,77 @@ process LearnErrors {
  *
  */
 
-// if (params.pool == "T" || params.pool == 'pseudo') {
+if (params.pool == "T" || params.pool == 'pseudo') {
 
-process DadaInfer {
-    tag { "DadaInfer:${readmode}" }
-    publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+  process DadaInfer {
+      tag { "DadaInfer:${readmode}" }
+      publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
 
-    input:
-    tuple val(readmode), file(err), file(reads) from errorModels
-        .join(ReadsInfer)
+      input:
+      tuple val(readmode), file(err), file(reads) from errorModels
+          .join(ReadsInfer)
 
-    output:
-    file("all.dd.${readmode}.RDS") into dadaMerge,dadaForReadTracking
+      output:
+      file("all.dd.${readmode}.RDS") into dadaMerge,dadaForReadTracking
 
-    when:
-    params.precheck == false
+      when:
+      params.precheck == false
 
-    script:
-    dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
-    template "DadaPooled.R"
-}
+      script:
+      dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+      template "DadaPooled.R"
+  }
 
-process MergePooled {
-    tag { "mergeDadaRDS" }
-    publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+  process MergePooled {
+      tag { "mergeDadaRDS" }
+      publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
 
-    input:
-    file(dds) from dadaMerge.collect()
-    file(filts) from ReadsMerge
-        .map { it[1] }
-        .flatten()
-        .collect()
+      input:
+      file(dds) from dadaMerge.collect()
+      file(filts) from ReadsMerge
+          .map { it[1] }
+          .flatten()
+          .collect()
 
-    output:
-    file "seqtab.RDS" into seqTable,rawSeqTableToRename
-    file "all.mergers.RDS" into mergerTracking
-    file "seqtab.original.RDS" // we keep this for comparison and possible QC
+      output:
+      file "seqtab.RDS" into seqTable,rawSeqTableToRename
+      file "all.mergers.RDS" into mergerTracking
+      file "seqtab.original.RDS" // we keep this for comparison and possible QC
 
-    when:
-    params.precheck == false
+      when:
+      params.precheck == false
 
-    script:
-    template "MergePairs.R"
-    // """
-    // MergePairs.R --cpus ${task.cpus} \\
-    //     --minOverlap ${params.minOverlap} \\
-    //     --maxMismatch ${params.maxMismatch} \\
-    //     --trimOverhang ${params.trimOverhang} \\
-    //     --minMergedLen ${params.minMergedLen} \\
-    //     --maxMergedLen ${params.maxMergedLen} \\
-    //     --justConcatenate ${params.justConcatenate}
-    // """
-}
+      script:
+      template "MergePairs.R"
+  }
 
-// } else {
-//     // pool = F, process per sample
-//     process PerSampleInferDerepAndMerge {
-//         tag { "PerSampleInferDerepAndMerge" }
-//         publishDir "${params.outdir}/dada2-Derep", mode: "copy", overwrite: true
+} else {
+    // pool = F, process per sample
 
-//         input:
-//         set val(pairId), file(filtFor), file(filtRev) from filteredReads
-//         file errFor from errorsFor
-//         file errRev from errorsRev
+    // process PerSampleInferDerepAndMerge {
+    //     tag { "PerSampleInferDerepAndMerge" }
+    //     publishDir "${params.outdir}/dada2-Derep", mode: "copy", overwrite: true
 
-//         output:
-//         file "seqtab.RDS" into seqTable
-//         file "all.mergers.RDS" into mergerTracking
-//         file "all.ddF.RDS" into dadaForReadTracking
-//         file "all.ddR.RDS" into dadaRevReadTracking
-//         file "all.derepF.RDS" into dadaForDerep
-//         file "all.derepR.RDS" into dadaRevDerep
-//         file "seqtab.*"
+    //     input:
+    //     set val(pairId), file(r1), file(r2) from filteredReads
+    //     file errs from errorModels.collect()
 
-//         when:
-//         params.precheck == false
+    //     output:
+    //     file "seqtab.RDS" into seqTable
+    //     file "all.mergers.RDS" into mergerTracking
+    //     file "all.dd.R1.RDS" into dadaForReadTracking
+    //     file "all.dd.R2.RDS" into dadaRevReadTracking
+    //     file "seqtab.*"
+    //     // file "all.derepF.RDS" into dadaForDerep
+    //     // file "all.derepR.RDS" into dadaRevDerep
 
-//         script:
-//         """
-//         #!/usr/bin/env Rscript
-//         library(dada2)
-//         packageVersion("dada2")
-//         setDadaOpt(${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")})
+    //     when:
+    //     params.precheck == false
 
-//         errF <- readRDS("${errFor}")
-//         errR <- readRDS("${errRev}")
-//         cat("Processing:", "${pairId}", "\\n")
+    //     script:
+    //     template "PerSampleDadaInfer.R"
+    // }
 
-//         derepF <- derepFastq("${filtFor}")
-
-//         ddF <- dada(derepF, err=errF, multithread=${task.cpus}, pool=as.logical("${params.pool}"))
-
-//         derepR <- derepFastq("${filtRev}")
-//         ddR <- dada(derepR, err=errR, multithread=${task.cpus}, pool=as.logical("${params.pool}"))
-
-//         merger <- mergePairs(ddF, derepF, ddR, derepR,
-//             returnRejects = TRUE,
-//             minOverlap = ${params.minOverlap},
-//             maxMismatch = ${params.maxMismatch},
-//             trimOverhang = as.logical("${params.trimOverhang}"),
-//             justConcatenate=as.logical("${params.justConcatenate}")
-//             )
-
-//         saveRDS(merger, paste("${pairId}", "merged", "RDS", sep="."))
-
-//         saveRDS(ddFs, "all.ddF.RDS")
-//         saveRDS(derepFs, "all.derepFs.RDS")
-
-//         saveRDS(ddRs, "all.ddR.RDS")
-//         saveRDS(derepRs, "all.derepRs.RDS")
-//         """
-//     }
 
 //     process mergeDadaRDS {
 //         tag { "mergeDadaRDS" }
@@ -692,7 +652,7 @@ process MergePooled {
 //         saveRDS(mergers, "all.mergers.RDS")
 //         '''
 //     }
-// }
+}
 
 /*
  *
@@ -715,13 +675,8 @@ if (!params.skipChimeraDetection) {
         params.precheck == false
 
         script:
-        // chimOpts = params.removeBimeraDenovoOptions != false ? ", ${params.removeBimeraDenovoOptions}" : ''
-        chimOpts = params.removeBimeraDenovoOptions != false ? "--chimeraOptions ${params.removeBimeraDenovoOptions}" : ''
+        chimOpts = params.removeBimeraDenovoOptions != false ? ", ${params.removeBimeraDenovoOptions}" : ''
         template "RemoveChimeras.R"
-        // """
-        // RemoveChimeras.R --cpus ${task.cpus} \\
-        //     ${chimOpts}
-        // """
     }
 } else {
     seqTable.into {seqTableToTax;seqTableToRename}
@@ -732,7 +687,6 @@ if (!params.skipChimeraDetection) {
  * Step 9: Taxonomic assignment
  *
  */
-
 
 if (params.reference) {
 
@@ -761,33 +715,7 @@ if (params.reference) {
                 params.precheck == false
 
                 script:
-                template "AssignTaxSpeciesRDP.R"
-                // """
-                // #!/usr/bin/env Rscript
-                // library(dada2)
-                // packageVersion("dada2")
-
-                // seqtab <- readRDS("${st}")
-
-                // # Assign taxonomy
-                // tax <- assignTaxonomy(seqtab, "${ref}",
-                //                         multithread=${task.cpus},
-                //                         tryRC = TRUE,
-                //                         outputBootstraps = TRUE,
-                //                         minBoot = ${params.minBoot},
-                //                         verbose = TRUE)
-                // boots <- tax\$boot
-
-                // tax <- addSpecies(tax\$tax, "${sp}",
-                //                  tryRC = TRUE,
-                //                  verbose = TRUE)
-
-                // rownames(tax) <- colnames(seqtab)
-
-                // # Write original data
-                // saveRDS(tax, "tax_final.RDS")
-                // saveRDS(boots, "bootstrap_final.RDS")
-                // """
+                template "AssignTaxonomySpeciesRDP.R"
             }
 
         } else {
@@ -807,29 +735,10 @@ if (params.reference) {
                 when:
                 params.precheck == false
 
+                // TODO: this is not tested yet
                 script:
                 taxLevels = params.taxLevels ? "c( ${params.taxLevels} )," : ''
                 template "AssignTaxonomyRDP.R"
-                // """
-                // #!/usr/bin/env Rscript
-                // library(dada2)
-                // packageVersion("dada2")
-
-                // seqtab <- readRDS("${st}")
-
-                // # Assign taxonomy
-                // tax <- assignTaxonomy(seqtab, "${ref}",
-                //                       multithread=${task.cpus},
-                //                       minBoot = ${params.minBoot},
-                //                       tryRC = TRUE,
-                //                       outputBootstraps = TRUE, ${taxLevels}
-                //                       verbose = TRUE 
-                //                       )
-
-                // # Write to disk
-                // saveRDS(tax\$tax, "tax_final.RDS")
-                // saveRDS(tax\$boot, "bootstrap_final.RDS")
-                // """
             }
         }
     } else if (params.taxassignment == 'idtaxa') {
@@ -852,52 +761,9 @@ if (params.reference) {
             when:
             params.precheck == false
 
+            // TODO: this is not tested yet
             script:
             template "TaxonomyIDTAXA.R"
-            // """
-            // #!/usr/bin/env Rscript
-            // library(dada2)
-            // library(DECIPHER)
-            // packageVersion("DECIPHER")
-
-            // seqtab <- readRDS("${st}")
-
-            // # Create a DNAStringSet from the ASVs
-            // dna <- DNAStringSet(getSequences(seqtab))
-
-            // # load database; this should be a RData file
-            // load("${refFile}")
-
-            // ids <- IdTaxa(dna, trainingSet,
-            //     strand="both",
-            //     processors=${task.cpus},
-            //     verbose=TRUE)
-            // # ranks of interest
-            // ranks <- c("domain", "phylum", "class", "order", "family", "genus", "species")
-            // saveRDS(ids, 'raw_idtaxa.RDS')
-
-            // # Convert the output object of class "Taxa" to a matrix analogous to the output from assignTaxonomy
-            // taxid <- t(sapply(ids, function(x) {
-            //         m <- match(ranks, x\$rank)
-            //         taxa <- x\$taxon[m]
-            //         taxa[startsWith(taxa, "unclassified_")] <- NA
-            //         taxa
-            // }))
-            // colnames(taxid) <- ranks
-            // rownames(taxid) <- getSequences(seqtab)
-
-            // boots <- t(sapply(ids, function(x) {
-            //         m <- match(ranks, x\$rank)
-            //         bs <- x\$confidence[m]
-            //         bs
-            // }))
-            // colnames(boots) <- ranks
-            // rownames(boots) <- getSequences(seqtab)
-
-            // # Write to disk
-            // saveRDS(taxid, "tax_final.RDS")
-            // saveRDS(boots, "bootstrap_final.RDS")
-            // """
         }
 
     } else if (params.taxassignment) {
@@ -948,42 +814,6 @@ process RenameASVs {
 
     script:
     template "RenameASVs.R"
-    // """
-    // #!/usr/bin/env Rscript
-    // library(dada2)
-    // library(ShortRead)
-    // library(digest)
-
-    // # read RDS w/ data
-    // st <- readRDS("${st}")
-    // st.raw <- readRDS("${rawst}")
-
-    // # get sequences
-    // seqs <- colnames(st)
-    // seqs.raw <- colnames(st.raw)
-
-    // # get IDs based on idType
-    // ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st), sep = ""),
-    //                             md5=sapply(colnames(st), digest, algo="md5"))
-    // ids_study.raw <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.raw), sep = ""),
-    //                             md5=sapply(colnames(st.raw), digest, algo="md5"))
-    
-    // # sub IDs
-    // colnames(st) <- ids_study
-    // colnames(st.raw) <- ids_study.raw
-
-    // # generate FASTA
-    // seqs.dna <- ShortRead(sread = DNAStringSet(seqs), id = BStringSet(ids_study))
-    // # Write out fasta file.
-    // writeFasta(seqs.dna, file = 'asvs.${params.idType}.nochim.fna')
-
-    // seqs.dna.raw <- ShortRead(sread = DNAStringSet(seqs.raw), id = BStringSet(ids_study.raw))
-    // writeFasta(seqs.dna.raw, file = 'asvs.${params.idType}.raw.fna')
-
-    // # Write modified data (note we only keep the no-chimera reads for the next stage)
-    // saveRDS(st, "seqtab_final.simple.RDS")
-    // saveRDS(data.frame(id = ids_study, seq = seqs), "readmap.RDS")
-    // """
 }
 
 process GenerateSeqTables {
@@ -1002,46 +832,6 @@ process GenerateSeqTables {
 
     script:
     template "GenerateSeqTables.R"
-    // """
-    // #!/usr/bin/env Rscript
-    // library(dada2)
-    // library(ShortRead)
-
-    // seqtab <- readRDS("${st}")
-
-    // if (as.logical('${params.sampleRegex}' != FALSE )) {
-    //     rownames(seqtab) <- gsub('${params.sampleRegex}', "\\\\1", rownames(seqtab), perl = TRUE)
-    // }
-
-    // # Generate table output
-    // write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
-    //     file = 'seqtab_final.txt',
-    //     row.names = FALSE,
-    //     col.names=c('#SampleID', colnames(seqtab)), sep = "\t")
-
-    // ######################################################################
-    // # Convert to simple table + FASTA, from
-    // # https://github.com/LangilleLab/microbiome_helper/blob/master/convert_dada2_out.R#L69
-    // ######################################################################
-
-    // # Generate OTU table output (rows = samples, cols = ASV)
-    // write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
-    //     file = 'seqtab_final.simple.txt',
-    //     row.names = FALSE,
-    //     col.names=c('#SampleID', colnames(seqtab)),
-    //     sep = "\t")
-
-    // # Generate OTU table for QIIME2 import (rows = ASVs, cols = samples)
-    // write.table(
-    //     data.frame('Taxa' = colnames(seqtab), t(seqtab), check.names = FALSE),
-    //     file = 'seqtab_final.simple.qiime2.txt',
-    //     row.names = FALSE,
-    //     quote=FALSE,
-    //     sep = "\t")
-
-    // # Write modified data
-    // saveRDS(seqtab, "seqtab_final.simple.RDS")
-    // """
 }
 
 process GenerateTaxTables {
@@ -1063,56 +853,6 @@ process GenerateTaxTables {
 
     script:
     template "GenerateTaxTables.R"
-    // """
-    // #!/usr/bin/env Rscript
-    // library(dada2)
-    // library(ShortRead)
-
-    // tax <- readRDS("${tax}")
-    // map <- readRDS("${map}")
-
-    // # Note that we use the old ASV ID for output here
-    // write.table(data.frame('ASVID' = row.names(tax), tax),
-    //     file = 'tax_final.txt',
-    //     row.names = FALSE,
-    //     col.names=c('#OTU ID', colnames(tax)), sep = "\t")
-
-    // # Tax table
-    // if(!identical(rownames(tax), as.character(map\$seq))){
-    //     stop("sequences in taxa and sequence table are not ordered the same.")
-    // }
-
-    // tax[is.na(tax)] <- "Unclassified"
-    // rownames(tax) <- map\$id
-    // taxa_combined <- apply(tax, 1, function(x) paste(x, collapse=";"))
-    // taxa_out <- data.frame(names(taxa_combined), taxa_combined)
-    // colnames(taxa_out) <- c("#OTU ID", "taxonomy")
-
-    // write.table(data.frame('ASVID' = row.names(tax), tax),
-    //     file = 'tax_final.simple.full.txt',
-    //     row.names = FALSE,
-    //     col.names=c('#OTU ID', colnames(tax)), sep = "\t")
-
-    // write.table(taxa_out,
-    //     file = 'tax_final.simple.txt',
-    //     row.names = FALSE,
-    //     sep = "\t")
-
-    // if (file.exists('bootstrap_final.RDS')) {
-    //     boots <- readRDS("${bt}")
-    //     if(!identical(rownames(boots), as.character(map\$seq))){
-    //         stop("sequences in bootstrap and sequence table are not ordered the same.")
-    //     }
-    //     rownames(boots) <- map\$id
-    //     write.table(data.frame('ASVID' = row.names(boots), boots),
-    //         file = 'tax_final.bootstraps.simple.full.txt',
-    //         row.names = FALSE,
-    //         col.names=c('#OTU ID', colnames(boots)), sep = "\t")
-    // }
-
-    // # Write modified data
-    // saveRDS(tax, "tax_final.simple.RDS")
-    // """
 }
 
 /*
@@ -1178,17 +918,6 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
             
             script:
             template "AlignReadsDECIPHER.R"
-            // """
-            // #!/usr/bin/env Rscript
-            // library(dada2)
-            // library(DECIPHER)
-
-            // seqs <- readDNAStringSet("${seqs}")
-            // alignment <- AlignSeqs(seqs,
-            //                        anchor=NA,
-            //                        processors = ${task.cpus})
-            // writeXStringSet(alignment, "aligned_seqs.fasta")
-            // """
         }
     } else {
         exit 1, "Unknown aligner option: ${params.aligner}"
@@ -1216,26 +945,6 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
             script:
             template "PhangornML.R"
-            // """
-            // #!/usr/bin/env Rscript
-            // library(phangorn)
-
-            // phang.align <- read.phyDat("aligned_seqs.fasta",
-            //                             format = "fasta",
-            //                             type = "DNA")
-
-            // dm <- dist.ml(phang.align)
-            // treeNJ <- NJ(dm) # Note, tip order != sequence order
-            // fit = pml(treeNJ, data=phang.align)
-            // write.tree(fit\$tree, file = "tree.newick")
-
-            // ## negative edges length changed to 0!
-            // fitGTR <- update(fit, k=4, inv=0.2)
-            // fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
-            //                       rearrangement = "stochastic", control = pml.control(trace = 0))
-            // saveRDS(fitGTR, "phangorn.tree.RDS")
-            // write.tree(fitGTR\$tree, file = "tree.GTR.newick")
-            // """
         }
     } else if (params.runTree == 'fasttree') {
 
@@ -1276,17 +985,6 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
         script:
         template "RootTree.R"
-        // """
-        // #!/usr/bin/env Rscript
-        // library(phangorn)
-        // library(ape)
-
-        // tree <- read.tree(file = "${tree}")
-
-        // midtree <- midpoint(tree)
-
-        // write.tree(midtree, file = "rooted.newick")
-        // """
     }
 } else {
     // Note these are caught downstream
@@ -1295,7 +993,7 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
     rootedToQIIME2 = Channel.empty()
 }
 
-// TODO: rewrite using the python BIOM tools
+// TODO: rewrite using the python BIOM tools?
 
 process ToBiomFile {
     tag { "ToBiomFile" }
@@ -1313,15 +1011,6 @@ process ToBiomFile {
 
     script:
     template "ToBIOM.R"
-    // """
-    // #!/usr/bin/env Rscript
-    // library(biomformat)
-    // packageVersion("biomformat")
-    // seqtab <- readRDS("${sTable}")
-    // taxtab <- readRDS("${tTable}")
-    // st.biom <- make_biom(t(seqtab), observation_metadata = taxtab)
-    // write_biom(st.biom, "dada2.biom")
-    // """
 }
 
 /*
@@ -1488,26 +1177,6 @@ process SessionInfo {
 
         script:
         template "SessionInfo.R"
-        // """
-        // #!/usr/bin/env Rscript
-        // pkgs <- c(
-        //   "RCurl",
-        //   "tidyverse",
-        //   "pander",
-        //   "phangorn",
-        //   "dplyr",
-        //   "dada2",
-        //   "DECIPHER",
-        //   "digest",
-        //   "biomformat",
-        //   "optparse"
-        // )
-        // lapply(pkgs, require, character.only = TRUE)
-
-        // sink('sessionInfo.Rmd')
-        // rmd <- pander(sessionInfo(), compact = FALSE)
-        // sink()
-        // """
 }
 
 /*
