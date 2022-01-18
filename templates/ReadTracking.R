@@ -1,7 +1,6 @@
 #!/usr/bin/env Rscript
-library(dada2)
-packageVersion("dada2")
-library(dplyr)
+suppressPackageStartupMessages(library(dada2))
+suppressPackageStartupMessages(library(dplyr))
 
 getN <- function(x) sum(getUniques(x))
 

@@ -566,92 +566,64 @@ if (params.pool == "T" || params.pool == 'pseudo') {
 } else {
     // pool = F, process per sample
 
-    // process PerSampleInferDerepAndMerge {
-    //     tag { "PerSampleInferDerepAndMerge" }
-    //     publishDir "${params.outdir}/dada2-Derep", mode: "copy", overwrite: true
+    process PerSampleInferDerepAndMerge {
+        tag { "PerSampleInferDerepAndMerge" }
+        publishDir "${params.outdir}/dada2-Derep-Single/Per-Sample", mode: "copy", overwrite: true
 
-    //     input:
-    //     set val(pairId), file(r1), file(r2) from filteredReads
-    //     file errs from errorModels.collect()
+        input:
+        tuple val(pairId), file(r1), file(r2) from filteredReads
+        file errs from errorModels.collect()
 
-    //     output:
-    //     file "seqtab.RDS" into seqTable
-    //     file "all.mergers.RDS" into mergerTracking
-    //     file "all.dd.R1.RDS" into dadaForReadTracking
-    //     file "all.dd.R2.RDS" into dadaRevReadTracking
-    //     file "seqtab.*"
-    //     // file "all.derepF.RDS" into dadaForDerep
-    //     // file "all.derepR.RDS" into dadaRevDerep
+        output:
+        tuple val(pairId), file("${pairId}.merged.RDS") into mergedReads
+        tuple val(pairId), file("${pairId}.dd.R{1,2}.RDS") into perSampleDadaToMerge
 
-    //     when:
-    //     params.precheck == false
+        when:
+        params.precheck == false
 
-    //     script:
-    //     template "PerSampleDadaInfer.R"
-    // }
+        script:
+        dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+        template "PerSampleDadaInfer.R"
+    }
 
+    process MergeDadaRDS {
+        tag { "mergeDadaRDS" }
+        publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
 
-//     process mergeDadaRDS {
-//         tag { "mergeDadaRDS" }
-//         publishDir "${params.outdir}/dada2-Inference", mode: "copy", overwrite: true
+        input:
+        file(dds)from perSampleDadaToMerge
+                      .map { it[1]}
+                      .flatten()
+                      .collect()
 
-//         input:
-//         file ddFs from dadaFor.collect()
-//         file ddRs from dadaRev.collect()
+        output:
+        file "all.dd.R{1,2}.RDS" into dadaToReadTracking
 
-//         output:
-//         file "all.ddF.RDS" into dadaForReadTracking
-//         file "all.ddR.RDS" into dadaRevReadTracking
+        when:
+        params.precheck == false
 
-//         when:
-//         params.precheck == false
+        script:
+        template "MergePerSampleDada.R"
+    }
 
-//         script:
-//         '''
-//         #!/usr/bin/env Rscript
-//         library(dada2)
-//         packageVersion("dada2")
+    process SequenceTable {
+        tag { "SequenceTable" }
+        publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
 
-//         dadaFs <- lapply(list.files(path = '.', pattern = '.ddF.RDS$'), function (x) readRDS(x))
-//         names(dadaFs) <- sub('.ddF.RDS', '', list.files('.', pattern = '.ddF.RDS'))
-//         dadaRs <- lapply(list.files(path = '.', pattern = '.ddR.RDS$'), function (x) readRDS(x))
-//         names(dadaRs) <- sub('.ddR.RDS', '', list.files('.', pattern = '.ddR.RDS'))
-//         saveRDS(dadaFs, "all.ddF.RDS")
-//         saveRDS(dadaRs, "all.ddR.RDS")
-//         '''
-//     }
+        input:
+        file mr from mergedReads.collect()
 
-//     process SequenceTable {
-//         tag { "SequenceTable" }
-//         publishDir "${params.outdir}/dada2-SeqTable", mode: "copy", overwrite: true
-
-//         input:
-//         file mr from mergedReads.collect()
-
-//         output:
-//         file "seqtab.RDS" into seqTable,rawSeqTableToRename
-//         file "all.mergers.RDS" into mergerTracking
-
-//         when:
-//         params.precheck == false
-
-//         script:
-//         '''
-//         #!/usr/bin/env Rscript
-//         library(dada2)
-//         packageVersion("dada2")
+        output:
+        file "seqtab.RDS" into seqTable,rawSeqTableToRename
+        file "all.mergers.RDS" into mergerTracking
+        file "seqtab.original.RDS" // we keep this for comparison and possible QC
         
-//         mergerFiles <- list.files(path = '.', pattern = '.*.RDS$')
-//         pairIds <- sub('.merged.RDS', '', mergerFiles)
-//         mergers <- lapply(mergerFiles, function (x) readRDS(x))
-//         names(mergers) <- pairIds
-//         seqtab <- makeSequenceTable(mergers)
-//         seqtab <- seqtab[,nchar(colnames(seqtab)) >= ${params.minLen}]
+        when:
+        params.precheck == false
 
-//         saveRDS(seqtab, "seqtab.RDS")
-//         saveRDS(mergers, "all.mergers.RDS")
-//         '''
-//     }
+        script:
+        template "PerSampleSeqTable.R"
+    }
 }
 
 /*
@@ -1029,7 +1001,7 @@ process ReadTracking {
     file trimmedTable from trimmedReadTracking
     file sTable from seqTableFinalTracking
     file mergers from mergerTracking
-    file dds from dadaForReadTracking.collect()
+    file dds from dadaToReadTracking.collect()
 
     output:
     file "all.readtracking.txt"
