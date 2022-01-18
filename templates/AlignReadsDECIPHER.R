@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-library(dada2)
-library(DECIPHER)
+suppressPackageStartupMessages(library(dada2))
+suppressPackageStartupMessages(library(DECIPHER))
 
 seqs <- readDNAStringSet("${seqs}")
 alignment <- AlignSeqs(seqs,

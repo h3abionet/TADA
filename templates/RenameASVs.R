@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
-library(dada2)
-library(ShortRead)
-library(digest)
+suppressPackageStartupMessages(library(dada2))
+suppressPackageStartupMessages(library(ShortRead))
+suppressPackageStartupMessages(library(digest))
 
 # read RDS w/ data
 st <- readRDS("${st}")

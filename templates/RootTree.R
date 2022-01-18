@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-library(phangorn)
-library(ape)
+suppressPackageStartupMessages(library(phangorn))
+suppressPackageStartupMessages(library(ape))
 
 tree <- read.tree(file = "${tree}")
 

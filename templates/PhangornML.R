@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-library(phangorn)
+suppressPackageStartupMessages(library(phangorn))
 
 phang.align <- read.phyDat("aligned_seqs.fasta",
                             format = "fasta",

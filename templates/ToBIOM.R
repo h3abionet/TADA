@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-library(biomformat)
+suppressPackageStartupMessages(library(biomformat))
 packageVersion("biomformat")
 seqtab <- readRDS("${sTable}")
 taxtab <- readRDS("${tTable}")

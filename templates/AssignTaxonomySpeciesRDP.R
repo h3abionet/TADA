@@ -1,6 +1,5 @@
 #!/usr/bin/env Rscript
-library(dada2)
-packageVersion("dada2")
+suppressPackageStartupMessages(library(dada2))
 
 seqtab <- readRDS("${st}")
 

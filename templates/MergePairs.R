@@ -13,7 +13,7 @@ ddRs <- readRDS("all.dd.R2.RDS")
 mergers <- mergePairs(ddFs, filtFs, ddRs, filtRs,
     returnRejects = TRUE,
     minOverlap = ${params.minOverlap},
-    maxMismatch = ${params$maxMismatch},
+    maxMismatch = ${params.maxMismatch},
     trimOverhang = as.logical(${params.trimOverhang}),
     justConcatenate = as.logical(${params.justConcatenate}),
     verbos = TRUE
@@ -30,12 +30,12 @@ saveRDS(seqtab, "seqtab.original.RDS")
 
 # this is an optional filtering step to remove *merged* sequences based on 
 # min/max length criteria
-if (${params$minMergedLen} > 0) {
-   seqtab <- seqtab[,nchar(colnames(seqtab)) >= ${params$minMergedLen}]
+if (${params.minMergedLen} > 0) {
+   seqtab <- seqtab[,nchar(colnames(seqtab)) >= ${params.minMergedLen}]
 }
 
-if (${params$maxMergedLen} > 0) {
-   seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params$maxMergedLen}]
+if (${params.maxMergedLen} > 0) {
+   seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params.maxMergedLen}]
 }
 
 saveRDS(seqtab, "seqtab.RDS")
