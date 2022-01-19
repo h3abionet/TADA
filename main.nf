@@ -246,177 +246,108 @@ process RunMultiQC {
 // Note: should explore cutadapt options more: https://github.com/benjjneb/dada2/issues/785
 // https://cutadapt.readthedocs.io/en/stable/guide.html#more-than-one
 
-// if (params.amplicon == 'ITS') {
+if (params.amplicon == 'ITS') {
 
-//     process itsFilterAndTrimStep1 {
-//         tag { "ITS_Step1_${pairId}" }
+    process ITSFilterAndTrimStep1 {
+        tag { "ITS_Step1_${pairId}" }
 
-//         input:
-//         set pairId, file(reads) from dada2ReadPairs
+        input:
+        set pairId, file(reads) from dada2ReadPairs
 
-//         output:
-//         set val(pairId), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
-//         set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
-//         file('forward_rc') into forwardP
-//         file('reverse_rc') into reverseP
+        output:
+        set val(pairId), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
+        set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
+        file('forward_rc') into forwardP
+        file('reverse_rc') into reverseP
 
-//         when:
-//         params.precheck == false
+        when:
+        params.precheck == false
 
-//         script:
-//         """
-//         #!/usr/bin/env Rscript
-//         library(dada2); packageVersion("dada2")
-//         library(ShortRead); packageVersion("ShortRead")
-//         library(Biostrings); packageVersion("Biostrings")
-
-//         #Filter out reads with N's
-//         out1 <- filterAndTrim(fwd = "${reads[0]}",
-//                             filt = paste0("${pairId}", ".R1.noN.fastq.gz"),
-//                             rev = "${reads[1]}",
-//                             filt.rev = paste0("${pairId}", ".R2.noN.fastq.gz"),
-//                             maxN = 0,
-//                             multithread = ${task.cpus})
-//         FWD.RC <- dada2:::rc("${params.fwdprimer}")
-//         REV.RC <- dada2:::rc("${params.revprimer}")
-        
-//         # this may switch to 'env' in the process at some point: 
-//         # https://www.nextflow.io/docs/latest/process.html?highlight=env#output-env
-//         # untested within R though
-        
-//         forP <- file("forward_rc")
-//         writeLines(FWD.RC, forP)
-//         close(forP)
-
-//         revP <- file("reverse_rc")
-//         writeLines(REV.RC, revP)
-//         close(revP)
-        
-//         saveRDS(out1, "${pairId}.out.RDS")
-//         """
-//     }
+        script:
+        template "ITSFilterAndTrimStep1.R"
+    }
     
-//     process itsFilterAndTrimStep2 {
-//         tag { "ITS_Step2_${pairId}" }
-//         publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+    process ITSFilterAndTrimStep2 {
+        tag { "ITS_Step2_${pairId}" }
+        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
-//         input:
-//         set pairId, reads from itsStep2
-//         file(forP) from forwardP
-//         file(revP) from reverseP
+        input:
+        set pairId, reads from itsStep2
+        file(forP) from forwardP
+        file(revP) from reverseP
         
-//         output:
-//         set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
-//         file "*.cutadapt.out" into cutadaptToMultiQC
+        output:
+        set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
+        file "*.cutadapt.out" into cutadaptToMultiQC
 
-//         when:
-//         params.precheck == false
+        when:
+        params.precheck == false
 
-//         script:
-//         """
-//         FWD_PRIMER=\$(<forward_rc)
-//         REV_PRIMER=\$(<reverse_rc)
+        script:
+        """
+        FWD_PRIMER=\$(<forward_rc)
+        REV_PRIMER=\$(<reverse_rc)
         
-//         cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
-//             -G "${params.revprimer}" -A \$REV_PRIMER \\
-//             --cores ${task.cpus} \\
-//             -n 2 \\
-//             -o "${pairId}.R1.cutadapt.fastq.gz" \\
-//             -p "${pairId}.R2.cutadapt.fastq.gz" \\
-//             "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
-//         """
-//     }
+        cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
+            -G "${params.revprimer}" -A \$REV_PRIMER \\
+            --cores ${task.cpus} \\
+            -n 2 \\
+            -o "${pairId}.R1.cutadapt.fastq.gz" \\
+            -p "${pairId}.R2.cutadapt.fastq.gz" \\
+            "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
+        """
+    }
 
-//     process itsFilterAndTrimStep3 {
-//         tag { "ITS_Step3_${pairId}" }
-//         publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+    process ITSFilterAndTrimStep3 {
+        tag { "ITS_Step3_${pairId}" }
+        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
-//         input:
-//         set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
+        input:
+        set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
 
-//         output:
-//         set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-//         file "*.R1.filtered.fastq.gz" optional true into forReads
-//         file "*.R2.filtered.fastq.gz" optional true into revReads
-//         file "*.trimmed.txt" into trimTracking
+        output:
+        set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
+        file "*.R1.filtered.fastq.gz" optional true into forReads
+        file "*.R2.filtered.fastq.gz" optional true into revReads
+        file "*.trimmed.txt" into trimTracking
 
-//         when:
-//         params.precheck == false
+        when:
+        params.precheck == false
 
-//         script:
-//         """
-//         #!/usr/bin/env Rscript
-//         library(dada2); packageVersion("dada2")
-//         library(ShortRead); packageVersion("ShortRead")
-//         library(Biostrings); packageVersion("Biostrings")
-
-//         out1 <- readRDS("${trimming}")
-//         out2 <- filterAndTrim(fwd = paste0("${pairId}",".R1.cutadapt.fastq.gz"),
-//                             filt = paste0("${pairId}", ".R1.filtered.fastq.gz"),
-//                             rev = paste0("${pairId}",".R2.cutadapt.fastq.gz"),
-//                             filt.rev = paste0("${pairId}", ".R2.filtered.fastq.gz"),
-//                             maxEE = c(${params.maxEEFor},${params.maxEERev}),
-//                             truncLen = c(${params.truncFor},${params.truncRev}),
-//                             truncQ = ${params.truncQ},
-//                             maxN = ${params.maxN},
-//                             rm.phix = as.logical(${params.rmPhiX}),
-//                             maxLen = ${params.maxLen},
-//                             minLen = ${params.minLen},
-//                             compress = TRUE,
-//                             verbose = TRUE,
-//                             multithread = ${task.cpus})
-//         #Change input read counts to actual raw read counts
-//         out3 <- cbind(out1, out2)
-//         colnames(out3) <- c('input', 'filterN', 'cutadapt', 'filtered')
-//         write.csv(out3, paste0("${pairId}", ".trimmed.txt"))
-//         """
-//     }
+        script:
+        template "ITSFilterAndTrimStep3.R"
+    }
     
-// }
-// /* 16S amplicon filtering */
-// else if (params.amplicon == '16S'){
-process FilterAndTrim {
-    tag { "FilterAndTrim_${pairId}" }
-    publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
-
-    input:
-    tuple pairId, file(reads) from dada2ReadPairs
-
-    output:
-    tuple val(pairId), "${pairId}.R1.filtered.fastq.gz", "${pairId}.R2.filtered.fastq.gz" optional true into filteredReadsforQC,filteredReads
-    tuple val("R1"), file("${pairId}.R1.filtered.fastq.gz") optional true into forReadsLE
-    tuple val("R2"), file("${pairId}.R2.filtered.fastq.gz") optional true into revReadsLE
-    file "*.trimmed.txt" into trimTracking
-
-    when:
-    params.precheck == false
-
-    script:
-    phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
-    """
-    16S_FilterAndTrim.R ${phix} --id ${pairId} \\
-        --fwd ${reads[0]} \\
-        --rev ${reads[1]} \\
-        --cpus ${task.cpus} \\
-        --trimFor ${params.trimFor} \\
-        --trimRev ${params.trimRev} \\
-        --truncFor ${params.truncFor} \\
-        --truncRev ${params.truncRev} \\
-        --truncQ ${params.truncQ} \\
-        --maxEEFor ${params.maxEEFor} \\
-        --maxEERev ${params.maxEERev} \\
-        --maxN ${params.maxN} \\
-        --maxLen ${params.maxLen} \\
-        --minLen ${params.minLen}
-    """
 }
-cutadaptToMultiQC = Channel.empty()
-// } else {
-//     // We need to shut this down!
-//     cutadaptToMultiQC = Channel.empty()
-//     filteredReads = Channel.empty()
-//     filteredReadsforQC = Channel.empty()
-// }
+/* 16S amplicon filtering */
+else if (params.amplicon == '16S'){
+    process FilterAndTrim {
+        tag { "FilterAndTrim_${pairId}" }
+        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+        input:
+        tuple pairId, file(reads) from dada2ReadPairs
+
+        output:
+        tuple val(pairId), "${pairId}.R1.filtered.fastq.gz", "${pairId}.R2.filtered.fastq.gz" optional true into filteredReadsforQC,filteredReads
+        tuple val("R1"), file("${pairId}.R1.filtered.fastq.gz") optional true into forReadsLE
+        tuple val("R2"), file("${pairId}.R2.filtered.fastq.gz") optional true into revReadsLE
+        file "*.trimmed.txt" into trimTracking
+
+        when:
+        params.precheck == false
+
+        script:
+        phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
+        template "FilterAndTrim.R"
+    }
+    cutadaptToMultiQC = Channel.empty()
+} else {
+    // We need to shut this down!
+    cutadaptToMultiQC = Channel.empty()
+    filteredReads = Channel.empty()
+    filteredReadsforQC = Channel.empty()
+}
 
 process RunFastQC_postfilterandtrim {
     tag { "FastQC_post_FT.${pairId}" }
@@ -479,6 +410,8 @@ process MergeTrimmedTable {
 /*
  *
  * Step 2: Learn error rates (run on all samples)
+ * 
+ * Note: this step has been re-configured to run R1 and R2 batches in parallel
  *
  */
 
@@ -509,7 +442,7 @@ process LearnErrors {
 
 /*
  *
- * Step 3: Dereplication, Sample Inference, Merge Pairs
+ * Step 3: Sample Inference, Merge Pairs
  *
  */
 
@@ -521,50 +454,55 @@ process LearnErrors {
 
 if (params.pool == "T" || params.pool == 'pseudo') {
 
-  process DadaInfer {
-      tag { "DadaInfer:${readmode}" }
-      publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+    // if samples are pooled, we can run these in two batches and merge
+    // (pooling requires all samples at the moment)
 
-      input:
-      tuple val(readmode), file(err), file(reads) from errorModels
-          .join(ReadsInfer)
+    process DadaInfer {
+        tag { "DadaInfer:${readmode}" }
+        publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
 
-      output:
-      file("all.dd.${readmode}.RDS") into dadaMerge,dadaForReadTracking
+        input:
+        tuple val(readmode), file(err), file(reads) from errorModels
+            .join(ReadsInfer)
 
-      when:
-      params.precheck == false
+        output:
+        file("all.dd.${readmode}.RDS") into dadaMerge,dadaForReadTracking
 
-      script:
-      dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
-      template "DadaPooled.R"
-  }
+        when:
+        params.precheck == false
 
-  process MergePooled {
-      tag { "mergeDadaRDS" }
-      publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+        script:
+        dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+        template "DadaPooled.R"
+    }
 
-      input:
-      file(dds) from dadaMerge.collect()
-      file(filts) from ReadsMerge
-          .map { it[1] }
-          .flatten()
-          .collect()
+    // Merge the pooled runs
 
-      output:
-      file "seqtab.RDS" into seqTable,rawSeqTableToRename
-      file "all.mergers.RDS" into mergerTracking
-      file "seqtab.original.RDS" // we keep this for comparison and possible QC
+    process MergePooled {
+    tag { "mergeDadaRDS" }
+    publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
 
-      when:
-      params.precheck == false
+    input:
+    file(dds) from dadaMerge.collect()
+    file(filts) from ReadsMerge
+        .map { it[1] }
+        .flatten()
+        .collect()
 
-      script:
-      template "MergePairs.R"
-  }
+    output:
+    file "seqtab.RDS" into seqTable,rawSeqTableToRename
+    file "all.mergers.RDS" into mergerTracking
+    file "seqtab.original.RDS" // we keep this for comparison and possible QC
+
+    when:
+    params.precheck == false
+
+    script:
+    template "MergePairs.R"
+    }
 
 } else {
-    // pool = F, process per sample
+    // pool = F, process per sample or in batches (a little more compute efficient)
 
     process PerSampleInferDerepAndMerge {
         tag { "PerSampleInferDerepAndMerge" }
@@ -592,7 +530,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
 
         input:
         file(dds)from perSampleDadaToMerge
-                      .map { it[1]}
+                      .map { it[1] }
                       .flatten()
                       .collect()
 
@@ -1199,16 +1137,16 @@ workflow.onComplete {
     def sendmail_html = sendmail_template.toString()
 
     // Send the HTML e-mail
-    // if (params.email) {
-    //     try {
-    //       if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
-    //       // Try to send HTML e-mail using sendmail
-    //       [ 'sendmail', '-t' ].execute() << sendmail_html
-    //       log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
-    //     } catch (all) {
-    //       // Catch failures and try with plaintext
-    //       [ 'mail', '-s', subject, params.email ].execute() << email_txt
-    //       log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
-    //     }
-    // }
+    if (params.email) {
+        try {
+          if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
+          // Try to send HTML e-mail using sendmail
+          [ 'sendmail', '-t' ].execute() << sendmail_html
+          log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
+        } catch (all) {
+          // Catch failures and try with plaintext
+          [ 'mail', '-s', subject, params.email ].execute() << email_txt
+          log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
+        }
+    }
 }
