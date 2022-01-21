@@ -16,7 +16,7 @@ sample.names <- sapply(strsplit(basename(filts), "_"), `[`, 1) # Assumes filenam
 set.seed(100)
 
 # Learn forward error rates
-err <- learnErrors(filts, multithread=${task.cpus})
+err <- learnErrors(filts, multithread=${task.cpus}, verbose=1)
 
 # This is a rough correction for NovaSeq binning issues
 # See https://github.com/h3abionet/TADA/issues/31, we'll likely
