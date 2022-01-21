@@ -466,7 +466,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
             .join(ReadsInfer)
 
         output:
-        file("all.dd.${readmode}.RDS") into dadaMerge,dadaForReadTracking
+        file("all.dd.${readmode}.RDS") into dadaMerge,dadaToReadTracking
 
         when:
         params.precheck == false
