@@ -210,7 +210,7 @@ process RunDADA2QC {
     path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
 
     when:
-    params.skip_dadaQC = false
+    params.skip_dadaQC == false
 
     output:
     file '*.pdf'
@@ -232,7 +232,7 @@ process RunMultiQC {
     file "*_data"
 
     when:
-    params.skip_multiQC = false
+    params.skip_multiQC == false
 
     script:
     interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
