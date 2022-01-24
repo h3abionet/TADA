@@ -359,7 +359,7 @@ process RunMultiQC_postfilterandtrim {
     file "*_data"
 
     when:
-    params.precheck == false
+    params.precheck == false & params.skip_multiQC == false
 
     script:
     interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
