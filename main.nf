@@ -195,7 +195,7 @@ process RunFastQC {
     set pairId, file(in_fastq) from dada2ReadPairsToQual
 
     output:
-    file '*_fastqc.{zip,html}' into fastqc_files,fastqc_files2
+    file '*_fastqc.{zip,html}' into fastqc_files
 
     """
     fastqc --nogroup -q ${in_fastq.get(0)} ${in_fastq.get(1)}
@@ -217,28 +217,6 @@ process RunDADA2QC {
 
     script:
     template "DadaQC.R"
-}
-
-// TODO: combine MultiQC reports and split by directory (no need for two)
-process RunMultiQC {
-    tag { "MultiQC" }
-    publishDir "${params.outdir}/MultiQC-Raw", mode: 'copy', overwrite: true
-
-    input:
-    file('./raw-seq/*') from fastqc_files.collect()
-
-    output:
-    file "*_report.html" into multiqc_report
-    file "*_data"
-
-    when:
-    params.skip_multiQC == false
-
-    script:
-    interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
-    """
-    multiqc ${interactivePlots} .
-    """
 }
 
 /* ITS amplicon filtering */
@@ -372,9 +350,9 @@ process RunMultiQC_postfilterandtrim {
     publishDir "${params.outdir}/MultiQC-Post-FilterTrim", mode: 'copy', overwrite: true
 
     input:
-    file('./raw-seq/*') from fastqc_files2.collect()
-    file('./trimmed-seq/*') from fastqc_files_post.collect()
-    file('./cutadapt/*') from cutadaptToMultiQC.collect()
+    file('./RawSeq/*') from fastqc_files.collect().ifEmpty([])
+    file('./TrimmedSeq/*') from fastqc_files_post.collect().ifEmpty([])
+    file('./Cutadapt/*') from cutadaptToMultiQC.collect().ifEmpty([])
 
     output:
     file "*_report.html" into multiqc_report_post
