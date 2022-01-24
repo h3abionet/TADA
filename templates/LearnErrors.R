@@ -22,7 +22,7 @@ err <- learnErrors(filts, multithread=${task.cpus}, verbose=1)
 # See https://github.com/h3abionet/TADA/issues/31, we'll likely
 # add alternatives here soon
 
-if (as.logical(${params.qualityBinning}) == TRUE ) {
+if (as.logical("${params.qualityBinning}") == TRUE ) {
     print("Running binning correction")
     errs <- t(apply(getErrors(err), 1, function(x) { x[x < x[40]] = x[40]; return(x)} ))
     err\$err_out <- errs
