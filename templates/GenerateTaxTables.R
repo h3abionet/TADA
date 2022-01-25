@@ -7,7 +7,7 @@ map <- readRDS("${map}")
 
 # Note that we use the old ASV ID for output here
 write.table(data.frame('ASVID' = row.names(tax), tax),
-    file = 'tax_final.txt',
+    file = 'tax_final.${params.idType}.${seqtype}.txt',
     row.names = FALSE,
     col.names=c('#OTU ID', colnames(tax)), sep = "\t")
 
@@ -23,12 +23,12 @@ taxa_out <- data.frame(names(taxa_combined), taxa_combined)
 colnames(taxa_out) <- c("#OTU ID", "taxonomy")
 
 write.table(data.frame('ASVID' = row.names(tax), tax),
-    file = 'tax_final.simple.full.txt',
+    file = 'tax_final.${params.idType}.${seqtype}.full.txt',
     row.names = FALSE,
     col.names=c('#OTU ID', colnames(tax)), sep = "\t")
 
 write.table(taxa_out,
-    file = 'tax_final.simple.txt',
+    file = 'tax_final.${params.idType}.${seqtype}.txt',
     row.names = FALSE,
     sep = "\t")
 
@@ -39,10 +39,10 @@ if (file.exists('bootstrap_final.RDS')) {
     }
     rownames(boots) <- map\$id
     write.table(data.frame('ASVID' = row.names(boots), boots),
-        file = 'tax_final.bootstraps.simple.full.txt',
+        file = 'tax_final.bootstraps.${params.idType}.${seqtype}.full.txt',
         row.names = FALSE,
         col.names=c('#OTU ID', colnames(boots)), sep = "\t")
 }
 
 # Write modified data
-saveRDS(tax, "tax_final.simple.RDS")
+saveRDS(tax, "tax_final.${params.idType}.${seqtype}.RDS")

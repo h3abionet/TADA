@@ -10,4 +10,4 @@ seqtab <- removeBimeraDenovo(
     verbose=TRUE ${chimOpts} 
     )
 
-saveRDS(seqtab, "seqtab_final.RDS")
+saveRDS(seqtab, "seqtab_final.${seqtype}.RDS")

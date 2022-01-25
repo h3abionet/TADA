@@ -432,9 +432,6 @@ process LearnErrors {
 
 if (params.pool == "T" || params.pool == 'pseudo') {
 
-    // if samples are pooled, we can run these in two batches and merge
-    // (pooling requires all samples at the moment)
-
     process DadaInfer {
         tag { "DadaInfer:${readmode}" }
         publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
@@ -444,7 +441,8 @@ if (params.pool == "T" || params.pool == 'pseudo') {
             .join(ReadsInfer)
 
         output:
-        file("all.dd.${readmode}.RDS") into dadaMerge,dadaToReadTracking
+        // Note that the mode ('merged', 'R1', 'R2') can now potentially allow SE read analysis
+        tuple val(readmode), file("all.dd.${readmode}.RDS") into dadaMerge,dadaToReadTracking,dadaSECalls
 
         when:
         params.precheck == false
@@ -455,28 +453,29 @@ if (params.pool == "T" || params.pool == 'pseudo') {
     }
 
     // Merge the pooled runs
-
     process MergePooled {
-    tag { "mergeDadaRDS" }
-    publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+        tag { "mergeDadaRDS" }
+        publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
 
-    input:
-    file(dds) from dadaMerge.collect()
-    file(filts) from ReadsMerge
-        .map { it[1] }
-        .flatten()
-        .collect()
+        input:
+        file(dds) from dadaMerge
+            .map { it[1] }
+            .collect()
+        file(filts) from ReadsMerge
+            .map { it[1] }
+            .flatten()
+            .collect()
 
-    output:
-    file "seqtab.RDS" into seqTable,rawSeqTableToRename
-    file "all.mergers.RDS" into mergerTracking
-    file "seqtab.original.RDS" // we keep this for comparison and possible QC
+        output:
+        tuple val("merged"), file("seqtab.merged.RDS") into seqTable,rawSeqTableToRename
+        file "all.mergers.RDS" into mergerTracking
+        file "seqtab.original.merged.RDS" // we keep this for comparison and possible QC
 
-    when:
-    params.precheck == false
+        when:
+        params.precheck == false
 
-    script:
-    template "MergePairs.R"
+        script:
+        template "MergePairs.R"
     }
 
 } else {
@@ -513,7 +512,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
                       .collect()
 
         output:
-        file "all.dd.R{1,2}.RDS" into dadaToReadTracking
+        tuple val(readmode), file("all.dd.R{1,2}.RDS") into dadaToReadTracking,dadaSECalls
 
         when:
         params.precheck == false
@@ -530,9 +529,9 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         file mr from mergedReads.collect()
 
         output:
-        file "seqtab.RDS" into seqTable,rawSeqTableToRename
+        tuple val("merged"), file("seqtab.merged.RDS") into seqTable,rawSeqTableToRename
         file "all.mergers.RDS" into mergerTracking
-        file "seqtab.original.RDS" // we keep this for comparison and possible QC
+        file "seqtab.original.merged.RDS" // we keep this for comparison and possible QC
         
         when:
         params.precheck == false
@@ -540,6 +539,34 @@ if (params.pool == "T" || params.pool == 'pseudo') {
         script:
         template "PerSampleSeqTable.R"
     }
+}
+
+if (params.processSE) {
+    process SESequenceTable {
+        tag { "SESequenceTable:${readmode}" }
+        publishDir "${params.outdir}/dada2-SE", mode: "copy", overwrite: true
+
+        input:
+        tuple val(readmode), file(dds) from dadaSECalls
+
+        output:
+        tuple val(readmode), file("seqtab.${readmode}.RDS") into SEChimera,RawSEChimeraToRename
+
+        script:
+        """
+        #!/usr/bin/env Rscript
+        suppressPackageStartupMessages(library(dada2))
+        dd <- readRDS("${dds}")
+        seqtab <- makeSequenceTable(dd)
+        saveRDS(seqtab, "seqtab.${readmode}.RDS")
+        """
+    }
+
+    // add to the queue with the merged sequences
+
+
+} else {
+    Channel.empty().into { SEChimera;RawSEChimeraToRename }
 }
 
 /*
@@ -550,14 +577,16 @@ if (params.pool == "T" || params.pool == 'pseudo') {
 
 if (!params.skipChimeraDetection) {
     process RemoveChimeras {
-        tag { "RemoveChimeras" }
-        publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
+        tag { "RemoveChimeras:${seqtype}" }
+        publishDir path: {
+            seqtype == "merged" ? "${params.outdir}/dada2-Chimera" : "${params.outdir}/dada2-Chimera/${seqtype}"
+            }, mode: 'copy'
 
         input:
-        file st from seqTable
+        tuple val(seqtype), file(st) from seqTable.concat(SEChimera)
 
         output:
-        file "seqtab_final.RDS" into seqTableToTax,seqTableToRename
+        tuple val(seqtype), file("seqtab_final.${seqtype}.RDS") into seqTableToTax,seqTableToRename
 
         when:
         params.precheck == false
@@ -587,17 +616,19 @@ if (params.reference) {
             speciesFile = file(params.species)
 
             process AssignTaxSpeciesRDP {
-                tag { "AssignTaxSpeciesRDP" }
-                publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
+                tag { "AssignTaxSpeciesRDP:${seqtype}" }
+                publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Taxonomy" : "${params.outdir}/dada2-Taxonomy/${seqtype}"
+                    }, mode: "copy"
 
                 input:
-                file st from seqTableToTax
+                tuple val(seqtype), file(st) from seqTableToTax
                 file ref from refFile
                 file sp from speciesFile
 
                 output:
-                file "tax_final.RDS" into taxFinal,taxTableToTable
-                file "bootstrap_final.RDS" into bootstrapFinal
+                tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
+                tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
 
                 when:
                 params.precheck == false
@@ -609,16 +640,18 @@ if (params.reference) {
         } else {
 
             process AssignTaxonomyRDP {
-                tag { "TaxonomyRDP" }
-                publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
+                tag { "TaxonomyRDP:${seqtype}" }
+                publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Taxonomy" : "${params.outdir}/dada2-Taxonomy/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
                 input:
-                file st from seqTableToTax
+                tuple val(seqtype), file(st) from seqTableToTax
                 file ref from refFile
 
                 output:
-                file "tax_final.RDS" into taxFinal,taxTableToTable
-                file "bootstrap_final.RDS" into bootstrapFinal
+                tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
+                tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
 
                 when:
                 params.precheck == false
@@ -634,17 +667,19 @@ if (params.reference) {
         // some databases; unknown whether this works with concat sequences.  ITS
         // doesn't seem to be currently supported
         process TaxonomyIDTAXA {
-            tag { "TaxonomyIDTAXA" }
-            publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
+            tag { "TaxonomyIDTAXA:${seqtype}" }
+            publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Taxonomy" : "${params.outdir}/dada2-Taxonomy/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
             input:
-            file st from seqTableToTax
+            tuple val(seqtype), file(st) from seqTableToTax
             file ref from refFile // this needs to be a database from the IDTAXA site
 
             output:
-            file "tax_final.RDS" into taxFinal,taxTableToTable
-            file "bootstrap_final.RDS" into bootstrapFinal
-            file "raw_idtaxa.RDS"
+            tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
+            tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
+            file "raw_idtaxa.${seqtype}.RDS"
 
             when:
             params.precheck == false
@@ -661,9 +696,7 @@ if (params.reference) {
     }
 } else {
     // set tax channels to 'false', do NOT assign taxonomy
-    taxFinal = Channel.empty()
-    taxTableToTable = Channel.empty()
-    bootstrapFinal = Channel.empty()
+    Channel.empty().into { taxFinal;taxTableToTable;bootstrapFinal }
 }
 
 // Note: this is currently a text dump.  We've found the primary issue with
@@ -687,32 +720,44 @@ if (params.reference) {
  */
 
 process RenameASVs {
-    tag { "RenameASVs" }
-    publishDir "${params.outdir}/dada2-Tables", mode: "copy", overwrite: true
+    tag { "RenameASVs:${seqtype}" }
+    publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Tables" : "${params.outdir}/dada2-Tables/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
     input:
-    file st from seqTableToRename
-    file rawst from rawSeqTableToRename
+    // This is a tricky join; we have two incoming channels that we want to
+    // join by sequence type (merged, R1, R2). seqTableToRename can have all
+    // three, but rawSeqTableToRename (originating from merging) has only
+    // one, while SE-specific seqtables (with RawSEChimeraToRename) are 
+    // generated on demand later, primarily to act as a switch.  So we join() the 
+    // channels by ID, but we concatenate the original seqtable channels together 
+
+    tuple val(seqtype), file(st), file(rawst) from seqTableToRename
+        .join(rawSeqTableToRename
+                .concat(RawSEChimeraToRename))
 
     output:
-    file "seqtab_final.simple.RDS" into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
-    file "asvs.${params.idType}.nochim.fna" into seqsToAln, seqsToQIIME2
-    file "readmap.RDS" into readsToRenameTaxIDs // needed for remapping tax IDs
-    file "asvs.${params.idType}.raw.fna"
+    tuple val(seqtype), file("seqtab_final.${params.idType}.${seqtype}.RDS") into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
+    tuple val(seqtype), file("asvs.${params.idType}.nochim.${seqtype}.fna") into seqsToAln, seqsToQIIME2
+    tuple val(seqtype), file("readmap.${seqtype}.RDS") into readsToRenameTaxIDs // needed for remapping tax IDs
+    file "asvs.${params.idType}.raw.${seqtype}.fna"
 
     script:
     template "RenameASVs.R"
 }
 
 process GenerateSeqTables {
-    tag { "GenerateSeqTables" }
-    publishDir "${params.outdir}/dada2-Tables", mode: "link", overwrite: true
+    tag { "GenerateSeqTables:${seqtype}" }
+    publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Tables" : "${params.outdir}/dada2-Tables/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
     input:
-    file st from seqTableToTable
+    tuple val(seqtype), file(st) from seqTableToTable
 
     output:
-    file "seqtab_final.simple.qiime2.txt" into featuretableToQIIME2
+    tuple val(seqtype), file("seqtab_final.${params.idType}.${seqtype}.qiime2.txt") into featuretableToQIIME2
     file "*.txt"
 
     when:
@@ -723,17 +768,17 @@ process GenerateSeqTables {
 }
 
 process GenerateTaxTables {
-    tag { "GenerateTaxTables" }
-    publishDir "${params.outdir}/dada2-Tables", mode: "link", overwrite: true
+    tag { "GenerateTaxTables:${seqtype}" }
+    publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Tables" : "${params.outdir}/dada2-Tables/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
     input:
-    file tax from taxTableToTable
-    file bt from bootstrapFinal
-    file map from readsToRenameTaxIDs
+    tuple val(seqtype), file(tax), file(bt), file(map) from taxTableToTable.join(bootstrapFinal).join(readsToRenameTaxIDs)
 
     output:
-    file "tax_final.simple.RDS" into taxtabToPhyloseq
-    file "tax_final.simple.txt" into taxtableToQIIME2
+    tuple val(seqtype), file("tax_final.${params.idType}.${seqtype}.RDS") into taxtabToPhyloseq
+    tuple val(seqtype), file("tax_final.${params.idType}.${seqtype}.txt") into taxtableToQIIME2
     file "*.txt"
 
     when:
@@ -766,43 +811,46 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
         cmFile = file(params.infernalCM)
 
         process AlignReadsInfernal {
-            tag { "AlignReadsInfernal" }
-            publishDir "${params.outdir}/dada2-Infernal", mode: "copy", overwrite: true
+            tag { "AlignReadsInfernal:${seqtype}" }
+            publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Infernal" : "${params.outdir}/dada2-Infernal/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
             input:
-            file seqs from seqsToAln
+            tuple val(seqtype), file(seqs) from seqsToAln
             file cm from cmFile
 
             output:
-            file "aligned_seqs.stk"
-            file "aln.scores"
-            file "aligned_seqs.fasta" into alnFile,alnToQIIME2
+            file "aligned_seqs.${seqtype}.stk"
+            file "aln.${seqtype}.scores"
+            tuple val(seqtype), file("aligned_seqs.${seqtype}.fasta") optional true into alnFile,alnToQIIME2
 
             script:
             """
             # from the original IM-TORNADO pipeline
             cmalign --cpu ${task.cpus} \\
                   -g --notrunc --sub --dnaout --noprob \\
-                  --sfile aln.scores \\
-                  -o aligned_seqs.stk \\
+                  --sfile aln.${seqtype}.scores \\
+                  -o aligned_seqs.${seqtype}.stk \\
                   ${cm} ${seqs}
 
             # script from P. Jeraldo (Mayo)
-            stkToFasta.py aligned_seqs.stk aligned_seqs.fasta
+            stkToFasta.py aligned_seqs.${seqtype}.stk aligned_seqs.${seqtype}.fasta
             """
         }
     } else if (params.aligner == 'DECIPHER') {
 
         process AlignReadsDECIPHER {
-            tag { "AlignReadsDECIPHER" }
-            publishDir "${params.outdir}/dada2-DECIPHER", mode: "copy", overwrite: true
-            errorStrategy 'ignore'
+            tag { "AlignReadsDECIPHER:${seqtype}" }
+            publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-DECIPHER" : "${params.outdir}/dada2-DECIPHER/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
             input:
-            file seqs from seqsToAln
+            tuple val(seqtype), file(seqs) from seqsToAln
 
             output:
-            file "aligned_seqs.fasta" optional true into alnFile,alnToQIIME2
+            tuple val(seqtype), file("aligned_seqs.${seqtype}.fasta") optional true into alnFile,alnToQIIME2
             
             script:
             template "AlignReadsDECIPHER.R"
@@ -820,16 +868,18 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
     if (params.runTree == 'phangorn') {
 
         process GenerateTreePhangorn {
-            tag { "GenerateTreePhangorn" }
-            publishDir "${params.outdir}/dada2-Phangorn", mode: "copy", overwrite: true
+            tag { "GenerateTreePhangorn:${seqtype}" }
+            publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Phangorn" : "${params.outdir}/dada2-Phangorn/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
             input:
-            file aln from alnFile
+            tuple val(seqtype), file(aln) from alnFile
 
             output:
-            file "phangorn.tree.RDS" into treeRDS
-            file "tree.newick" into treeFile
-            file "tree.GTR.newick" into treeGTRFile
+            file "phangorn.tree.${seqtype}.RDS" into treeRDS
+            file "tree.${seqtype}.newick" into treeFile
+            file "tree.GTR.${seqtype}.newick" into treeGTRFile
 
             script:
             template "PhangornML.R"
@@ -837,22 +887,24 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
     } else if (params.runTree == 'fasttree') {
 
         process GenerateTreeFasttree {
-            tag { "GenerateTreeFasttree" }
-            publishDir "${params.outdir}/dada2-Fasttree", mode: "copy", overwrite: true
+            tag { "GenerateTreeFasttree:${seqtype}" }
+            publishDir path: {
+                    seqtype == "merged" ? "${params.outdir}/dada2-Fasttree" : "${params.outdir}/dada2-Fasttree/${seqtype}"
+                    }, mode: "copy", overwrite: true
 
             input:
-            file aln from alnFile
+            tuple val(seqtype), file(aln) from alnFile
 
             output:
-            file "fasttree.tree" into treeGTRFile, treeToQIIME2
+            tuple val(seqtype), file("fasttree.${seqtype}.tree") into treeGTRFile, treeToQIIME2
             // need to deadend the other channels, they're hanging here
 
             script:
             """
             OMP_NUM_THREADS=${task.cpus} FastTree -nt \\
                 -gtr -gamma -spr 4 -mlacc 2 -slownni \\
-                -out fasttree.tree \\
-                aligned_seqs.fasta
+                -out fasttree.${seqtype}.tree \\
+                ${aln}
             """
         }
 
@@ -861,14 +913,16 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
     }
 
     process RootTree {
-        tag { "RootTree" }
-        publishDir "${params.outdir}/dada2-RootedTree", mode: "link"
+        tag { "RootTree:${seqtype}" }
+        publishDir path: {
+            seqtype == "merged" ? "${params.outdir}/dada2-RootedTree" : "${params.outdir}/dada2-RootedTree/${seqtype}"
+            }, mode: "copy"
 
         input:
-        file tree from treeGTRFile
+        tuple val(seqtype), file(tree) from treeGTRFile
 
         output:
-        file "rooted.newick" into rootedTreeFile, rootedToQIIME2
+        tuple val(seqtype), file("rooted.${seqtype}.newick") into rootedTreeFile, rootedToQIIME2
         // need to deadend the other channels, they're hanging here
 
         script:
@@ -876,26 +930,25 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
     }
 } else {
     // Note these are caught downstream
-    alnToQIIME2 = Channel.empty()
-    treeToQIIME2 = Channel.empty()
-    rootedToQIIME2 = Channel.empty()
+    Channel.empty().into { alnToQIIME2;treeToQIIME2;rootedToQIIME2 }
 }
 
 // TODO: rewrite using the python BIOM tools?
 
 process ToBiomFile {
-    tag { "ToBiomFile" }
-    publishDir "${params.outdir}/dada2-BIOM", mode: "copy", overwrite: true
+    tag { "ToBiomFile:${seqtype}" }
+    publishDir path: {
+            seqtype == "merged" ? "${params.outdir}/dada2-BIOM" : "${params.outdir}/dada2-BIOM/${seqtype}"
+            }, mode: "copy", overwrite: true
 
     input:
-    file sTable from seqTableFinalToBiom
-    file tTable from taxFinal
+    tuple val(seqtype), file(sTable), file(tTable) from seqTableFinalToBiom.join(taxFinal)
 
     output:
-    file "dada2.biom" into biomFile
+    file "dada2.${seqtype}.biom" into biomFile
 
     when:
-    params.precheck == false & params.toBIOM == true
+    params.toBIOM == true
 
     script:
     template "ToBIOM.R"
@@ -916,14 +969,13 @@ process ReadTracking {
     input:
     file trimmedTable from trimmedReadTracking
     file sTable from seqTableFinalTracking
+            .map {it[1]}
     file mergers from mergerTracking
-    file dds from dadaToReadTracking.collect()
+    file dds from dadaToReadTracking
+            .map {it[1]}.collect()
 
     output:
     file "all.readtracking.txt"
-
-    when:
-    params.precheck == false
 
     script:
     template "ReadTracking.R"
@@ -932,12 +984,14 @@ process ReadTracking {
 if (params.toQIIME2) {
 
     process ToQIIME2FeatureTable {
-        tag { "QIIME2-Output" }
+        tag { "QIIME2-Seqtable:${seqtype}" }
         label 'QIIME2'
-        publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
+        publishDir path: {
+            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+            }, mode: "copy"
 
         input:
-        file seqtab from featuretableToQIIME2
+        tuple val(seqtype), file(seqtab) from featuretableToQIIME2
 
         output:
         file "*.qza"
@@ -952,18 +1006,20 @@ if (params.toQIIME2) {
         qiime tools import \
             --input-path seqtab-biom-table.biom \
             --input-format BIOMV210Format \
-            --output-path seqtab_final.simple.qza \
+            --output-path seqtab_final.${params.idType}.${seqtype}.qza \
             --type 'FeatureTable[Frequency]'
         """
     }
 
     process ToQIIME2TaxTable {
-        tag { "QIIME2-Output" }
+        tag { "QIIME2-Taxtable:${seqtype}" }
         label 'QIIME2'
-        publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
+        publishDir path: {
+            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+            }, mode: "copy"
 
         input:
-        file taxtab from taxtableToQIIME2
+        tuple val(seqtype), file(taxtab) from taxtableToQIIME2
 
         output:
         file "*.qza"
@@ -977,18 +1033,20 @@ if (params.toQIIME2) {
         qiime tools import \
             --input-path headerless.txt \
             --input-format HeaderlessTSVTaxonomyFormat \
-            --output-path tax_final.simple.qza \
+            --output-path tax_final.${params.idType}.${seqtype}.qza \
             --type 'FeatureData[Taxonomy]'
         """
     }
 
     process ToQIIME2Seq {
-        tag { "QIIME2-Output" }
+        tag { "QIIME2-Seq:${seqtype}" }
         label 'QIIME2'
-        publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
+        publishDir path: {
+            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+            }, mode: "copy"
 
         input:
-        file seqs from seqsToQIIME2
+        tuple val(seqtype), file(seqs) from seqsToQIIME2
 
         output:
         file "*.qza"
@@ -997,18 +1055,20 @@ if (params.toQIIME2) {
         """
         qiime tools import \
             --input-path ${seqs} \
-            --output-path sequences.qza \
+            --output-path sequences.${seqtype}.qza \
             --type 'FeatureData[Sequence]'
         """
     }
 
     process ToQIIME2Aln {
-        tag { "QIIME2-Output" }
+        tag { "QIIME2-Aln:${seqtype}" }
         label 'QIIME2'
-        publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
+        publishDir path: {
+            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+            }, mode: "copy"
 
         input:
-        file aln from alnToQIIME2
+        tuple val(seqtype), file(aln) from alnToQIIME2
 
         when:
         alnToQIIME2 != false
@@ -1020,19 +1080,20 @@ if (params.toQIIME2) {
         """
         qiime tools import \
             --input-path ${aln} \
-            --output-path aligned-sequences.qza \
+            --output-path aligned-sequences.${seqtype}.qza \
             --type 'FeatureData[AlignedSequence]'
         """
     }
 
     process ToQIIME2Tree {
-        tag { "QIIME2-Output" }
+        tag { "QIIME2-Tree:${seqtype}" }
         label 'QIIME2'
-        publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
+        publishDir path: {
+            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+            }, mode: "copy"
 
         input:
-        file rooted from rootedToQIIME2
-        file tree from treeToQIIME2
+        tuple val(seqtype), file(rooted), file(tree) from rootedToQIIME2.join(treeToQIIME2)
 
         output:
         file "*.qza"
@@ -1041,12 +1102,12 @@ if (params.toQIIME2) {
         """
         qiime tools import \
             --input-path ${tree} \
-            --output-path unrooted-tree.qza \
+            --output-path unrooted-tree.${seqtype}qza \
             --type 'Phylogeny[Unrooted]'
 
         qiime tools import \
             --input-path ${rooted} \
-            --output-path rooted-tree.qza \
+            --output-path rooted-tree.${seqtype}.qza \
             --type 'Phylogeny[Rooted]'
         """
     }
@@ -1058,7 +1119,7 @@ if (params.toQIIME2) {
 process SessionInfo {
         tag { "R-sessionInfo" }
         label 'sessionInfo'
-        publishDir "${params.outdir}/sessionInfo", mode: "link"
+        publishDir "${params.outdir}/SessionInfo", mode: "link"
 
         output:
         file "sessionInfo.Rmd"
@@ -1115,16 +1176,16 @@ workflow.onComplete {
     def sendmail_html = sendmail_template.toString()
 
     // Send the HTML e-mail
-    if (params.email) {
-        try {
-          if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
-          // Try to send HTML e-mail using sendmail
-          [ 'sendmail', '-t' ].execute() << sendmail_html
-          log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
-        } catch (all) {
-          // Catch failures and try with plaintext
-          [ 'mail', '-s', subject, params.email ].execute() << email_txt
-          log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
-        }
-    }
+    // if (params.email) {
+    //     try {
+    //       if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
+    //       // Try to send HTML e-mail using sendmail
+    //       [ 'sendmail', '-t' ].execute() << sendmail_html
+    //       log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
+    //     } catch (all) {
+    //       // Catch failures and try with plaintext
+    //       [ 'mail', '-s', subject, params.email ].execute() << email_txt
+    //       log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
+    //     }
+    // }
 }

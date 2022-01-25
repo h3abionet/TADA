@@ -38,5 +38,5 @@ colnames(boots) <- ranks
 rownames(boots) <- getSequences(seqtab)
 
 # Write to disk
-saveRDS(taxid, "tax_final.RDS")
-saveRDS(boots, "bootstrap_final.RDS")
+saveRDS(taxid, "tax_final.${seqtype}.RDS")
+saveRDS(boots, "bootstrap_final.${seqtype}.RDS")

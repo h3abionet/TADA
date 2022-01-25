@@ -6,4 +6,4 @@ tree <- read.tree(file = "${tree}")
 
 midtree <- midpoint(tree)
 
-write.tree(midtree, file = "rooted.newick")
+write.tree(midtree, file = "rooted.${seqtype}.newick")

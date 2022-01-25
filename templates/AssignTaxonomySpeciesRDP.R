@@ -19,5 +19,5 @@ tax <- addSpecies(tax\$tax, "${sp}",
 rownames(tax) <- colnames(seqtab)
 
 # Write original data
-saveRDS(tax, "tax_final.RDS")
-saveRDS(boots, "bootstrap_final.RDS")
+saveRDS(tax, "tax_final.${seqtype}.RDS")
+saveRDS(boots, "bootstrap_final.${seqtype}.RDS")

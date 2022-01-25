@@ -161,7 +161,7 @@ saveRDS(mergers, "all.mergers.RDS")
 # go ahead and make seqtable
 seqtab <- makeSequenceTable(mergers)
 
-saveRDS(seqtab, "seqtab.original.RDS")
+saveRDS(seqtab, "seqtab.original.merged.RDS")
 
 # this is an optional filtering step to remove *merged* sequences based on 
 # min/max length criteria
@@ -173,4 +173,4 @@ if (${params.maxMergedLen} > 0) {
    seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params.maxMergedLen}]
 }
 
-saveRDS(seqtab, "seqtab.RDS")
+saveRDS(seqtab, "seqtab.merged.RDS")

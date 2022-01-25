@@ -10,7 +10,7 @@ if (as.logical('${params.sampleRegex}' != FALSE )) {
 
 # Generate table output
 write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
-    file = 'seqtab_final.txt',
+    file = 'seqtab_final.${seqtype}.txt',
     row.names = FALSE,
     col.names=c('#SampleID', colnames(seqtab)), sep = "\\t")
 
@@ -21,7 +21,7 @@ write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
 
 # Generate OTU table output (rows = samples, cols = ASV)
 write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
-    file = 'seqtab_final.simple.txt',
+    file = 'seqtab_final.${params.idType}.${seqtype}.txt',
     row.names = FALSE,
     col.names=c('#SampleID', colnames(seqtab)),
     sep = "\\t")
@@ -29,10 +29,10 @@ write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
 # Generate OTU table for QIIME2 import (rows = ASVs, cols = samples)
 write.table(
     data.frame('Taxa' = colnames(seqtab), t(seqtab), check.names = FALSE),
-    file = 'seqtab_final.simple.qiime2.txt',
+    file = 'seqtab_final.${params.idType}.${seqtype}.qiime2.txt',
     row.names = FALSE,
     quote=FALSE,
     sep = "\\t")
 
 # Write modified data
-saveRDS(seqtab, "seqtab_final.simple.RDS")
+saveRDS(seqtab, "seqtab_final.${params.idType}.${seqtype}.RDS")
