@@ -81,8 +81,6 @@ def helpMessage() {
     """.stripIndent()
 }
 
-// TODO: add checks on options
-
 // Show help message
 params.help = false
 if (params.help){
@@ -90,6 +88,7 @@ if (params.help){
     exit 0
 }
 
+// TODO: we need to validate/sanity-check more of the parameters
 //Validate inputs
 if ( params.trimFor == false && params.amplicon == '16S') {
     exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
@@ -116,7 +115,7 @@ if (params.aligner == 'infernal' && params.infernalCM == false){
 }
 
 if (!(['simple','md5'].contains(params.idType))) {
-    exit 1, "--idType can only be set to 'simple' or 'md5', got ${params.idType}"
+    exit 1, "--idType can currently only be set to 'simple' or 'md5', got ${params.idType}"
 }
 
 // Has the run name been specified by the user?
@@ -125,9 +124,6 @@ custom_runName = params.name
 if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
   custom_runName = workflow.runName
 }
-
-// This may be turned into a parameter to allow for SE processing
-reads = Channel.from(["R1", "R2"])
 
 Channel
     .fromFilePairs( params.reads )
@@ -192,7 +188,7 @@ process RunFastQC {
     publishDir "${params.outdir}/FastQC-Raw", mode: "copy", overwrite: true
 
     input:
-    set pairId, file(in_fastq) from dada2ReadPairsToQual
+    tuple val(pairId), file(in_fastq) from dada2ReadPairsToQual
 
     output:
     file '*_fastqc.{zip,html}' into fastqc_files
@@ -984,7 +980,7 @@ process ReadTracking {
 if (params.toQIIME2) {
 
     process ToQIIME2FeatureTable {
-        tag { "QIIME2-Seqtable:${seqtype}" }
+        tag { "QIIME2-SeqTable:${seqtype}" }
         label 'QIIME2'
         publishDir path: {
             seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
