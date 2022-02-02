@@ -962,14 +962,12 @@ process ReadTracking {
 
     input:
     file trimmedTable from trimmedReadTracking
-    file sTable from seqTableFinalTracking
-            .map {it[1]}
+    tuple(seqtype), file(sTable) from seqTableFinalTracking
+    file dds from dadaToReadTracking.collect()
     file mergers from mergerTracking
-    file dds from dadaToReadTracking
-            .map {it[1]}.collect()
 
     output:
-    file "all.readtracking.txt"
+    file "all.readtracking.${seqtype}.txt"
 
     script:
     template "ReadTracking.R"
