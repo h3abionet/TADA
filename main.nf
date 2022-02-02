@@ -318,9 +318,7 @@ else if (params.amplicon == '16S'){
     cutadaptToMultiQC = Channel.empty()
 } else {
     // We need to shut this down!
-    cutadaptToMultiQC = Channel.empty()
-    filteredReads = Channel.empty()
-    filteredReadsforQC = Channel.empty()
+    Channel.empty().into {cutadaptToMultiQC;filteredReads;filteredReadsforQC}
 }
 
 process RunFastQC_postfilterandtrim {
