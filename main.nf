@@ -954,8 +954,6 @@ process ToBiomFile {
  *
  */
 
-// Broken?: needs a left-join on the initial table
-
 process ReadTracking {
     tag { "ReadTracking" }
     publishDir "${params.outdir}/dada2-ReadTracking", mode: "copy", overwrite: true
