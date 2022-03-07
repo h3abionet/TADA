@@ -90,24 +90,33 @@ if (params.help){
 
 // TODO: we need to validate/sanity-check more of the parameters
 //Validate inputs
-if ( params.trimFor == false && params.amplicon == '16S') {
-    exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
+
+// check sequence table
+if ( params.seqTables != false && params.reads != false ) {
+    exit 1, "Can't process both read data (--reads) and sequence tables (--seqTables)!"
 }
 
-if ( params.trimRev == false && params.amplicon == '16S') {
-    exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
-}
+// Read-specific checks
+if (params.reads != false) {
+    if ( params.trimFor == false && params.amplicon == '16S') {
+        exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
+    }
 
-// if ( params.reference == false ) {
-//     exit 1, "Must set reference database using --reference"
-// }
+    if ( params.trimRev == false && params.amplicon == '16S') {
+        exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
+    }
 
-if (params.fwdprimer == false && params.amplicon == 'ITS'){
-    exit 1, "Must set forward primer using --fwdprimer"
-}
+    // if ( params.reference == false ) {
+    //     exit 1, "Must set reference database using --reference"
+    // }
 
-if (params.revprimer == false && params.amplicon == 'ITS'){
-    exit 1, "Must set reverse primer using --revprimer"
+    if (params.fwdprimer == false && params.amplicon == 'ITS'){
+        exit 1, "Must set forward primer using --fwdprimer"
+    }
+
+    if (params.revprimer == false && params.amplicon == 'ITS'){
+        exit 1, "Must set reverse primer using --revprimer"
+    }
 }
 
 if (params.aligner == 'infernal' && params.infernalCM == false){
@@ -122,13 +131,22 @@ if (!(['simple','md5'].contains(params.idType))) {
 //  this has the bonus effect of catching both -name and --name
 custom_runName = params.name
 if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
-  custom_runName = workflow.runName
+    custom_runName = workflow.runName
 }
 
-Channel
-    .fromFilePairs( params.reads )
-    .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
-    .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
+if (params.reads != false) {
+    Channel
+        .fromFilePairs( params.reads )
+        .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
+        .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
+} else if (params.seqTables != false) {
+    Channel
+        .fromFilePairs( params.seqTables, size: 1 )
+        .ifEmpty { error "Cannot find any sequence tables matching: ${params.seqTables}" }
+        .into { dada2SeqTabs }
+} else {
+    exit 1, "Must set either --reads or --seqTables as input"
+}
 
 // Header log info
 log.info "==================================="
@@ -183,383 +201,400 @@ log.info "========================================="
  *
  */
 
-process RunFastQC {
-    tag { "FastQC-${pairId}" }
-    publishDir "${params.outdir}/FastQC-Raw", mode: "copy", overwrite: true
+if (params.reads != false ) { // TODO maybe we should check the channel here
 
-    input:
-    tuple val(pairId), file(in_fastq) from dada2ReadPairsToQual
-
-    output:
-    file '*_fastqc.{zip,html}' into fastqc_files
-
-    """
-    fastqc --nogroup -q ${in_fastq.get(0)} ${in_fastq.get(1)}
-    """
-}
-
-process RunDADA2QC {
-    tag { "DADA2-FASTQ-QC" }
-    publishDir "${params.outdir}/dada2-RawQC", mode: "copy", overwrite: true
-
-    input:
-    path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
-
-    when:
-    params.skip_dadaQC == false
-
-    output:
-    file '*.pdf'
-
-    script:
-    template "DadaQC.R"
-}
-
-/* ITS amplicon filtering */
-
-// Note: should explore cutadapt options more: https://github.com/benjjneb/dada2/issues/785
-// https://cutadapt.readthedocs.io/en/stable/guide.html#more-than-one
-
-if (params.amplicon == 'ITS') {
-
-    process ITSFilterAndTrimStep1 {
-        tag { "ITS_Step1_${pairId}" }
+    process RunFastQC {
+        tag { "FastQC-${pairId}" }
+        publishDir "${params.outdir}/FastQC-Raw", mode: "copy", overwrite: true
 
         input:
-        set pairId, file(reads) from dada2ReadPairs
+        tuple val(pairId), file(in_fastq) from dada2ReadPairsToQual
 
         output:
-        set val(pairId), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
-        set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
-        file('forward_rc') into forwardP
-        file('reverse_rc') into reverseP
+        file '*_fastqc.{zip,html}' into fastqc_files
 
-        when:
-        params.precheck == false
-
-        script:
-        template "ITSFilterAndTrimStep1.R"
-    }
-    
-    process ITSFilterAndTrimStep2 {
-        tag { "ITS_Step2_${pairId}" }
-        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
-
-        input:
-        set pairId, reads from itsStep2
-        file(forP) from forwardP
-        file(revP) from reverseP
-        
-        output:
-        set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
-        file "*.cutadapt.out" into cutadaptToMultiQC
-
-        when:
-        params.precheck == false
-
-        script:
         """
-        FWD_PRIMER=\$(<forward_rc)
-        REV_PRIMER=\$(<reverse_rc)
-        
-        cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
-            -G "${params.revprimer}" -A \$REV_PRIMER \\
-            --cores ${task.cpus} \\
-            -n 2 \\
-            -o "${pairId}.R1.cutadapt.fastq.gz" \\
-            -p "${pairId}.R2.cutadapt.fastq.gz" \\
-            "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
+        fastqc --nogroup -q ${in_fastq.get(0)} ${in_fastq.get(1)}
         """
     }
 
-    process ITSFilterAndTrimStep3 {
-        tag { "ITS_Step3_${pairId}" }
+    process RunDADA2QC {
+        tag { "DADA2-FASTQ-QC" }
+        publishDir "${params.outdir}/dada2-RawQC", mode: "copy", overwrite: true
+
+        input:
+        path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
+
+        when:
+        params.skip_dadaQC == false
+
+        output:
+        file '*.pdf'
+
+        script:
+        template "DadaQC.R"
+    }
+
+    /* ITS amplicon filtering */
+
+    // Note: should explore cutadapt options more: https://github.com/benjjneb/dada2/issues/785
+    // https://cutadapt.readthedocs.io/en/stable/guide.html#more-than-one
+
+    if (params.amplicon == 'ITS') {
+
+        process ITSFilterAndTrimStep1 {
+            tag { "ITS_Step1_${pairId}" }
+
+            input:
+            set pairId, file(reads) from dada2ReadPairs
+
+            output:
+            set val(pairId), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
+            set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
+            file('forward_rc') into forwardP
+            file('reverse_rc') into reverseP
+
+            when:
+            params.precheck == false
+
+            script:
+            template "ITSFilterAndTrimStep1.R"
+        }
+        
+        process ITSFilterAndTrimStep2 {
+            tag { "ITS_Step2_${pairId}" }
+            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+            input:
+            set pairId, reads from itsStep2
+            file(forP) from forwardP
+            file(revP) from reverseP
+            
+            output:
+            set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
+            file "*.cutadapt.out" into cutadaptToMultiQC
+
+            when:
+            params.precheck == false
+
+            script:
+            """
+            FWD_PRIMER=\$(<forward_rc)
+            REV_PRIMER=\$(<reverse_rc)
+            
+            cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
+                -G "${params.revprimer}" -A \$REV_PRIMER \\
+                --cores ${task.cpus} \\
+                -n 2 \\
+                -o "${pairId}.R1.cutadapt.fastq.gz" \\
+                -p "${pairId}.R2.cutadapt.fastq.gz" \\
+                "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
+            """
+        }
+
+        process ITSFilterAndTrimStep3 {
+            tag { "ITS_Step3_${pairId}" }
+            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+            input:
+            set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
+
+            output:
+            set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
+            file "*.R1.filtered.fastq.gz" optional true into forReads
+            file "*.R2.filtered.fastq.gz" optional true into revReads
+            file "*.trimmed.txt" into trimTracking
+
+            when:
+            params.precheck == false
+
+            script:
+            template "ITSFilterAndTrimStep3.R"
+        }
+        
+    }
+    /* 16S amplicon filtering */
+    else if (params.amplicon == '16S'){
+        process FilterAndTrim {
+            tag { "FilterAndTrim_${pairId}" }
+            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+            input:
+            tuple pairId, file(reads) from dada2ReadPairs
+
+            output:
+            tuple val(pairId), "${pairId}.R1.filtered.fastq.gz", "${pairId}.R2.filtered.fastq.gz" optional true into filteredReadsforQC,filteredReads
+            tuple val("R1"), file("${pairId}.R1.filtered.fastq.gz") optional true into forReadsLE
+            tuple val("R2"), file("${pairId}.R2.filtered.fastq.gz") optional true into revReadsLE
+            file "*.trimmed.txt" into trimTracking
+
+            when:
+            params.precheck == false
+
+            script:
+            phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
+            template "FilterAndTrim.R"
+        }
+        cutadaptToMultiQC = Channel.empty()
+    } else {
+        // We need to shut this down!
+        Channel.empty().into {cutadaptToMultiQC;filteredReads;filteredReadsforQC}
+    }
+
+    process RunFastQC_postfilterandtrim {
+        tag { "FastQC_post_FT.${pairId}" }
+        publishDir "${params.outdir}/FastQC-Post-FilterTrim", mode: "copy", overwrite: true
+
+        input:
+        set val(pairId), file(filtFor), file(filtRev) from filteredReadsforQC
+
+        output:
+        file '*_fastqc.{zip,html}' into fastqc_files_post
+
+        when:
+        params.precheck == false
+
+        """
+        fastqc --nogroup -q ${filtFor} ${filtRev}
+        """
+    }
+
+    process RunMultiQC_postfilterandtrim {
+        tag { "runMultiQC_postfilterandtrim" }
+        publishDir "${params.outdir}/MultiQC-Post-FilterTrim", mode: 'copy', overwrite: true
+
+        input:
+        file('./RawSeq/*') from fastqc_files.collect().ifEmpty([])
+        file('./TrimmedSeq/*') from fastqc_files_post.collect().ifEmpty([])
+        file('./Cutadapt/*') from cutadaptToMultiQC.collect().ifEmpty([])
+
+        output:
+        file "*_report.html" into multiqc_report_post
+        file "*_data"
+
+        when:
+        params.precheck == false & params.skip_multiQC == false
+
+        script:
+        interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
+        """
+        multiqc ${interactivePlots} .
+        """
+    }
+
+    process MergeTrimmedTable {
+        tag { "MergeTrimmedTable" }
         publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
         input:
-        set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
+        file trimData from trimTracking.collect()
 
         output:
-        set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-        file "*.R1.filtered.fastq.gz" optional true into forReads
-        file "*.R2.filtered.fastq.gz" optional true into revReads
-        file "*.trimmed.txt" into trimTracking
+        file "all.trimmed.csv" into trimmedReadTracking
 
         when:
         params.precheck == false
 
         script:
-        template "ITSFilterAndTrimStep3.R"
+        template "MergeTrimTable.R"
     }
-    
-}
-/* 16S amplicon filtering */
-else if (params.amplicon == '16S'){
-    process FilterAndTrim {
-        tag { "FilterAndTrim_${pairId}" }
-        publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+    /*
+     *
+     * Step 2: Learn error rates (run on all samples)
+     * 
+     * Note: this step has been re-configured to run R1 and R2 batches in parallel
+     *
+     */
+
+    // the incoming data needs to be processed per R1/R2; this next step assists with this
+    forReadsLE
+            .concat(revReadsLE)
+            .groupTuple(sort: true)
+            .into { ReadsLE;ReadsInfer;ReadsMerge }
+
+    process LearnErrors {
+        tag { "LearnErrors:${readmode}" }
+        publishDir "${params.outdir}/dada2-LearnErrors", mode: "copy", overwrite: true
 
         input:
-        tuple pairId, file(reads) from dada2ReadPairs
+        tuple val(readmode), file(reads) from ReadsLE
 
         output:
-        tuple val(pairId), "${pairId}.R1.filtered.fastq.gz", "${pairId}.R2.filtered.fastq.gz" optional true into filteredReadsforQC,filteredReads
-        tuple val("R1"), file("${pairId}.R1.filtered.fastq.gz") optional true into forReadsLE
-        tuple val("R2"), file("${pairId}.R2.filtered.fastq.gz") optional true into revReadsLE
-        file "*.trimmed.txt" into trimTracking
-
-        when:
-        params.precheck == false
-
-        script:
-        phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
-        template "FilterAndTrim.R"
-    }
-    cutadaptToMultiQC = Channel.empty()
-} else {
-    // We need to shut this down!
-    Channel.empty().into {cutadaptToMultiQC;filteredReads;filteredReadsforQC}
-}
-
-process RunFastQC_postfilterandtrim {
-    tag { "FastQC_post_FT.${pairId}" }
-    publishDir "${params.outdir}/FastQC-Post-FilterTrim", mode: "copy", overwrite: true
-
-    input:
-    set val(pairId), file(filtFor), file(filtRev) from filteredReadsforQC
-
-    output:
-    file '*_fastqc.{zip,html}' into fastqc_files_post
-
-    when:
-    params.precheck == false
-
-    """
-    fastqc --nogroup -q ${filtFor} ${filtRev}
-    """
-}
-
-process RunMultiQC_postfilterandtrim {
-    tag { "runMultiQC_postfilterandtrim" }
-    publishDir "${params.outdir}/MultiQC-Post-FilterTrim", mode: 'copy', overwrite: true
-
-    input:
-    file('./RawSeq/*') from fastqc_files.collect().ifEmpty([])
-    file('./TrimmedSeq/*') from fastqc_files_post.collect().ifEmpty([])
-    file('./Cutadapt/*') from cutadaptToMultiQC.collect().ifEmpty([])
-
-    output:
-    file "*_report.html" into multiqc_report_post
-    file "*_data"
-
-    when:
-    params.precheck == false & params.skip_multiQC == false
-
-    script:
-    interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
-    """
-    multiqc ${interactivePlots} .
-    """
-}
-
-process MergeTrimmedTable {
-    tag { "MergeTrimmedTable" }
-    publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
-
-    input:
-    file trimData from trimTracking.collect()
-
-    output:
-    file "all.trimmed.csv" into trimmedReadTracking
-
-    when:
-    params.precheck == false
-
-    script:
-    template "MergeTrimTable.R"
-}
-
-/*
- *
- * Step 2: Learn error rates (run on all samples)
- * 
- * Note: this step has been re-configured to run R1 and R2 batches in parallel
- *
- */
-
-// the incoming data needs to be processed per R1/R2; this next step assists with this
-forReadsLE
-        .concat(revReadsLE)
-        .groupTuple(sort: true)
-        .into { ReadsLE;ReadsInfer;ReadsMerge }
-
-process LearnErrors {
-    tag { "LearnErrors:${readmode}" }
-    publishDir "${params.outdir}/dada2-LearnErrors", mode: "copy", overwrite: true
-
-    input:
-    tuple val(readmode), file(reads) from ReadsLE
-
-    output:
-    tuple val(readmode), file("errors.${readmode}.RDS") into errorModels
-    file "${readmode}.err.pdf"
-
-    when:
-    params.precheck == false
-
-    script:
-    dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
-    template "LearnErrors.R"
-}
-
-/*
- *
- * Step 3: Sample Inference, Merge Pairs
- *
- */
-
-/*
- *
- * Step 4: Construct sequence table
- *
- */
-
-if (params.pool == "T" || params.pool == 'pseudo') {
-
-    process DadaInfer {
-        tag { "DadaInfer:${readmode}" }
-        publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
-
-        input:
-        tuple val(readmode), file(err), file(reads) from errorModels
-            .join(ReadsInfer)
-
-        output:
-        // Note that the mode ('merged', 'R1', 'R2') can now potentially allow SE read analysis
-        tuple val(readmode), file("all.dd.${readmode}.RDS") into dadaMerge,dadaToReadTracking,dadaSECalls
+        tuple val(readmode), file("errors.${readmode}.RDS") into errorModels
+        file "${readmode}.err.pdf"
 
         when:
         params.precheck == false
 
         script:
         dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
-        template "DadaPooled.R"
+        template "LearnErrors.R"
     }
 
-    // Merge the pooled runs
-    process MergePooled {
-        tag { "mergeDadaRDS" }
-        publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+    /*
+     *
+     * Step 3: Sample Inference, Merge Pairs
+     *
+     */
+
+    /*
+     *
+     * Step 4: Construct sequence table
+     *
+     */
+
+    if (params.pool == "T" || params.pool == 'pseudo') {
+
+        process DadaInfer {
+            tag { "DadaInfer:${readmode}" }
+            publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+
+            input:
+            tuple val(readmode), file(err), file(reads) from errorModels
+                .join(ReadsInfer)
+
+            output:
+            // Note that the mode ('merged', 'R1', 'R2') can now potentially allow SE read analysis
+            tuple val(readmode), file("all.dd.${readmode}.RDS") into dadaMerge,dadaToReadTracking,dadaSECalls
+
+            when:
+            params.precheck == false
+
+            script:
+            dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+            template "DadaPooled.R"
+        }
+
+        // Merge the pooled runs
+        process MergePooled {
+            tag { "mergeDadaRDS" }
+            publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+
+            input:
+            file(dds) from dadaMerge
+                .map { it[1] }
+                .collect()
+            file(filts) from ReadsMerge
+                .map { it[1] }
+                .flatten()
+                .collect()
+
+            output:
+            tuple val("merged"), file("seqtab.merged.RDS") into seqTable,rawSeqTableToRename
+            file "all.mergers.RDS" into mergerTracking
+            file "seqtab.original.merged.RDS" // we keep this for comparison and possible QC
+
+            when:
+            params.precheck == false
+
+            script:
+            template "MergePairs.R"
+        }
+
+    } else {
+        // pool = F, process per sample or in batches (a little more compute efficient)
+
+        process PerSampleInferDerepAndMerge {
+            tag { "PerSampleInferDerepAndMerge" }
+            publishDir "${params.outdir}/dada2-Derep-Single/Per-Sample", mode: "copy", overwrite: true
+
+            input:
+            tuple val(pairId), file(r1), file(r2) from filteredReads
+            file errs from errorModels.collect()
+
+            output:
+            tuple val(pairId), file("${pairId}.merged.RDS") into mergedReads
+            tuple val(pairId), file("${pairId}.dd.R{1,2}.RDS") into perSampleDadaToMerge
+
+            when:
+            params.precheck == false
+
+            script:
+            dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+            template "PerSampleDadaInfer.R"
+        }
+
+        process MergeDadaRDS {
+            tag { "mergeDadaRDS" }
+            publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
+
+            input:
+            file(dds)from perSampleDadaToMerge
+                          .map { it[1] }
+                          .flatten()
+                          .collect()
+
+            output:
+            tuple val(readmode), file("all.dd.R{1,2}.RDS") into dadaToReadTracking,dadaSECalls
+
+            when:
+            params.precheck == false
+
+            script:
+            template "MergePerSampleDada.R"
+        }
+
+        process SequenceTable {
+            tag { "SequenceTable" }
+            publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
+
+            input:
+            file mr from mergedReads.collect()
+
+            output:
+            tuple val("merged"), file("seqtab.merged.RDS") into seqTable,rawSeqTableToRename
+            file "all.mergers.RDS" into mergerTracking
+            file "seqtab.original.merged.RDS" // we keep this for comparison and possible QC
+            
+            when:
+            params.precheck == false
+
+            script:
+            template "PerSampleSeqTable.R"
+        }
+    }
+
+    if (params.processSE) {
+        process SESequenceTable {
+            tag { "SESequenceTable:${readmode}" }
+            publishDir "${params.outdir}/dada2-SE", mode: "copy", overwrite: true
+
+            input:
+            tuple val(readmode), file(dds) from dadaSECalls
+
+            output:
+            tuple val(readmode), file("seqtab.${readmode}.RDS") into SEChimera,RawSEChimeraToRename
+
+            script:
+            """
+            #!/usr/bin/env Rscript
+            suppressPackageStartupMessages(library(dada2))
+            dd <- readRDS("${dds}")
+            seqtab <- makeSequenceTable(dd)
+            saveRDS(seqtab, "seqtab.${readmode}.RDS")
+            """
+        }
+
+        // add to the queue with the merged sequences
+
+    } else {
+        Channel.empty().into { SEChimera;RawSEChimeraToRename }
+    }
+} else if (params.seqTables != false) { // TODO maybe we should check the channel here
+    process MergeSeqTables {
+        tag { "MergeSeqTables:${seqtype}" }
+        publishDir "${params.outdir}/dada2-MergedSeqTable", mode: 'copy'
 
         input:
-        file(dds) from dadaMerge
-            .map { it[1] }
-            .collect()
-        file(filts) from ReadsMerge
-            .map { it[1] }
-            .flatten()
-            .collect()
+        file(st) from dada2SeqTabs.collect()
 
         output:
-        tuple val("merged"), file("seqtab.merged.RDS") into seqTable,rawSeqTableToRename
-        file "all.mergers.RDS" into mergerTracking
-        file "seqtab.original.merged.RDS" // we keep this for comparison and possible QC
-
-        when:
-        params.precheck == false
+        tuple val("merged"), file("seqtab.merged.RDS") into seqTable, rawSeqTableToRename
 
         script:
-        template "MergePairs.R"
+        template "MergeSeqTables.R"
     }
-
-} else {
-    // pool = F, process per sample or in batches (a little more compute efficient)
-
-    process PerSampleInferDerepAndMerge {
-        tag { "PerSampleInferDerepAndMerge" }
-        publishDir "${params.outdir}/dada2-Derep-Single/Per-Sample", mode: "copy", overwrite: true
-
-        input:
-        tuple val(pairId), file(r1), file(r2) from filteredReads
-        file errs from errorModels.collect()
-
-        output:
-        tuple val(pairId), file("${pairId}.merged.RDS") into mergedReads
-        tuple val(pairId), file("${pairId}.dd.R{1,2}.RDS") into perSampleDadaToMerge
-
-        when:
-        params.precheck == false
-
-        script:
-        dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
-        template "PerSampleDadaInfer.R"
-    }
-
-    process MergeDadaRDS {
-        tag { "mergeDadaRDS" }
-        publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
-
-        input:
-        file(dds)from perSampleDadaToMerge
-                      .map { it[1] }
-                      .flatten()
-                      .collect()
-
-        output:
-        tuple val(readmode), file("all.dd.R{1,2}.RDS") into dadaToReadTracking,dadaSECalls
-
-        when:
-        params.precheck == false
-
-        script:
-        template "MergePerSampleDada.R"
-    }
-
-    process SequenceTable {
-        tag { "SequenceTable" }
-        publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
-
-        input:
-        file mr from mergedReads.collect()
-
-        output:
-        tuple val("merged"), file("seqtab.merged.RDS") into seqTable,rawSeqTableToRename
-        file "all.mergers.RDS" into mergerTracking
-        file "seqtab.original.merged.RDS" // we keep this for comparison and possible QC
-        
-        when:
-        params.precheck == false
-
-        script:
-        template "PerSampleSeqTable.R"
-    }
-}
-
-if (params.processSE) {
-    process SESequenceTable {
-        tag { "SESequenceTable:${readmode}" }
-        publishDir "${params.outdir}/dada2-SE", mode: "copy", overwrite: true
-
-        input:
-        tuple val(readmode), file(dds) from dadaSECalls
-
-        output:
-        tuple val(readmode), file("seqtab.${readmode}.RDS") into SEChimera,RawSEChimeraToRename
-
-        script:
-        """
-        #!/usr/bin/env Rscript
-        suppressPackageStartupMessages(library(dada2))
-        dd <- readRDS("${dds}")
-        seqtab <- makeSequenceTable(dd)
-        saveRDS(seqtab, "seqtab.${readmode}.RDS")
-        """
-    }
-
-    // add to the queue with the merged sequences
-
-
-} else {
     Channel.empty().into { SEChimera;RawSEChimeraToRename }
 }
 
@@ -590,7 +625,13 @@ if (!params.skipChimeraDetection) {
         template "RemoveChimeras.R"
     }
 } else {
-    seqTable.into {seqTableToTax;seqTableToRename}
+    if (params.skipChimeraDetection == true) {
+        seqTable.into {seqTableToTax;seqTableToRename}
+    } else if (params.skipChimeraDetection == 'all') { // stop completely
+        // this should effectively halt the pipeline from going further
+        Channel.empty()
+            .into {seqTableToTax;seqTableToRename}
+    }
 }
 
 /*
