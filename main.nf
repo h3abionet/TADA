@@ -583,11 +583,13 @@ if (params.reads != false ) { // TODO maybe we should check the channel here
     }
 } else if (params.seqTables != false) { // TODO maybe we should check the channel here
     process MergeSeqTables {
-        tag { "MergeSeqTables:${seqtype}" }
+        tag { "MergeSeqTables" }
         publishDir "${params.outdir}/dada2-MergedSeqTable", mode: 'copy'
 
         input:
-        file(st) from dada2SeqTabs.collect()
+        file(st) from dada2SeqTabs
+                    .map { it[1] }
+                    .collect()
 
         output:
         tuple val("merged"), file("seqtab.merged.RDS") into seqTable, rawSeqTableToRename
@@ -595,8 +597,8 @@ if (params.reads != false ) { // TODO maybe we should check the channel here
         script:
         template "MergeSeqTables.R"
     }
-    Channel.empty().into { SEChimera;RawSEChimeraToRename }
-}
+    Channel.empty().into { SEChimera;RawSEChimeraToRename;trimmedReadTracking;dadaToReadTracking;mergerTracking }
+} 
 
 /*
  *
