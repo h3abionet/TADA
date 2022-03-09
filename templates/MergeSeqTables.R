@@ -1,8 +1,11 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(dada2))
 
-# note this might be a bit brittle, assumes file ext will be ".RDS"
-seqtabs <- sapply(list.files(pattern = "./*.RDS"), function(x) { 
+# Note this might be a bit brittle, assumes file ext will be ".RDS"!
+# This is primarily to ensure that there isn't an empty ASV sequence,
+# which seem to come from merging reads and returning failed merges
+
+seqtabs <- sapply(list.files(pattern = "*.RDS"), function(x) { 
       tmp <- readRDS(x)
       tmp <- tmp[,sapply(colnames(tmp), nchar) > 0]
       return(tmp)
