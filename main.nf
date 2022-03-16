@@ -301,8 +301,8 @@ if (params.reads != false ) { // TODO maybe we should check the channel here
 
             output:
             set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-            file "*.R1.filtered.fastq.gz" optional true into forReads
-            file "*.R2.filtered.fastq.gz" optional true into revReads
+            tuple val("R1"), file("*.R1.filtered.fastq.gz") optional true into forReadsLE
+            tuple val("R2"), file("*.R2.filtered.fastq.gz") optional true into revReadsLE
             file "*.trimmed.txt" into trimTracking
 
             when:
@@ -629,7 +629,7 @@ if (!params.skipChimeraDetection) {
 } else {
     if (params.skipChimeraDetection == true) {
         seqTable.into {seqTableToTax;seqTableToRename}
-    } else if (params.skipChimeraDetection == 'all') { // stop completely
+    } else if (params.skipChimeraDetection == 'all') { // stop completely!
         // this should effectively halt the pipeline from going further
         Channel.empty()
             .into {seqTableToTax;seqTableToRename}

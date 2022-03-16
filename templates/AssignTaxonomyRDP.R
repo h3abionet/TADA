@@ -11,7 +11,8 @@ tax <- assignTaxonomy(seqtab, "${ref}",
                       outputBootstraps = TRUE, ${taxLevels}
                       verbose = TRUE 
                       )
+boots <- tax\$boot
 
 # Write to disk
-saveRDS(tax, "tax_final.${seqtype}.RDS")
+saveRDS(tax\$tax, "tax_final.${seqtype}.RDS")
 saveRDS(boots, "bootstrap_final.${seqtype}.RDS")
