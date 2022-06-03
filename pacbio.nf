@@ -1120,7 +1120,7 @@ process ReadTracking {
 
 if (params.toQIIME2) {
 
-    process toQIIME2FeatureTable {
+    process ToQIIME2FeatureTable {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
@@ -1146,7 +1146,7 @@ if (params.toQIIME2) {
         """
     }
 
-    process toQIIME2TaxTable {
+    process ToQIIME2TaxTable {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
@@ -1171,7 +1171,7 @@ if (params.toQIIME2) {
         """
     }
 
-    process toQIIME2Seq {
+    process ToQIIME2Seq {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
@@ -1191,7 +1191,7 @@ if (params.toQIIME2) {
         """
     }
 
-    process toQIIME2Aln {
+    process ToQIIME2Aln {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
@@ -1214,7 +1214,7 @@ if (params.toQIIME2) {
         """
     }
 
-    process toQIIME2Tree {
+    process ToQIIME2Tree {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
