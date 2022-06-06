@@ -91,9 +91,11 @@ if (params.help){
 // TODO: we need to validate/sanity-check more of the parameters
 //Validate inputs
 
-// check sequence table
-if ( params.seqTables != false && params.reads != false ) {
-    exit 1, "Can't process both read data (--reads) and sequence tables (--seqTables)!"
+// ${deity} there has to be a better way to check this!
+if ( (params.seqTables != false && params.reads != false) || 
+     (params.input != false && params.reads != false) || 
+     (params.seqTables != false && params.input != false )) {
+    exit 1, "Only one of --reads, --input, or --seqTables is allowed!"
 }
 
 // Read-specific checks
@@ -117,6 +119,52 @@ if (params.reads != false) {
     if (params.revprimer == false && params.amplicon == 'ITS'){
         exit 1, "Must set reverse primer using --revprimer"
     }
+
+    // TODO: add in single-end support here; will require an explicit flag
+    Channel
+    .fromFilePairs( params.reads )
+    .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
+    .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
+} else if (params.seqTables != false) {
+    // Experimental: combine pre-chimera sequence tables from prior DADA2 runs.  This assumes:
+    // 1. Unique sample IDs in all runs
+    // 2. Same DADA2 version used 
+    // 3. Sequence table is the original DADA2 pre-chimera sequence table with the original sequence ASVs used as the ID
+
+    Channel
+        .fromFilePairs( params.seqTables, size: 1 )
+        .ifEmpty { error "Cannot find any sequence tables matching: ${params.seqTables}" }
+        .into { dada2SeqTabs }
+} else if (params.input != false) {
+    // Experimental: sample sheet input, per nf-core rules (CSV, with ID + FASTQ_R1 + FASTQ_R2)
+    // This will get basic tuple-based support in place using code from the DSL2 rnaseq workflow:
+    // https://github.com/nf-core/rnaseq/blob/e0dfce9af5c2299bcc2b8a74b6559ce055965455/subworkflows/local/input_check.nf
+    // However this will become a separate subworkflow with DSL2 support later (see the link for DSL2 example)
+    
+    // see also: the check_samplesheet.py version in the bin directory, which does a high-level check on columns and data structure
+
+    // process Check_SampleSheet {
+    //     tag { "Check_SampleSheet" }
+    //     // publishDir "${params.outdir}/FastQC-Raw", mode: "copy", overwrite: true
+
+    //     input:
+    //     file(samplesheet) from params.input
+
+    //     output:
+    //     file('final_samplesheet.csv') into samplesheet
+
+    //     """
+    //     check_samplesheet.py ${samplesheet} final_samplesheet.csv
+    //     """        
+    // }
+
+    Channel
+        .fromPath( params.input )
+        .splitCsv(header:true, sep:',')
+        .map{ row -> create_fastq_channel_simple(row) } // this doesn't really check files though...
+        .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
+} else {
+    exit 1, "Must set either --reads or --seqTables as input"
 }
 
 if (params.aligner == 'infernal' && params.infernalCM == false){
@@ -132,20 +180,6 @@ if (!(['simple','md5'].contains(params.idType))) {
 custom_runName = params.name
 if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
     custom_runName = workflow.runName
-}
-
-if (params.reads != false) {
-    Channel
-        .fromFilePairs( params.reads )
-        .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
-        .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
-} else if (params.seqTables != false) {
-    Channel
-        .fromFilePairs( params.seqTables, size: 1 )
-        .ifEmpty { error "Cannot find any sequence tables matching: ${params.seqTables}" }
-        .into { dada2SeqTabs }
-} else {
-    exit 1, "Must set either --reads or --seqTables as input"
 }
 
 // Header log info
@@ -201,7 +235,7 @@ log.info "========================================="
  *
  */
 
-if (params.reads != false ) { // TODO maybe we should check the channel here
+if (params.reads != false || params.input != false ) { // TODO maybe we should check the channel here
 
     process RunFastQC {
         tag { "FastQC-${pairId}" }
@@ -1221,4 +1255,41 @@ workflow.onComplete {
     //       log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
     //     }
     // }
+}
+
+
+// code modified from the nf-core RNA-Seq workflow
+def create_fastq_channel(LinkedHashMap row) {
+    // create meta map
+    def meta = [:]
+    meta.id           = row.sample
+    meta.single_end   = row.single_end.toBoolean()
+
+    // add path(s) of the fastq file(s) to the meta map
+    def sample_data = []
+    if (!file(row.fastq_1).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
+    }
+    if (meta.single_end) {
+        sample_data = [ row.sample, file(row.fastq_1) ]
+    } else {
+        if (!file(row.fastq_2).exists()) {
+            exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
+        }
+        sample_data = [ row.sample, file(row.fastq_1), file(row.fastq_2) ] 
+    }
+    return sample_data
+}
+
+def create_fastq_channel_simple(LinkedHashMap row) {
+    // add path(s) of the fastq file(s) to the meta map
+    def sample_data = []
+    if (!file(row.fastq_1).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
+    }
+    if (!file(row.fastq_2).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
+    }
+    sample_data = [ row.sample, [ file(row.fastq_1), file(row.fastq_2) ] ] 
+    return sample_data
 }
