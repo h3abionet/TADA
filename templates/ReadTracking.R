@@ -24,7 +24,7 @@ colnames(mergers) <- c("merged")
 mergers\$SampleID <- rownames(mergers)
 
 seqtab.nochim <- as.data.frame(rowSums(readRDS("${sTable}")))
-rownames(seqtab.nochim) <- gsub('.${seqtype}.filtered.fastq.gz', '',rownames(seqtab.nochim))
+rownames(seqtab.nochim) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.nochim))
 colnames(seqtab.nochim) <- c("seqtab.${seqtype}.nochim")
 seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
 
