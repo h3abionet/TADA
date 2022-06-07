@@ -1044,136 +1044,145 @@ process ReadTracking {
     template "ReadTracking.R"
 }
 
-if (params.toQIIME2) {
+process ToQIIME2FeatureTable {
+    tag { "QIIME2-SeqTable:${seqtype}" }
+    label 'QIIME2'
+    publishDir path: {
+        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+        }, mode: "copy"
 
-    process ToQIIME2FeatureTable {
-        tag { "QIIME2-SeqTable:${seqtype}" }
-        label 'QIIME2'
-        publishDir path: {
-            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-            }, mode: "copy"
 
-        input:
-        tuple val(seqtype), file(seqtab) from featuretableToQIIME2
+    when: params.toQIIME2
 
-        output:
-        file "*.qza"
+    input:
+    tuple val(seqtype), file(seqtab) from featuretableToQIIME2
 
-        script:
-        """
-        biom convert -i ${seqtab} \
-            -o seqtab-biom-table.biom \
-            --table-type="OTU table" \
-            --to-hdf5
+    output:
+    file "*.qza"
 
-        qiime tools import \
-            --input-path seqtab-biom-table.biom \
-            --input-format BIOMV210Format \
-            --output-path seqtab_final.${params.idType}.${seqtype}.qza \
-            --type 'FeatureTable[Frequency]'
-        """
-    }
+    script:
+    """
+    biom convert -i ${seqtab} \
+        -o seqtab-biom-table.biom \
+        --table-type="OTU table" \
+        --to-hdf5
 
-    process ToQIIME2TaxTable {
-        tag { "QIIME2-Taxtable:${seqtype}" }
-        label 'QIIME2'
-        publishDir path: {
-            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-            }, mode: "copy"
+    qiime tools import \
+        --input-path seqtab-biom-table.biom \
+        --input-format BIOMV210Format \
+        --output-path seqtab_final.${params.idType}.${seqtype}.qza \
+        --type 'FeatureTable[Frequency]'
+    """
+}
 
-        input:
-        tuple val(seqtype), file(taxtab) from taxtableToQIIME2
+process ToQIIME2TaxTable {
+    tag { "QIIME2-Taxtable:${seqtype}" }
+    label 'QIIME2'
+    publishDir path: {
+        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+        }, mode: "copy"
 
-        output:
-        file "*.qza"
 
-        when:
-        taxtableToQIIME2 != false
+    when: params.toQIIME2
 
-        script:
-        """
-        tail -n +2 ${taxtab} > headerless.txt
-        qiime tools import \
-            --input-path headerless.txt \
-            --input-format HeaderlessTSVTaxonomyFormat \
-            --output-path tax_final.${params.idType}.${seqtype}.qza \
-            --type 'FeatureData[Taxonomy]'
-        """
-    }
+    input:
+    tuple val(seqtype), file(taxtab) from taxtableToQIIME2
 
-    process ToQIIME2Seq {
-        tag { "QIIME2-Seq:${seqtype}" }
-        label 'QIIME2'
-        publishDir path: {
-            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-            }, mode: "copy"
+    output:
+    file "*.qza"
 
-        input:
-        tuple val(seqtype), file(seqs) from seqsToQIIME2
+    when:
+    taxtableToQIIME2 != false
 
-        output:
-        file "*.qza"
+    script:
+    """
+    tail -n +2 ${taxtab} > headerless.txt
+    qiime tools import \
+        --input-path headerless.txt \
+        --input-format HeaderlessTSVTaxonomyFormat \
+        --output-path tax_final.${params.idType}.${seqtype}.qza \
+        --type 'FeatureData[Taxonomy]'
+    """
+}
 
-        script:
-        """
-        qiime tools import \
-            --input-path ${seqs} \
-            --output-path sequences.${seqtype}.qza \
-            --type 'FeatureData[Sequence]'
-        """
-    }
+process ToQIIME2Seq {
+    tag { "QIIME2-Seq:${seqtype}" }
+    label 'QIIME2'
+    publishDir path: {
+        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+        }, mode: "copy"
+    
+    when: params.toQIIME2
 
-    process ToQIIME2Aln {
-        tag { "QIIME2-Aln:${seqtype}" }
-        label 'QIIME2'
-        publishDir path: {
-            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-            }, mode: "copy"
+    input:
+    tuple val(seqtype), file(seqs) from seqsToQIIME2
 
-        input:
-        tuple val(seqtype), file(aln) from alnToQIIME2
+    output:
+    file "*.qza"
 
-        when:
-        alnToQIIME2 != false
+    script:
+    """
+    qiime tools import \
+        --input-path ${seqs} \
+        --output-path sequences.${seqtype}.qza \
+        --type 'FeatureData[Sequence]'
+    """
+}
 
-        output:
-        file "*.qza"
+process ToQIIME2Aln {
+    tag { "QIIME2-Aln:${seqtype}" }
+    label 'QIIME2'
+    publishDir path: {
+        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+        }, mode: "copy"
 
-        script:
-        """
-        qiime tools import \
-            --input-path ${aln} \
-            --output-path aligned-sequences.${seqtype}.qza \
-            --type 'FeatureData[AlignedSequence]'
-        """
-    }
+    when: params.toQIIME2
 
-    process ToQIIME2Tree {
-        tag { "QIIME2-Tree:${seqtype}" }
-        label 'QIIME2'
-        publishDir path: {
-            seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-            }, mode: "copy"
+    input:
+    tuple val(seqtype), file(aln) from alnToQIIME2
 
-        input:
-        tuple val(seqtype), file(rooted), file(tree) from rootedToQIIME2.join(treeToQIIME2)
+    when:
+    alnToQIIME2 != false
 
-        output:
-        file "*.qza"
+    output:
+    file "*.qza"
 
-        script:
-        """
-        qiime tools import \
-            --input-path ${tree} \
-            --output-path unrooted-tree.${seqtype}qza \
-            --type 'Phylogeny[Unrooted]'
+    script:
+    """
+    qiime tools import \
+        --input-path ${aln} \
+        --output-path aligned-sequences.${seqtype}.qza \
+        --type 'FeatureData[AlignedSequence]'
+    """
+}
 
-        qiime tools import \
-            --input-path ${rooted} \
-            --output-path rooted-tree.${seqtype}.qza \
-            --type 'Phylogeny[Rooted]'
-        """
-    }
+process ToQIIME2Tree {
+    tag { "QIIME2-Tree:${seqtype}" }
+    label 'QIIME2'
+    publishDir path: {
+        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
+        }, mode: "copy"
+
+    when: params.toQIIME2
+
+    input:
+    tuple val(seqtype), file(rooted), file(tree) from rootedToQIIME2.join(treeToQIIME2)
+
+    output:
+    file "*.qza"
+
+    script:
+    """
+    qiime tools import \
+        --input-path ${tree} \
+        --output-path unrooted-tree.${seqtype}qza \
+        --type 'Phylogeny[Unrooted]'
+
+    qiime tools import \
+        --input-path ${rooted} \
+        --output-path rooted-tree.${seqtype}.qza \
+        --type 'Phylogeny[Rooted]'
+    """
 }
 
 //TODO: this could eventually go into a report process to consolidate workflow info;
