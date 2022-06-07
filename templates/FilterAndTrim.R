@@ -1,14 +1,13 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(dada2))
-suppressPackageStartupMessages(library(optparse))
 
 out <- filterAndTrim(fwd        = "${reads[0]}",
                     filt        = "${pairId}.R1.filtered.fastq.gz",
-                    rev         = "${reads[1]}",
-                    filt.rev    = "${pairId}.R2.filtered.fastq.gz",
-                    trimLeft    = c(${params.trimFor}, ${params.trimRev}),
-                    truncLen    = c(${params.truncFor}, ${params.truncRev}),
-                    maxEE       = c(${params.maxEEFor}, ${params.maxEERev}),
+                    rev         = if("${reads[1]}" == "null") NULL else "${reads[1]}",
+                    filt.rev    = if("${reads[1]}" == "null") NULL else "${pairId}.R2.filtered.fastq.gz",
+                    trimLeft    = if("${reads[1]}" == "null") ${params.trimFor} else  c(${params.trimFor}, ${params.trimRev}),
+                    truncLen    = if("${reads[1]}" == "null") ${params.truncFor} else c(${params.truncFor}, ${params.truncRev}),
+                    maxEE       = if("${reads[1]}" == "null") ${params.maxEEFor} else c(${params.maxEEFor}, ${params.maxEERev}), 
                     truncQ      = ${params.truncQ},
                     maxN        = ${params.maxN},
                     rm.phix     = as.logical(${params.rmPhiX}),

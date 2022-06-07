@@ -139,28 +139,29 @@ if (params.reads != false) {
     
     // see also: the check_samplesheet.py version in the bin directory, which does a high-level check on columns and data structure
 
-    // process Check_SampleSheet {
-    //     tag { "Check_SampleSheet" }
-    //     // publishDir "${params.outdir}/FastQC-Raw", mode: "copy", overwrite: true
+    samples = file(params.input)
 
-    //     input:
-    //     file(samplesheet) from params.input
+    process Check_SampleSheet {
+        tag { "Check_SampleSheet" }
+        publishDir "${params.outdir}/SampleSheet", mode: "copy", overwrite: true
 
-    //     output:
-    //     file('final_samplesheet.csv') into samplesheet
+        input:
+        file(samplesheet) from samples
 
-    //     """
-    //     check_samplesheet.py ${samplesheet} final_samplesheet.csv
-    //     """        
-    // }
+        output:
+        file('final_samplesheet.csv') into samplesheet
 
-    Channel
-        .fromPath( params.input )
+        """
+        check_samplesheet.py ${samplesheet} final_samplesheet.csv
+        """
+    }
+
+    samplesheet
         .splitCsv(header:true, sep:',')
-        .map{ row -> create_fastq_channel_simple(row) } 
+        .map{ row -> create_fastq_channel(row) } 
         .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
 } else {
-    exit 1, "Must set either --reads or --seqTables as input"
+    exit 1, "Must set either --input, --reads, or --seqTables as input"
 }
 
 if (params.aligner == 'infernal' && params.infernalCM == false){
@@ -244,7 +245,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         file '*_fastqc.{zip,html}' into fastqc_files
 
         """
-        fastqc --nogroup -q ${in_fastq.get(0)} ${in_fastq.get(1)}
+        fastqc --nogroup -q ${in_fastq}
         """
     }
 
@@ -363,6 +364,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
             script:
             phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
+            
             template "FilterAndTrim.R"
         }
         cutadaptToMultiQC = Channel.empty()
@@ -1262,39 +1264,20 @@ workflow.onComplete {
     }
 }
 
-
 // code modified from the nf-core RNA-Seq workflow
-// def create_fastq_channel(LinkedHashMap row) {
-//     // create meta map
-//     def meta = [:]
-//     meta.id           = row.sample
-//     meta.single_end   = row.single_end.toBoolean()
-
-//     // add path(s) of the fastq file(s) to the meta map
-//     def sample_data = []
-//     if (!file(row.fastq_1).exists()) {
-//         exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
-//     }
-//     if (meta.single_end) {
-//         sample_data = [ row.sample, file(row.fastq_1) ]
-//     } else {
-//         if (!file(row.fastq_2).exists()) {
-//             exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
-//         }
-//         sample_data = [ row.sample, [file(row.fastq_1), file(row.fastq_2) ] ]
-//     }
-//     return sample_data
-// }
-
-def create_fastq_channel_simple(LinkedHashMap row) {
+def create_fastq_channel(LinkedHashMap row) {
     // add path(s) of the fastq file(s) to the meta map
     def sample_data = []
     if (!file(row.fastq_1).exists()) {
         exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
     }
-    if (!file(row.fastq_2).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
+    if (row.single_end.toBoolean()) {
+        sample_data = [ row.sample, file(row.fastq_1) ]
+    } else {
+        if (!file(row.fastq_2).exists()) {
+            exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
+        }
+        sample_data = [ row.sample, [file(row.fastq_1), file(row.fastq_2) ] ]
     }
-    sample_data = [ row.sample, [ file(row.fastq_1), file(row.fastq_2) ] ] 
     return sample_data
 }
