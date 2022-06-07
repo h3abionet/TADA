@@ -108,10 +108,6 @@ if (params.reads != false) {
         exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
     }
 
-    // if ( params.reference == false ) {
-    //     exit 1, "Must set reference database using --reference"
-    // }
-
     if (params.fwdprimer == false && params.amplicon == 'ITS'){
         exit 1, "Must set forward primer using --fwdprimer"
     }
@@ -161,7 +157,7 @@ if (params.reads != false) {
     Channel
         .fromPath( params.input )
         .splitCsv(header:true, sep:',')
-        .map{ row -> create_fastq_channel_simple(row) } // this doesn't really check files though...
+        .map{ row -> create_fastq_channel_simple(row) } 
         .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
 } else {
     exit 1, "Must set either --reads or --seqTables as input"
@@ -176,7 +172,7 @@ if (!(['simple','md5'].contains(params.idType))) {
 }
 
 // Has the run name been specified by the user?
-//  this has the bonus effect of catching both -name and --name
+// this has the bonus effect of catching both -name and --name
 custom_runName = params.name
 if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
     custom_runName = workflow.runName
@@ -184,7 +180,7 @@ if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
 
 // Header log info
 log.info "==================================="
-log.info " ${params.base}/16S-rDNA-dada2-pipeline  ~  version ${params.version}"
+log.info " ${params.base}/TADA  ~  version ${params.version}"
 log.info "==================================="
 def summary = [:]
 summary['Run Name']       = custom_runName ?: workflow.runName
@@ -1243,43 +1239,43 @@ workflow.onComplete {
     def sendmail_html = sendmail_template.toString()
 
     // Send the HTML e-mail
-    // if (params.email) {
-    //     try {
-    //       if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
-    //       // Try to send HTML e-mail using sendmail
-    //       [ 'sendmail', '-t' ].execute() << sendmail_html
-    //       log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
-    //     } catch (all) {
-    //       // Catch failures and try with plaintext
-    //       [ 'mail', '-s', subject, params.email ].execute() << email_txt
-    //       log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
-    //     }
-    // }
+    if (params.email) {
+        try {
+          if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
+          // Try to send HTML e-mail using sendmail
+          [ 'sendmail', '-t' ].execute() << sendmail_html
+          log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
+        } catch (all) {
+          // Catch failures and try with plaintext
+          [ 'mail', '-s', subject, params.email ].execute() << email_txt
+          log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
+        }
+    }
 }
 
 
 // code modified from the nf-core RNA-Seq workflow
-def create_fastq_channel(LinkedHashMap row) {
-    // create meta map
-    def meta = [:]
-    meta.id           = row.sample
-    meta.single_end   = row.single_end.toBoolean()
+// def create_fastq_channel(LinkedHashMap row) {
+//     // create meta map
+//     def meta = [:]
+//     meta.id           = row.sample
+//     meta.single_end   = row.single_end.toBoolean()
 
-    // add path(s) of the fastq file(s) to the meta map
-    def sample_data = []
-    if (!file(row.fastq_1).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
-    }
-    if (meta.single_end) {
-        sample_data = [ row.sample, file(row.fastq_1) ]
-    } else {
-        if (!file(row.fastq_2).exists()) {
-            exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
-        }
-        sample_data = [ row.sample, file(row.fastq_1), file(row.fastq_2) ] 
-    }
-    return sample_data
-}
+//     // add path(s) of the fastq file(s) to the meta map
+//     def sample_data = []
+//     if (!file(row.fastq_1).exists()) {
+//         exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
+//     }
+//     if (meta.single_end) {
+//         sample_data = [ row.sample, file(row.fastq_1) ]
+//     } else {
+//         if (!file(row.fastq_2).exists()) {
+//             exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
+//         }
+//         sample_data = [ row.sample, [file(row.fastq_1), file(row.fastq_2) ] ]
+//     }
+//     return sample_data
+// }
 
 def create_fastq_channel_simple(LinkedHashMap row) {
     // add path(s) of the fastq file(s) to the meta map
