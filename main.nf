@@ -273,6 +273,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
     if (params.amplicon == 'ITS') {
 
+        // TODO: need to address for SE/PE work
         process ITSFilterAndTrimStep1 {
             tag { "ITS_Step1_${pairId}" }
 
@@ -364,7 +365,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
             script:
             phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
-            
+
             template "FilterAndTrim.R"
         }
         cutadaptToMultiQC = Channel.empty()
@@ -498,35 +499,43 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             template "DadaPooled.R"
         }
 
-        // Merge the pooled runs
-        process MergePooled {
+        // This one is a little tricky. We can't know a priori how many instances of reads (R1 and R2) 
+        // are present outside the process, but we can determine this internally within the process 
+        // when we collect all of them.
+        // So, here we check the size of the collected channel containing the denoised models; if 
+        // there are two then this is a paired-end run, otherwise it's single-end. Logic is in the R script
+        process SeqTable {
             tag { "mergeDadaRDS" }
-            publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
+            publishDir "${params.outdir}/dada2-OriginalSeqTable", mode: "copy", overwrite: true
 
             input:
+            // we don't care about the mode here, so only get the dds (dada-inferred) RDS files
             file(dds) from dadaMerge
                 .map { it[1] }
                 .collect()
+            // we don't care about the mode here, we only grab the reads
             file(filts) from ReadsMerge
                 .map { it[1] }
                 .flatten()
                 .collect()
 
             output:
-            tuple val("merged"), file("seqtab.merged.RDS") into seqTable,rawSeqTableToRename
-            file "all.mergers.RDS" into mergerTracking
-            file "seqtab.original.merged.RDS" // we keep this for comparison and possible QC
+            tuple val(readmode), file("seqtab.${readmode}.RDS") into seqTable,rawSeqTableToRename
+            file "all.mergers.RDS" optional true into mergerTracking
+            file "seqtab.original.*.RDS" // we keep this for comparison and possible QC
 
             when:
             params.precheck == false
 
             script:
+            readmode = dds.size() == 2 ? 'merged' : 'R1'
             template "MergePairs.R"
         }
 
     } else {
         // pool = F, process per sample or in batches (a little more compute efficient)
 
+        // TODO: need to address for SE/PE work
         process PerSampleInferDerepAndMerge {
             tag { "PerSampleInferDerepAndMerge" }
             publishDir "${params.outdir}/dada2-Derep-Single/Per-Sample", mode: "copy", overwrite: true
@@ -547,6 +556,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             template "PerSampleDadaInfer.R"
         }
 
+        // TODO: need to address for SE/PE work
         process MergeDadaRDS {
             tag { "mergeDadaRDS" }
             publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
@@ -587,32 +597,32 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         }
     }
 
-    if (params.processSE) {
-        process SESequenceTable {
-            tag { "SESequenceTable:${readmode}" }
-            publishDir "${params.outdir}/dada2-SE", mode: "copy", overwrite: true
+    // if (params.processSE) {
+    //     process SESequenceTable {
+    //         tag { "SESequenceTable:${readmode}" }
+    //         publishDir "${params.outdir}/dada2-SE", mode: "copy", overwrite: true
 
-            input:
-            tuple val(readmode), file(dds) from dadaSECalls
+    //         input:
+    //         tuple val(readmode), file(dds) from dadaSECalls
 
-            output:
-            tuple val(readmode), file("seqtab.${readmode}.RDS") into SEChimera,RawSEChimeraToRename
+    //         output:
+    //         tuple val(readmode), file("seqtab.${readmode}.RDS") into SEChimera,RawSEChimeraToRename
 
-            script:
-            """
-            #!/usr/bin/env Rscript
-            suppressPackageStartupMessages(library(dada2))
-            dd <- readRDS("${dds}")
-            seqtab <- makeSequenceTable(dd)
-            saveRDS(seqtab, "seqtab.${readmode}.RDS")
-            """
-        }
+    //         script:
+    //         """
+    //         #!/usr/bin/env Rscript
+    //         suppressPackageStartupMessages(library(dada2))
+    //         dd <- readRDS("${dds}")
+    //         seqtab <- makeSequenceTable(dd)
+    //         saveRDS(seqtab, "seqtab.${readmode}.RDS")
+    //         """
+    //     }
 
-        // add to the queue with the merged sequences
+    //     // add to the queue with the merged sequences
 
-    } else {
-        Channel.empty().into { SEChimera;RawSEChimeraToRename }
-    }
+    // } else {
+    //     Channel.empty().into { SEChimera;RawSEChimeraToRename }
+    // }
 } else if (params.seqTables != false) { // TODO maybe we should check the channel here
     process MergeSeqTables {
         tag { "MergeSeqTables" }
@@ -646,7 +656,7 @@ if (!params.skipChimeraDetection) {
             }, mode: 'copy'
 
         input:
-        tuple val(seqtype), file(st) from seqTable.concat(SEChimera)
+        tuple val(seqtype), file(st) from seqTable
 
         output:
         tuple val(seqtype), file("seqtab_final.${seqtype}.RDS") into seqTableToTax,seqTableToRename
@@ -803,8 +813,7 @@ process RenameASVs {
     // channels by ID, but we concatenate the original seqtable channels together 
 
     tuple val(seqtype), file(st), file(rawst) from seqTableToRename
-        .join(rawSeqTableToRename
-                .concat(RawSEChimeraToRename))
+        .join(rawSeqTableToRename)
 
     output:
     tuple val(seqtype), file("seqtab_final.${params.idType}.${seqtype}.RDS") into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable

@@ -131,37 +131,44 @@ filtRs <- list.files('.', pattern="R2.filtered.fastq.gz", full.names = TRUE)
 
 # read in denoised reads for both
 ddFs <- readRDS("all.dd.R1.RDS")
-ddRs <- readRDS("all.dd.R2.RDS")
 
-mergers <- if(rescuePairs) {
-   mergePairsRescue(ddFs, filtFs, ddRs, filtRs,
-    returnRejects = TRUE,
-    minOverlap = ${params.minOverlap},
-    maxMismatch = ${params.maxMismatch},
-    trimOverhang = as.logical(${params.trimOverhang}),
-    justConcatenate = as.logical(${params.justConcatenate}),
-    rescueUnmerged=rescuePairs,
-    verbose = TRUE
-    ) 
-   } else {
-   mergePairs(ddFs, filtFs, ddRs, filtRs,
-    returnRejects = TRUE,
-    minOverlap = ${params.minOverlap},
-    maxMismatch = ${params.maxMismatch},
-    trimOverhang = as.logical(${params.trimOverhang}),
-    justConcatenate = as.logical(${params.justConcatenate}),
-    verbose = TRUE
-    )
-   }
+if (file.exists("all.dd.R2.RDS")) {
 
-# TODO: make this a single item list with ID as the name, this is lost
-# further on
-saveRDS(mergers, "all.mergers.RDS")
+   ddRs <- readRDS("all.dd.R2.RDS")
 
-# go ahead and make seqtable
-seqtab <- makeSequenceTable(mergers)
+   mergers <- if(rescuePairs) {
+      mergePairsRescue(ddFs, filtFs, ddRs, filtRs,
+       returnRejects = TRUE,
+       minOverlap = ${params.minOverlap},
+       maxMismatch = ${params.maxMismatch},
+       trimOverhang = as.logical(${params.trimOverhang}),
+       justConcatenate = as.logical(${params.justConcatenate}),
+       rescueUnmerged=rescuePairs,
+       verbose = TRUE
+       ) 
+      } else {
+      mergePairs(ddFs, filtFs, ddRs, filtRs,
+       returnRejects = TRUE,
+       minOverlap = ${params.minOverlap},
+       maxMismatch = ${params.maxMismatch},
+       trimOverhang = as.logical(${params.trimOverhang}),
+       justConcatenate = as.logical(${params.justConcatenate}),
+       verbose = TRUE
+       )
+      }
 
-saveRDS(seqtab, "seqtab.original.merged.RDS")
+   # TODO: make this a single item list with ID as the name, this is lost
+   # further on
+   saveRDS(mergers, "all.mergers.RDS")
+
+   # go ahead and make seqtable
+   seqtab <- makeSequenceTable(mergers)
+} else {
+   # No merging, just make a seqtable off R1 only
+   seqtab <- makeSequenceTable(ddFs)
+}
+
+saveRDS(seqtab, "seqtab.original.${readmode}.RDS")
 
 # this is an optional filtering step to remove *merged* sequences based on 
 # min/max length criteria
@@ -173,4 +180,4 @@ if (${params.maxMergedLen} > 0) {
    seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params.maxMergedLen}]
 }
 
-saveRDS(seqtab, "seqtab.merged.RDS")
+saveRDS(seqtab, "seqtab.${readmode}.RDS")
