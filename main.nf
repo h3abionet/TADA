@@ -273,7 +273,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
     if (params.amplicon == 'ITS') {
 
-        // TODO: need to address for SE/PE work
+        // TODO: note this path is only needed when using variable length sequences
         process ITSFilterAndTrimStep1 {
             tag { "ITS_Step1_${pairId}" }
 
@@ -529,7 +529,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
             script:
             readmode = dds.size() == 2 ? 'merged' : 'R1'
-            template "MergePairs.R"
+            template "SeqTables.R"
         }
 
     } else {
