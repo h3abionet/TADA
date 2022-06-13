@@ -179,53 +179,6 @@ if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
     custom_runName = workflow.runName
 }
 
-// Header log info
-log.info "==================================="
-log.info " ${params.base}/TADA  ~  version ${params.version}"
-log.info "==================================="
-def summary = [:]
-summary['Run Name']       = custom_runName ?: workflow.runName
-summary['Reads']          = params.reads
-summary['Forward primer'] = params.fwdprimer
-summary['Reverse primer'] = params.revprimer
-summary['Amplicon type']  = params.amplicon
-summary['trimFor']        = params.trimFor
-summary['trimRev']        = params.trimRev
-summary['truncFor']       = params.truncFor
-summary['truncRev']       = params.truncRev
-summary['truncQ']         = params.truncQ
-summary['maxEEFor']       = params.maxEEFor
-summary['maxEERev']       = params.maxEERev
-summary['maxN']           = params.maxN
-summary['maxLen']         = params.maxLen
-summary['minLen']         = params.minLen
-summary['rmPhiX']         = params.rmPhiX
-summary['minOverlap']     = params.minOverlap
-summary['maxMismatch']    = params.maxMismatch
-summary['trimOverhang']   = params.trimOverhang
-summary['species']        = params.species
-summary['dadaOpt']        = params.dadaOpt
-summary['pool']           = params.pool
-summary['qualityBinning'] = params.qualityBinning
-summary['Reference']      = params.reference
-summary['Max Memory']     = params.max_memory
-summary['Max CPUs']       = params.max_cpus
-summary['Max Time']       = params.max_time
-summary['Output dir']     = params.outdir
-summary['Working dir']    = workflow.workDir
-summary['Container']      = workflow.container
-if(workflow.revision) summary['Pipeline Release'] = workflow.revision
-summary['Current home']   = "$HOME"
-summary['Current user']   = "$USER"
-summary['Current path']   = "$PWD"
-summary['Script dir']     = workflow.projectDir
-summary['Config Profile'] = workflow.profile
-if(params.email) {
-    summary['E-mail Address'] = params.email
-}
-log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
-log.info "========================================="
-
 /*
  *
  * Step 1: Filter and trim (run per sample?)
@@ -235,17 +188,17 @@ log.info "========================================="
 if (params.reads != false || params.input != false ) { // TODO maybe we should check the channel here
 
     process RunFastQC {
-        tag { "FastQC-${pairId}" }
+        tag { "FastQC-${meta.id}" }
         publishDir "${params.outdir}/FastQC-Raw", mode: "copy", overwrite: true
 
         input:
-        tuple val(pairId), file(in_fastq) from dada2ReadPairsToQual
+        tuple val(meta), file(reads) from dada2ReadPairsToQual
 
         output:
         file '*_fastqc.{zip,html}' into fastqc_files
 
         """
-        fastqc --nogroup -q ${in_fastq}
+        fastqc --nogroup -q ${reads}
         """
     }
 
@@ -274,90 +227,92 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
     if (params.amplicon == 'ITS') {
 
         // TODO: note this path is only needed when using variable length sequences
-        process ITSFilterAndTrimStep1 {
-            tag { "ITS_Step1_${pairId}" }
+        // process ITSFilterAndTrimStep1 {
+        //     tag { "ITS_Step1_${pairId}" }
 
-            input:
-            set pairId, file(reads) from dada2ReadPairs
+        //     input:
+        //     tuple val(meta), file(reads) from dada2ReadPairs
 
-            output:
-            set val(pairId), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
-            set val(pairId), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
-            file('forward_rc') into forwardP
-            file('reverse_rc') into reverseP
+        //     output:
+        //     set val(meta), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
+        //     set val(meta), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
+        //     file('forward_rc') into forwardP
+        //     file('reverse_rc') into reverseP
 
-            when:
-            params.precheck == false
+        //     when:
+        //     params.precheck == false
 
-            script:
-            template "ITSFilterAndTrimStep1.R"
-        }
+        //     script:
+        //     template "ITSFilterAndTrimStep1.R"
+        // }
         
-        process ITSFilterAndTrimStep2 {
-            tag { "ITS_Step2_${pairId}" }
-            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+        // process ITSFilterAndTrimStep2 {
+        //     tag { "ITS_Step2_${pairId}" }
+        //     publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
-            input:
-            set pairId, reads from itsStep2
-            file(forP) from forwardP
-            file(revP) from reverseP
+        //     input:
+        //     tuple(meta) set pairId, reads from itsStep2
+        //     file(forP) from forwardP
+        //     file(revP) from reverseP
             
-            output:
-            set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
-            file "*.cutadapt.out" into cutadaptToMultiQC
+        //     output:
+        //     set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
+        //     file "*.cutadapt.out" into cutadaptToMultiQC
 
-            when:
-            params.precheck == false
+        //     when:
+        //     params.precheck == false
 
-            script:
-            """
-            FWD_PRIMER=\$(<forward_rc)
-            REV_PRIMER=\$(<reverse_rc)
+        //     script:
+        //     """
+        //     FWD_PRIMER=\$(<forward_rc)
+        //     REV_PRIMER=\$(<reverse_rc)
             
-            cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
-                -G "${params.revprimer}" -A \$REV_PRIMER \\
-                --cores ${task.cpus} \\
-                -n 2 \\
-                -o "${pairId}.R1.cutadapt.fastq.gz" \\
-                -p "${pairId}.R2.cutadapt.fastq.gz" \\
-                "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
-            """
-        }
+        //     cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
+        //         -G "${params.revprimer}" -A \$REV_PRIMER \\
+        //         --cores ${task.cpus} \\
+        //         -n 2 \\
+        //         -o "${pairId}.R1.cutadapt.fastq.gz" \\
+        //         -p "${pairId}.R2.cutadapt.fastq.gz" \\
+        //         "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
+        //     """
+        // }
 
-        process ITSFilterAndTrimStep3 {
-            tag { "ITS_Step3_${pairId}" }
-            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+        // process ITSFilterAndTrimStep3 {
+        //     tag { "ITS_Step3_${pairId}" }
+        //     publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
-            input:
-            set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
+        //     input:
+        //     set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
 
-            output:
-            set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-            tuple val("R1"), file("*.R1.filtered.fastq.gz") optional true into forReadsLE
-            tuple val("R2"), file("*.R2.filtered.fastq.gz") optional true into revReadsLE
-            file "*.trimmed.txt" into trimTracking
+        //     output:
+        //     set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
+        //     tuple val("R1"), file("*.R1.filtered.fastq.gz") optional true into forReadsLE
+        //     tuple val("R2"), file("*.R2.filtered.fastq.gz") optional true into revReadsLE
+        //     file "*.trimmed.txt" into trimTracking
 
-            when:
-            params.precheck == false
+        //     when:
+        //     params.precheck == false
 
-            script:
-            template "ITSFilterAndTrimStep3.R"
-        }
+        //     script:
+        //     template "ITSFilterAndTrimStep3.R"
+        // }
         
     }
     /* 16S amplicon filtering */
     else if (params.amplicon == '16S'){
         process FilterAndTrim {
-            tag { "FilterAndTrim_${pairId}" }
+            tag { "FilterAndTrim_${meta.id}" }
             publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
             input:
-            tuple pairId, file(reads) from dada2ReadPairs
+            tuple val(meta), file(reads) from dada2ReadPairs
 
             output:
-            tuple val(pairId), "${pairId}.R1.filtered.fastq.gz", "${pairId}.R2.filtered.fastq.gz" optional true into filteredReadsforQC,filteredReads
-            tuple val("R1"), file("${pairId}.R1.filtered.fastq.gz") optional true into forReadsLE
-            tuple val("R2"), file("${pairId}.R2.filtered.fastq.gz") optional true into revReadsLE
+            // BIG TODO: this should be simplified into tuples with all information
+            tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1
+            tuple val(meta), file("${meta.id}.R2.filtered.fastq.gz") optional true into filteredReadsR2
+            tuple val(meta), file("${meta.id}.R[12].filtered.fastq.gz") optional true into readsToFastQC,readsToPerSample
+            // tuple val("R2"), file("${pairId}.R2.filtered.fastq.gz") optional true into revReadsLE
             file "*.trimmed.txt" into trimTracking
 
             when:
@@ -374,12 +329,31 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         Channel.empty().into {cutadaptToMultiQC;filteredReads;filteredReadsforQC}
     }
 
+    // Channel setup
+
+    // We need to group data depending on which downstream steps are needed.  There
+    // are two combinations possible
+
+    // 1. The immediate downstream QC steps can use the meta info and the read pairs.
+    //    Instead of doing handstands reusing the two channels above, we emit channels 
+    //    with the reads paired if needed.
+
+    // 2. LearnErrors and the pooled denoising branch requires all R1 and all R2, but 
+    //    the two groups can be processed in parallel.  So we set up the channels with 
+    //    this in mind. No sample ID info is really needed.
+    filteredReadsR1
+            // .concat(filteredReadsR2.ifEmpty([]))
+            .map { [ 'R1', it[1]] }
+            .concat(filteredReadsR2.map {['R2', it[1]] } )
+            .groupTuple(sort: true)
+            .into { ReadsLE; ReadsInfer; ReadsMerge }
+
     process RunFastQC_postfilterandtrim {
-        tag { "FastQC_post_FT.${pairId}" }
+        tag { "FastQC_post_FT.${meta.id}" }
         publishDir "${params.outdir}/FastQC-Post-FilterTrim", mode: "copy", overwrite: true
 
         input:
-        set val(pairId), file(filtFor), file(filtRev) from filteredReadsforQC
+        set val(meta), file(reads) from readsToFastQC
 
         output:
         file '*_fastqc.{zip,html}' into fastqc_files_post
@@ -388,10 +362,11 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         params.precheck == false
 
         """
-        fastqc --nogroup -q ${filtFor} ${filtRev}
+        fastqc --nogroup -q ${reads}
         """
     }
 
+    // TODO: change process name
     process RunMultiQC_postfilterandtrim {
         tag { "runMultiQC_postfilterandtrim" }
         publishDir "${params.outdir}/MultiQC-Post-FilterTrim", mode: 'copy', overwrite: true
@@ -440,12 +415,6 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
      *
      */
 
-    // the incoming data needs to be processed per R1/R2; this next step assists with this
-    forReadsLE
-            .concat(revReadsLE)
-            .groupTuple(sort: true)
-            .into { ReadsLE;ReadsInfer;ReadsMerge }
-
     process LearnErrors {
         tag { "LearnErrors:${readmode}" }
         publishDir "${params.outdir}/dada2-LearnErrors", mode: "copy", overwrite: true
@@ -454,8 +423,11 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         tuple val(readmode), file(reads) from ReadsLE
 
         output:
-        tuple val(readmode), file("errors.${readmode}.RDS") into errorModels
-        file "${readmode}.err.pdf"
+        // we could have a single channel here based on the pooling strategy, but
+        // for now we keep these both explicitly defined
+        tuple val(readmode), file("errors.${readmode}.RDS") into errorModelsPooled
+        file("errors.R[12].RDS") into errorModelsPerSample
+        file("${readmode}.err.pdf")
 
         when:
         params.precheck == false
@@ -477,19 +449,20 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
      *
      */
 
-    if (params.pool == "T" || params.pool == 'pseudo') {
+    if (params.pool == "T" || params.pool == 'pseudo') { 
 
         process DadaInfer {
             tag { "DadaInfer:${readmode}" }
             publishDir "${params.outdir}/dada2-Derep-Pooled", mode: "copy", overwrite: true
 
             input:
-            tuple val(readmode), file(err), file(reads) from errorModels
+            // DADA2 step runs on all R1 and/or on all R2
+            tuple val(readmode), file(err), file(reads) from errorModelsPooled
                 .join(ReadsInfer)
 
             output:
             // Note that the mode ('merged', 'R1', 'R2') can now potentially allow SE read analysis
-            tuple val(readmode), file("all.dd.${readmode}.RDS") into dadaMerge,dadaToReadTracking,dadaSECalls
+            file("all.dd.${readmode}.RDS") into dadaMerge,dadaToReadTracking
 
             when:
             params.precheck == false
@@ -504,15 +477,14 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         // when we collect all of them.
         // So, here we check the size of the collected channel containing the denoised models; if 
         // there are two then this is a paired-end run, otherwise it's single-end. Logic is in the R script
-        process SeqTable {
-            tag { "mergeDadaRDS" }
+        
+        process PooledSeqTable {
+            tag { "PooledSeqTable:${readmode}" }
             publishDir "${params.outdir}/dada2-OriginalSeqTable", mode: "copy", overwrite: true
 
             input:
             // we don't care about the mode here, so only get the dds (dada-inferred) RDS files
-            file(dds) from dadaMerge
-                .map { it[1] }
-                .collect()
+            file(dds) from dadaMerge.collect()
             // we don't care about the mode here, we only grab the reads
             file(filts) from ReadsMerge
                 .map { it[1] }
@@ -521,38 +493,42 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
             output:
             tuple val(readmode), file("seqtab.${readmode}.RDS") into seqTable,rawSeqTableToRename
-            file "all.mergers.RDS" optional true into mergerTracking
+            file "all.merged.RDS" optional true into mergerTracking
             file "seqtab.original.*.RDS" // we keep this for comparison and possible QC
 
             when:
             params.precheck == false
 
             script:
+            // We could switch this to 'paired' vs 'single-end' as well
             readmode = dds.size() == 2 ? 'merged' : 'R1'
             template "SeqTables.R"
         }
 
     } else {
         // pool = F, process per sample or in batches (a little more compute efficient)
-
         // TODO: need to address for SE/PE work
+        // Getting an 'input.2' file here, which may be from the null R2 input
+
         process PerSampleInferDerepAndMerge {
-            tag { "PerSampleInferDerepAndMerge" }
+            tag { "PerSampleInferDerepAndMerge: ${meta.id}" }
             publishDir "${params.outdir}/dada2-Derep-Single/Per-Sample", mode: "copy", overwrite: true
 
             input:
-            tuple val(pairId), file(r1), file(r2) from filteredReads
-            file errs from errorModels.collect()
+            tuple val(meta), file(reads) from readsToPerSample
+            file(errs) from errorModelsPerSample.collect()
 
             output:
-            tuple val(pairId), file("${pairId}.merged.RDS") into mergedReads
-            tuple val(pairId), file("${pairId}.dd.R{1,2}.RDS") into perSampleDadaToMerge
+            file("${meta.id}.{R1,merged}.RDS") into combinedReads
+            tuple val(meta), file("${meta.id}.dd.R{1,2}.RDS") into perSampleDadaToMerge
+            val(readmode) into modeSeqTable
 
             when:
             params.precheck == false
 
             script:
             dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+            readmode = errs.size() == 2 ? 'merged' : 'R1'
             template "PerSampleDadaInfer.R"
         }
 
@@ -562,13 +538,13 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
 
             input:
-            file(dds)from perSampleDadaToMerge
+            file(dds) from perSampleDadaToMerge
                           .map { it[1] }
                           .flatten()
                           .collect()
 
             output:
-            tuple val(readmode), file("all.dd.R{1,2}.RDS") into dadaToReadTracking,dadaSECalls
+            file("all.dd.R{1,2}.RDS") into dadaToReadTracking
 
             when:
             params.precheck == false
@@ -578,16 +554,17 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         }
 
         process SequenceTable {
-            tag { "SequenceTable" }
+            tag { "SequenceTable:${readmode}" }
             publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
 
             input:
-            file mr from mergedReads.collect()
+            file(mr) from combinedReads.collect()
+            val(readmode) from modeSeqTable.first()
 
             output:
-            tuple val("merged"), file("seqtab.merged.RDS") into seqTable,rawSeqTableToRename
-            file "all.mergers.RDS" into mergerTracking
-            file "seqtab.original.merged.RDS" // we keep this for comparison and possible QC
+            tuple val(readmode), file("seqtab.${readmode}.RDS") into seqTable,rawSeqTableToRename
+            file "all.merged.RDS" optional true into mergerTracking
+            file "seqtab.original.${readmode}.RDS" // we keep this for comparison and possible QC
             
             when:
             params.precheck == false
@@ -596,33 +573,6 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             template "PerSampleSeqTable.R"
         }
     }
-
-    // if (params.processSE) {
-    //     process SESequenceTable {
-    //         tag { "SESequenceTable:${readmode}" }
-    //         publishDir "${params.outdir}/dada2-SE", mode: "copy", overwrite: true
-
-    //         input:
-    //         tuple val(readmode), file(dds) from dadaSECalls
-
-    //         output:
-    //         tuple val(readmode), file("seqtab.${readmode}.RDS") into SEChimera,RawSEChimeraToRename
-
-    //         script:
-    //         """
-    //         #!/usr/bin/env Rscript
-    //         suppressPackageStartupMessages(library(dada2))
-    //         dd <- readRDS("${dds}")
-    //         seqtab <- makeSequenceTable(dd)
-    //         saveRDS(seqtab, "seqtab.${readmode}.RDS")
-    //         """
-    //     }
-
-    //     // add to the queue with the merged sequences
-
-    // } else {
-    //     Channel.empty().into { SEChimera;RawSEChimeraToRename }
-    // }
 } else if (params.seqTables != false) { // TODO maybe we should check the channel here
     process MergeSeqTables {
         tag { "MergeSeqTables" }
@@ -640,7 +590,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         template "MergeSeqTables.R"
     }
     Channel.empty().into { SEChimera;RawSEChimeraToRename;trimmedReadTracking;dadaToReadTracking;mergerTracking }
-} 
+}
 
 /*
  *
@@ -651,9 +601,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 if (!params.skipChimeraDetection) {
     process RemoveChimeras {
         tag { "RemoveChimeras:${seqtype}" }
-        publishDir path: {
-            seqtype == "merged" ? "${params.outdir}/dada2-Chimera" : "${params.outdir}/dada2-Chimera/${seqtype}"
-            }, mode: 'copy'
+        publishDir "${params.outdir}/dada2-Chimera", mode: 'copy'
 
         input:
         tuple val(seqtype), file(st) from seqTable
@@ -696,9 +644,7 @@ if (params.reference) {
 
             process AssignTaxSpeciesRDP {
                 tag { "AssignTaxSpeciesRDP:${seqtype}" }
-                publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Taxonomy" : "${params.outdir}/dada2-Taxonomy/${seqtype}"
-                    }, mode: "copy"
+                publishDir "${params.outdir}/dada2-Taxonomy", mode: "copy"
 
                 input:
                 tuple val(seqtype), file(st) from seqTableToTax
@@ -720,9 +666,7 @@ if (params.reference) {
 
             process AssignTaxonomyRDP {
                 tag { "TaxonomyRDP:${seqtype}" }
-                publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Taxonomy" : "${params.outdir}/dada2-Taxonomy/${seqtype}"
-                    }, mode: "copy", overwrite: true
+                publishDir path: "${params.outdir}/dada2-Taxonomy", mode: "copy", overwrite: true
 
                 input:
                 tuple val(seqtype), file(st) from seqTableToTax
@@ -747,9 +691,7 @@ if (params.reference) {
         // doesn't seem to be currently supported
         process TaxonomyIDTAXA {
             tag { "TaxonomyIDTAXA:${seqtype}" }
-            publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Taxonomy" : "${params.outdir}/dada2-Taxonomy/${seqtype}"
-                    }, mode: "copy", overwrite: true
+            publishDir "${params.outdir}/dada2-Taxonomy", mode: "copy", overwrite: true
 
             input:
             tuple val(seqtype), file(st) from seqTableToTax
@@ -800,9 +742,7 @@ if (params.reference) {
 
 process RenameASVs {
     tag { "RenameASVs:${seqtype}" }
-    publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Tables" : "${params.outdir}/dada2-Tables/${seqtype}"
-                    }, mode: "copy", overwrite: true
+    publishDir "${params.outdir}/dada2-Tables", mode: "copy", overwrite: true
 
     input:
     // This is a tricky join; we have two incoming channels that we want to
@@ -827,9 +767,7 @@ process RenameASVs {
 
 process GenerateSeqTables {
     tag { "GenerateSeqTables:${seqtype}" }
-    publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Tables" : "${params.outdir}/dada2-Tables/${seqtype}"
-                    }, mode: "copy", overwrite: true
+    publishDir "${params.outdir}/dada2-Tables", mode: "copy", overwrite: true
 
     input:
     tuple val(seqtype), file(st) from seqTableToTable
@@ -847,9 +785,7 @@ process GenerateSeqTables {
 
 process GenerateTaxTables {
     tag { "GenerateTaxTables:${seqtype}" }
-    publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Tables" : "${params.outdir}/dada2-Tables/${seqtype}"
-                    }, mode: "copy", overwrite: true
+    publishDir "${params.outdir}/dada2-Tables", mode: "copy", overwrite: true
 
     input:
     tuple val(seqtype), file(tax), file(bt), file(map) from taxTableToTable.join(bootstrapFinal).join(readsToRenameTaxIDs)
@@ -890,9 +826,7 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
         process AlignReadsInfernal {
             tag { "AlignReadsInfernal:${seqtype}" }
-            publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Infernal" : "${params.outdir}/dada2-Infernal/${seqtype}"
-                    }, mode: "copy", overwrite: true
+            publishDir "${params.outdir}/dada2-Infernal", mode: "copy", overwrite: true
 
             input:
             tuple val(seqtype), file(seqs) from seqsToAln
@@ -920,9 +854,7 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
         process AlignReadsDECIPHER {
             tag { "AlignReadsDECIPHER:${seqtype}" }
-            publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-DECIPHER" : "${params.outdir}/dada2-DECIPHER/${seqtype}"
-                    }, mode: "copy", overwrite: true
+            publishDir "${params.outdir}/dada2-DECIPHER", mode: "copy", overwrite: true
 
             input:
             tuple val(seqtype), file(seqs) from seqsToAln
@@ -937,19 +869,17 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
         exit 1, "Unknown aligner option: ${params.aligner}"
     }
 
-    /*
-     *
-     * Step 10b: Construct phylogenetic tree
-     *
-     */
+    
+     /*
+      * Step 10b: Construct phylogenetic tree
+      */
+     
 
     if (params.runTree == 'phangorn') {
 
         process GenerateTreePhangorn {
             tag { "GenerateTreePhangorn:${seqtype}" }
-            publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Phangorn" : "${params.outdir}/dada2-Phangorn/${seqtype}"
-                    }, mode: "copy", overwrite: true
+            publishDir "${params.outdir}/dada2-Phangorn", mode: "copy", overwrite: true
 
             input:
             tuple val(seqtype), file(aln) from alnFile
@@ -966,9 +896,7 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
         process GenerateTreeFasttree {
             tag { "GenerateTreeFasttree:${seqtype}" }
-            publishDir path: {
-                    seqtype == "merged" ? "${params.outdir}/dada2-Fasttree" : "${params.outdir}/dada2-Fasttree/${seqtype}"
-                    }, mode: "copy", overwrite: true
+            publishDir "${params.outdir}/dada2-Fasttree", mode: "copy", overwrite: true
 
             input:
             tuple val(seqtype), file(aln) from alnFile
@@ -992,9 +920,7 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
     process RootTree {
         tag { "RootTree:${seqtype}" }
-        publishDir path: {
-            seqtype == "merged" ? "${params.outdir}/dada2-RootedTree" : "${params.outdir}/dada2-RootedTree/${seqtype}"
-            }, mode: "copy"
+        publishDir "${params.outdir}/dada2-RootedTree", mode: "copy"
 
         input:
         tuple val(seqtype), file(tree) from treeGTRFile
@@ -1015,9 +941,7 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
 process ToBiomFile {
     tag { "ToBiomFile:${seqtype}" }
-    publishDir path: {
-            seqtype == "merged" ? "${params.outdir}/dada2-BIOM" : "${params.outdir}/dada2-BIOM/${seqtype}"
-            }, mode: "copy", overwrite: true
+    publishDir "${params.outdir}/dada2-BIOM", mode: "copy", overwrite: true
 
     input:
     tuple val(seqtype), file(sTable), file(tTable) from seqTableFinalToBiom.join(taxFinal)
@@ -1043,10 +967,10 @@ process ReadTracking {
     publishDir "${params.outdir}/dada2-ReadTracking", mode: "copy", overwrite: true
 
     input:
-    file trimmedTable from trimmedReadTracking
+    file(trimmedTable) from trimmedReadTracking
     tuple(seqtype), file(sTable) from seqTableFinalTracking
-    file dds from dadaToReadTracking.collect()
-    file mergers from mergerTracking
+    file(dds) from dadaToReadTracking.collect()
+    file(mergers) from mergerTracking.ifEmpty([])
 
     output:
     file "all.readtracking.${seqtype}.txt"
@@ -1058,10 +982,7 @@ process ReadTracking {
 process ToQIIME2FeatureTable {
     tag { "QIIME2-SeqTable:${seqtype}" }
     label 'QIIME2'
-    publishDir path: {
-        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-        }, mode: "copy"
-
+    publishDir "${params.outdir}/dada2-QIIME2", mode: "copy"
 
     when: params.toQIIME2
 
@@ -1089,10 +1010,7 @@ process ToQIIME2FeatureTable {
 process ToQIIME2TaxTable {
     tag { "QIIME2-Taxtable:${seqtype}" }
     label 'QIIME2'
-    publishDir path: {
-        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-        }, mode: "copy"
-
+    publishDir "${params.outdir}/dada2-QIIME2", mode: "copy"
 
     when: params.toQIIME2
 
@@ -1119,9 +1037,7 @@ process ToQIIME2TaxTable {
 process ToQIIME2Seq {
     tag { "QIIME2-Seq:${seqtype}" }
     label 'QIIME2'
-    publishDir path: {
-        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-        }, mode: "copy"
+    publishDir "${params.outdir}/dada2-QIIME2", mode: "copy"
     
     when: params.toQIIME2
 
@@ -1143,9 +1059,7 @@ process ToQIIME2Seq {
 process ToQIIME2Aln {
     tag { "QIIME2-Aln:${seqtype}" }
     label 'QIIME2'
-    publishDir path: {
-        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-        }, mode: "copy"
+    publishDir "${params.outdir}/dada2-QIIME2", mode: "copy"
 
     when: params.toQIIME2
 
@@ -1170,9 +1084,7 @@ process ToQIIME2Aln {
 process ToQIIME2Tree {
     tag { "QIIME2-Tree:${seqtype}" }
     label 'QIIME2'
-    publishDir path: {
-        seqtype == "merged" ? "${params.outdir}/dada2-QIIME2" : "${params.outdir}/dada2-QIIME2/${seqtype}"
-        }, mode: "copy"
+    publishDir "${params.outdir}/dada2-QIIME2", mode: "copy"
 
     when: params.toQIIME2
 
@@ -1214,79 +1126,107 @@ process SessionInfo {
 /*
  * Completion e-mail notification
  */
-workflow.onComplete {
 
-    def subject = "[${params.base}/16S-rDNA-dada2-pipeline] Successful: $workflow.runName"
-    if(!workflow.success){
-      subject = "[${params.base}/16S-rDNA-dada2-pipeline] FAILED: $workflow.runName"
-    }
-    def email_fields = [:]
-    email_fields['version'] = params.version
-    email_fields['runName'] = custom_runName ?: workflow.runName
-    email_fields['success'] = workflow.success
-    email_fields['dateComplete'] = workflow.complete
-    email_fields['duration'] = workflow.duration
-    email_fields['exitStatus'] = workflow.exitStatus
-    email_fields['errorMessage'] = (workflow.errorMessage ?: 'None')
-    email_fields['errorReport'] = (workflow.errorReport ?: 'None')
-    email_fields['commandLine'] = workflow.commandLine
-    email_fields['projectDir'] = workflow.projectDir
-    email_fields['summary'] = summary
-    email_fields['summary']['Date Started'] = workflow.start
-    email_fields['summary']['Date Completed'] = workflow.complete
-    email_fields['summary']['Pipeline script file path'] = workflow.scriptFile
-    email_fields['summary']['Pipeline script hash ID'] = workflow.scriptId
-    if(workflow.repository) email_fields['summary']['Pipeline repository Git URL'] = workflow.repository
-    if(workflow.commitId) email_fields['summary']['Pipeline repository Git Commit'] = workflow.commitId
-    if(workflow.revision) email_fields['summary']['Pipeline Git branch/tag'] = workflow.revision
-    if(workflow.container) email_fields['summary']['Docker image'] = workflow.container
+// workflow.onComplete {
 
-    // Render the TXT template
-    def engine = new groovy.text.GStringTemplateEngine()
-    def tf = new File("$baseDir/assets/email_template.txt")
-    def txt_template = engine.createTemplate(tf).make(email_fields)
-    def email_txt = txt_template.toString()
+//     def subject = "[${params.base}/16S-rDNA-dada2-pipeline] Successful: $workflow.runName"
+//     if(!workflow.success){
+//       subject = "[${params.base}/16S-rDNA-dada2-pipeline] FAILED: $workflow.runName"
+//     }
+//     def email_fields = [:]
+//     email_fields['version'] = params.version
+//     email_fields['runName'] = custom_runName ?: workflow.runName
+//     email_fields['success'] = workflow.success
+//     email_fields['dateComplete'] = workflow.complete
+//     email_fields['duration'] = workflow.duration
+//     email_fields['exitStatus'] = workflow.exitStatus
+//     email_fields['errorMessage'] = (workflow.errorMessage ?: 'None')
+//     email_fields['errorReport'] = (workflow.errorReport ?: 'None')
+//     email_fields['commandLine'] = workflow.commandLine
+//     email_fields['projectDir'] = workflow.projectDir
+//     email_fields['summary'] = summary
+//     email_fields['summary']['Date Started'] = workflow.start
+//     email_fields['summary']['Date Completed'] = workflow.complete
+//     email_fields['summary']['Pipeline script file path'] = workflow.scriptFile
+//     email_fields['summary']['Pipeline script hash ID'] = workflow.scriptId
+//     if(workflow.repository) email_fields['summary']['Pipeline repository Git URL'] = workflow.repository
+//     if(workflow.commitId) email_fields['summary']['Pipeline repository Git Commit'] = workflow.commitId
+//     if(workflow.revision) email_fields['summary']['Pipeline Git branch/tag'] = workflow.revision
+//     if(workflow.container) email_fields['summary']['Docker image'] = workflow.container
 
-    // Render the HTML template
-    def hf = new File("$baseDir/assets/email_template.html")
-    def html_template = engine.createTemplate(hf).make(email_fields)
-    def email_html = html_template.toString()
+//     // Render the TXT template
+//     def engine = new groovy.text.GStringTemplateEngine()
+//     def tf = new File("$baseDir/assets/email_template.txt")
+//     def txt_template = engine.createTemplate(tf).make(email_fields)
+//     def email_txt = txt_template.toString()
 
-    // Render the sendmail template
-    def smail_fields = [ email: params.email, subject: subject, email_txt: email_txt, email_html: email_html, baseDir: "$baseDir" ]
-    def sf = new File("$baseDir/assets/sendmail_template.txt")
-    def sendmail_template = engine.createTemplate(sf).make(smail_fields)
-    def sendmail_html = sendmail_template.toString()
+//     // Render the HTML template
+//     def hf = new File("$baseDir/assets/email_template.html")
+//     def html_template = engine.createTemplate(hf).make(email_fields)
+//     def email_html = html_template.toString()
 
-    // Send the HTML e-mail
-    if (params.email) {
-        try {
-          if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
-          // Try to send HTML e-mail using sendmail
-          [ 'sendmail', '-t' ].execute() << sendmail_html
-          log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
-        } catch (all) {
-          // Catch failures and try with plaintext
-          [ 'mail', '-s', subject, params.email ].execute() << email_txt
-          log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
-        }
-    }
-}
+//     // Render the sendmail template
+//     def smail_fields = [ email: params.email, subject: subject, email_txt: email_txt, email_html: email_html, baseDir: "$baseDir" ]
+//     def sf = new File("$baseDir/assets/sendmail_template.txt")
+//     def sendmail_template = engine.createTemplate(sf).make(smail_fields)
+//     def sendmail_html = sendmail_template.toString()
+
+//     // Send the HTML e-mail
+//     if (params.email) {
+//         try {
+//           if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
+//           // Try to send HTML e-mail using sendmail
+//           [ 'sendmail', '-t' ].execute() << sendmail_html
+//           log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
+//         } catch (all) {
+//           // Catch failures and try with plaintext
+//           [ 'mail', '-s', subject, params.email ].execute() << email_txt
+//           log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
+//         }
+//     }
+// }
 
 // code modified from the nf-core RNA-Seq workflow
 def create_fastq_channel(LinkedHashMap row) {
+    // create meta map
+    def meta = [:]
+    meta.id         = row.sample
+    meta.single_end = row.single_end.toBoolean()
+
     // add path(s) of the fastq file(s) to the meta map
-    def sample_data = []
+    def fastq_meta = []
     if (!file(row.fastq_1).exists()) {
         exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
     }
-    if (row.single_end.toBoolean()) {
-        sample_data = [ row.sample, file(row.fastq_1) ]
+    if (meta.single_end) {
+        fastq_meta = [ meta, [ file(row.fastq_1) ] ]
     } else {
         if (!file(row.fastq_2).exists()) {
             exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
         }
-        sample_data = [ row.sample, [file(row.fastq_1), file(row.fastq_2) ] ]
+        fastq_meta = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
     }
-    return sample_data
+    return fastq_meta
+}
+
+def create_fastq_channel_reads(LinkedHashMap row, singleEnd=FALSE) {
+    // create meta map
+    def meta = [:]
+    meta.id         = row.sample
+    meta.single_end = singleEnd
+
+    // add path(s) of the fastq file(s) to the meta map
+    def fastq_meta = []
+    if (!file(row.fastq_1).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
+    }
+    if (meta.single_end) {
+        fastq_meta = [ meta, [ file(row.fastq_1) ] ]
+    } else {
+        if (!file(row.fastq_2).exists()) {
+            exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
+        }
+        fastq_meta = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
+    }
+    return fastq_meta
 }

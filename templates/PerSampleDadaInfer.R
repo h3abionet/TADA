@@ -8,28 +8,32 @@ if (!is.na(dadaOpt)) {
   cat("dada Options:\\n",dadaOpt,"\\n")
 }
 
+cat("Processing:", "${meta.id}", "\\n")
+
 errF <- readRDS("errors.R1.RDS")
-errR <- readRDS("errors.R2.RDS")
-cat("Processing:", "${pairId}", "\\n")
-
-derepF <- derepFastq("${r1}")
+derepF <- derepFastq("${reads[0]}")
 ddF <- dada(derepF, err=errF, multithread=${task.cpus}, pool=as.logical("${params.pool}"))
+saveRDS(ddF, "${meta.id}.dd.R1.RDS")
 
-derepR <- derepFastq("${r2}")
-ddR <- dada(derepR, err=errR, multithread=${task.cpus}, pool=as.logical("${params.pool}"))
+if (file.exists ("errors.R2.RDS")) {
+  errR <- readRDS("errors.R2.RDS")
+  derepR <- derepFastq("${reads[1]}")
+  ddR <- dada(derepR, err=errR, multithread=${task.cpus}, pool=as.logical("${params.pool}"))
+  saveRDS(ddR, "${meta.id}.dd.R2.RDS")
 
-merger <- mergePairs(ddF, derepF, ddR, derepR,
-    returnRejects = TRUE,
-    minOverlap = ${params.minOverlap},
-    maxMismatch = ${params.maxMismatch},
-    trimOverhang = as.logical("${params.trimOverhang}"),
-    justConcatenate=as.logical("${params.justConcatenate}")
-    )
+  merger <- mergePairs(ddF, derepF, ddR, derepR,
+      returnRejects = TRUE,
+      minOverlap = ${params.minOverlap},
+      maxMismatch = ${params.maxMismatch},
+      trimOverhang = as.logical("${params.trimOverhang}"),
+      justConcatenate=as.logical("${params.justConcatenate}")
+      )
 
-saveRDS(merger, paste("${pairId}.merged.RDS", sep="."))
+  saveRDS(merger, paste("${meta.id}.merged.RDS", sep="."))
+} else {
+  # yes this is a little silly (it's the same as the dd.R1.RDS above).
+  # But it does make the logical flow through this channel easier
+  saveRDS(ddF, paste("${meta.id}.R1.RDS", sep="."))
+}
 
-saveRDS(ddF, "${pairId}.dd.R1.RDS")
-# saveRDS(derepFs, "${pairId}.derepFs.RDS")
 
-saveRDS(ddR, "${pairId}.dd.R2.RDS")
-# saveRDS(derepRs, "${pairId}.derepRs.RDS")

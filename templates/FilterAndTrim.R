@@ -2,9 +2,9 @@
 suppressPackageStartupMessages(library(dada2))
 
 out <- filterAndTrim(fwd        = "${reads[0]}",
-                    filt        = "${pairId}.R1.filtered.fastq.gz",
+                    filt        = "${meta.id}.R1.filtered.fastq.gz",
                     rev         = if("${reads[1]}" == "null") NULL else "${reads[1]}",
-                    filt.rev    = if("${reads[1]}" == "null") NULL else "${pairId}.R2.filtered.fastq.gz",
+                    filt.rev    = if("${reads[1]}" == "null") NULL else "${meta.id}.R2.filtered.fastq.gz",
                     trimLeft    = if("${reads[1]}" == "null") ${params.trimFor} else  c(${params.trimFor}, ${params.trimRev}),
                     truncLen    = if("${reads[1]}" == "null") ${params.truncFor} else c(${params.truncFor}, ${params.truncRev}),
                     maxEE       = if("${reads[1]}" == "null") ${params.maxEEFor} else c(${params.maxEEFor}, ${params.maxEERev}), 
@@ -20,4 +20,4 @@ out <- filterAndTrim(fwd        = "${reads[0]}",
 
 colnames(out) <- c('input', 'filtered')
 
-write.csv(out, "${pairId}.trimmed.txt")
+write.csv(out, "${meta.id}.trimmed.txt")

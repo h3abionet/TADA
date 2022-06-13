@@ -159,7 +159,7 @@ if (file.exists("all.dd.R2.RDS")) {
 
    # TODO: make this a single item list with ID as the name, this is lost
    # further on
-   saveRDS(mergers, "all.mergers.RDS")
+   saveRDS(mergers, "all.merged.RDS")
 
    # go ahead and make seqtable
    seqtab <- makeSequenceTable(mergers)
