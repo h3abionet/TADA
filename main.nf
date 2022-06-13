@@ -98,28 +98,43 @@ if ( (params.seqTables != false && params.reads != false) ||
     exit 1, "Only one of --reads, --input, or --seqTables is allowed!"
 }
 
+if ( params.trimFor == false && params.amplicon == '16S') {
+    exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
+}
+
+if ( params.trimRev == false && params.amplicon == '16S') {
+    exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
+}
+
+if (params.fwdprimer == false && params.amplicon == 'ITS'){
+    exit 1, "Must set forward primer using --fwdprimer"
+}
+
+if (params.revprimer == false && params.amplicon == 'ITS'){
+    exit 1, "Must set reverse primer using --revprimer"
+}
+
+if (params.aligner == 'infernal' && params.infernalCM == false){
+    exit 1, "Must set covariance model using --infernalCM when using Infernal"
+}
+
+if (!(['simple','md5'].contains(params.idType))) {
+    exit 1, "--idType can currently only be set to 'simple' or 'md5', got ${params.idType}"
+}
+
+// Has the run name been specified by the user?
+// this has the bonus effect of catching both -name and --name
+custom_runName = params.name
+if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
+    custom_runName = workflow.runName
+}
+
 // Read-specific checks
 if (params.reads != false) {
-    if ( params.trimFor == false && params.amplicon == '16S') {
-        exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
-    }
-
-    if ( params.trimRev == false && params.amplicon == '16S') {
-        exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
-    }
-
-    if (params.fwdprimer == false && params.amplicon == 'ITS'){
-        exit 1, "Must set forward primer using --fwdprimer"
-    }
-
-    if (params.revprimer == false && params.amplicon == 'ITS'){
-        exit 1, "Must set reverse primer using --revprimer"
-    }
-
-    // TODO: add in single-end support here; will require an explicit flag
     Channel
-    .fromFilePairs( params.reads )
+    .fromFilePairs( params.reads, size: params.single_end ? 1 : 2  )
     .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
+    .map { row -> create_fastq_channel_reads(row, params.single_end) }
     .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
 } else if (params.seqTables != false) {
     // Experimental: combine pre-chimera sequence tables from prior DADA2 runs.  This assumes:
@@ -136,9 +151,8 @@ if (params.reads != false) {
     // This will get basic tuple-based support in place using code from the DSL2 rnaseq workflow:
     // https://github.com/nf-core/rnaseq/blob/e0dfce9af5c2299bcc2b8a74b6559ce055965455/subworkflows/local/input_check.nf
     // However this will become a separate subworkflow with DSL2 support later (see the link for DSL2 example)
-    
-    // see also: the check_samplesheet.py version in the bin directory, which does a high-level check on columns and data structure
 
+    // see also: the check_samplesheet.py version in the bin directory, which does a high-level check on columns and data structure
     samples = file(params.input)
 
     process Check_SampleSheet {
@@ -147,6 +161,8 @@ if (params.reads != false) {
 
         input:
         file(samplesheet) from samples
+
+        when:params.input
 
         output:
         file('final_samplesheet.csv') into samplesheet
@@ -162,21 +178,6 @@ if (params.reads != false) {
         .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
 } else {
     exit 1, "Must set either --input, --reads, or --seqTables as input"
-}
-
-if (params.aligner == 'infernal' && params.infernalCM == false){
-    exit 1, "Must set covariance model using --infernalCM when using Infernal"
-}
-
-if (!(['simple','md5'].contains(params.idType))) {
-    exit 1, "--idType can currently only be set to 'simple' or 'md5', got ${params.idType}"
-}
-
-// Has the run name been specified by the user?
-// this has the bonus effect of catching both -name and --name
-custom_runName = params.name
-if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
-    custom_runName = workflow.runName
 }
 
 /*
@@ -227,76 +228,75 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
     if (params.amplicon == 'ITS') {
 
         // TODO: note this path is only needed when using variable length sequences
-        // process ITSFilterAndTrimStep1 {
-        //     tag { "ITS_Step1_${pairId}" }
+        process ITSFilterAndTrimStep1 {
+            tag { "ITS_Step1_${pairId}" }
 
-        //     input:
-        //     tuple val(meta), file(reads) from dada2ReadPairs
+            input:
+            tuple val(meta), file(reads) from dada2ReadPairs
 
-        //     output:
-        //     set val(meta), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
-        //     set val(meta), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
-        //     file('forward_rc') into forwardP
-        //     file('reverse_rc') into reverseP
+            output:
+            set val(meta), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
+            set val(meta), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
+            file('forward_rc') into forwardP
+            file('reverse_rc') into reverseP
 
-        //     when:
-        //     params.precheck == false
+            when:
+            params.precheck == false
 
-        //     script:
-        //     template "ITSFilterAndTrimStep1.R"
-        // }
+            script:
+            template "ITSFilterAndTrimStep1.R"
+        }
         
-        // process ITSFilterAndTrimStep2 {
-        //     tag { "ITS_Step2_${pairId}" }
-        //     publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+        process ITSFilterAndTrimStep2 {
+            tag { "ITS_Step2_${pairId}" }
+            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
-        //     input:
-        //     tuple(meta) set pairId, reads from itsStep2
-        //     file(forP) from forwardP
-        //     file(revP) from reverseP
+            input:
+            tuple(meta) set pairId, reads from itsStep2
+            file(forP) from forwardP
+            file(revP) from reverseP
             
-        //     output:
-        //     set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
-        //     file "*.cutadapt.out" into cutadaptToMultiQC
+            output:
+            set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
+            file "*.cutadapt.out" into cutadaptToMultiQC
 
-        //     when:
-        //     params.precheck == false
+            when:
+            params.precheck == false
 
-        //     script:
-        //     """
-        //     FWD_PRIMER=\$(<forward_rc)
-        //     REV_PRIMER=\$(<reverse_rc)
+            script:
+            """
+            FWD_PRIMER=\$(<forward_rc)
+            REV_PRIMER=\$(<reverse_rc)
             
-        //     cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
-        //         -G "${params.revprimer}" -A \$REV_PRIMER \\
-        //         --cores ${task.cpus} \\
-        //         -n 2 \\
-        //         -o "${pairId}.R1.cutadapt.fastq.gz" \\
-        //         -p "${pairId}.R2.cutadapt.fastq.gz" \\
-        //         "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
-        //     """
-        // }
+            cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
+                -G "${params.revprimer}" -A \$REV_PRIMER \\
+                --cores ${task.cpus} \\
+                -n 2 \\
+                -o "${pairId}.R1.cutadapt.fastq.gz" \\
+                -p "${pairId}.R2.cutadapt.fastq.gz" \\
+                "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
+            """
+        }
 
-        // process ITSFilterAndTrimStep3 {
-        //     tag { "ITS_Step3_${pairId}" }
-        //     publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+        process ITSFilterAndTrimStep3 {
+            tag { "ITS_Step3_${pairId}" }
+            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
-        //     input:
-        //     set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
+            input:
+            set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
 
-        //     output:
-        //     set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-        //     tuple val("R1"), file("*.R1.filtered.fastq.gz") optional true into forReadsLE
-        //     tuple val("R2"), file("*.R2.filtered.fastq.gz") optional true into revReadsLE
-        //     file "*.trimmed.txt" into trimTracking
+            output:
+            set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
+            tuple val("R1"), file("*.R1.filtered.fastq.gz") optional true into forReadsLE
+            tuple val("R2"), file("*.R2.filtered.fastq.gz") optional true into revReadsLE
+            file "*.trimmed.txt" into trimTracking
 
-        //     when:
-        //     params.precheck == false
+            when:
+            params.precheck == false
 
-        //     script:
-        //     template "ITSFilterAndTrimStep3.R"
-        // }
-        
+            script:
+            template "ITSFilterAndTrimStep3.R"
+        }
     }
     /* 16S amplicon filtering */
     else if (params.amplicon == '16S'){
@@ -719,17 +719,6 @@ if (params.reference) {
     // set tax channels to 'false', do NOT assign taxonomy
     Channel.empty().into { taxFinal;taxTableToTable;bootstrapFinal }
 }
-
-// Note: this is currently a text dump.  We've found the primary issue with
-// downstream analysis is getting the data in a form that can be useful as
-// input, and there isn't much consistency with this as of yet.  So for now
-// we're using the spaghetti approach (see what sticks).  Also, we  are running
-// into issues with longer sequences (e.g. concatenated ones) used as IDs with
-// tools like Fasttree (it doesn't seem to like that).
-
-// Safest way may be to save the simpleID -> seqs as a mapping file, use that in
-// any downstream steps (e.g. alignment/tree), then munge the seq names back
-// from the mapping table
 
 /*
  *
@@ -1209,24 +1198,24 @@ def create_fastq_channel(LinkedHashMap row) {
     return fastq_meta
 }
 
-def create_fastq_channel_reads(LinkedHashMap row, singleEnd=FALSE) {
+def create_fastq_channel_reads(ArrayList row, Boolean single_end=FALSE) {
     // create meta map
     def meta = [:]
-    meta.id         = row.sample
-    meta.single_end = singleEnd
+    meta.id         = row[0]
+    meta.single_end = single_end
 
     // add path(s) of the fastq file(s) to the meta map
     def fastq_meta = []
-    if (!file(row.fastq_1).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
+    if (!file(row[1][0]).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row[1][0]}"
     }
     if (meta.single_end) {
-        fastq_meta = [ meta, [ file(row.fastq_1) ] ]
+        fastq_meta = [ meta, [ file(row[1][0]) ] ]
     } else {
-        if (!file(row.fastq_2).exists()) {
-            exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
+        if (!file(row[1][1]).exists()) {
+            exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row[1][1]}"
         }
-        fastq_meta = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
+        fastq_meta = [ meta, [ file(row[1][0]), file(row[1][1]) ] ]
     }
     return fastq_meta
 }
