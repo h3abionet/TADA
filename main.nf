@@ -229,15 +229,16 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
         // TODO: note this path is only needed when using variable length sequences
         process ITSFilterAndTrimStep1 {
-            tag { "ITS_Step1_${pairId}" }
+            tag { "ITS_Step1_${meta.id}" }
 
             input:
             tuple val(meta), file(reads) from dada2ReadPairs
 
             output:
-            set val(meta), "${pairId}.R[12].noN.fastq.gz" optional true into itsStep2
-            set val(meta), "${pairId}.out.RDS" into itsStep3Trimming  // needed for join() later
+            tuple val(meta), file("${meta.id}.R[12].noN.fastq.gz") optional true into itsStep2
+            tuple val(meta), file("${meta.id}.out.RDS") into itsStep3Trimming  // needed for join() later
             file('forward_rc') into forwardP
+            // TODO make this optional if data are SE
             file('reverse_rc') into reverseP
 
             when:
@@ -248,47 +249,47 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         }
         
         process ITSFilterAndTrimStep2 {
-            tag { "ITS_Step2_${pairId}" }
+            tag { "ITS_Step2_${meta.id}" }
             publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
             input:
-            tuple(meta) set pairId, reads from itsStep2
+            tuple(meta), file(reads) from itsStep2
             file(forP) from forwardP
             file(revP) from reverseP
             
             output:
-            set val(pairId), "${pairId}.R[12].cutadapt.fastq.gz" optional true into itsStep3
-            file "*.cutadapt.out" into cutadaptToMultiQC
+            tuple val(meta), file("${meta.id}.R[12].cutadapt.fastq.gz") optional true into itsStep3
+            file("*.cutadapt.out") into cutadaptToMultiQC
 
             when:
             params.precheck == false
 
             script:
+            outr2 = meta.single_end ? '' : "-p ${meta.id}.R2.cutadapt.fastq.gz"
+            p2 = meta.single_end ? '' : "-G ${params.revprimer} -A \$REV_PRIMER"
             """
             FWD_PRIMER=\$(<forward_rc)
             REV_PRIMER=\$(<reverse_rc)
             
-            cutadapt -g "${params.fwdprimer}" -a \$FWD_PRIMER \\
-                -G "${params.revprimer}" -A \$REV_PRIMER \\
+            cutadapt -g ${params.fwdprimer} -a \$FWD_PRIMER ${p2} \\
                 --cores ${task.cpus} \\
                 -n 2 \\
-                -o "${pairId}.R1.cutadapt.fastq.gz" \\
-                -p "${pairId}.R2.cutadapt.fastq.gz" \\
-                "${reads[0]}" "${reads[1]}" > "${pairId}.cutadapt.out"
+                -o ${meta.id}.R1.cutadapt.fastq.gz ${outr2} \\
+                ${reads} > ${meta.id}.cutadapt.out
             """
         }
 
         process ITSFilterAndTrimStep3 {
-            tag { "ITS_Step3_${pairId}" }
+            tag { "ITS_Step3_${meta.id}" }
             publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
             input:
-            set pairId, file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
+            tuple val(meta), file(reads), file(trimming) from itsStep3.join(itsStep3Trimming)
 
             output:
-            set val(pairId), "*.R1.filtered.fastq.gz", "*.R2.filtered.fastq.gz" optional true into filteredReadsforQC, filteredReads
-            tuple val("R1"), file("*.R1.filtered.fastq.gz") optional true into forReadsLE
-            tuple val("R2"), file("*.R2.filtered.fastq.gz") optional true into revReadsLE
+            tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1
+            tuple val(meta), file("${meta.id}.R2.filtered.fastq.gz") optional true into filteredReadsR2
+            tuple val(meta), file("${meta.id}.R[12].filtered.fastq.gz") optional true into readsToFastQC,readsToPerSample
             file "*.trimmed.txt" into trimTracking
 
             when:

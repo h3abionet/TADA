@@ -5,9 +5,9 @@ suppressPackageStartupMessages(library(Biostrings))
 
 #Filter out reads with N's
 out1 <- filterAndTrim(fwd = "${reads[0]}",
-                    filt = paste0("${pairId}", ".R1.noN.fastq.gz"),
-                    rev = "${reads[1]}",
-                    filt.rev = paste0("${pairId}", ".R2.noN.fastq.gz"),
+                    filt = paste0("${meta.id}", ".R1.noN.fastq.gz"),
+                    rev = if("${reads[1]}" == "null") NULL else "${reads[1]}",
+                    filt.rev = if("${reads[1]}" == "null") NULL else paste0("${meta.id}", ".R2.noN.fastq.gz"),
                     maxN = 0,
                     multithread = ${task.cpus})
 FWD.RC <- dada2:::rc("${params.fwdprimer}")
@@ -25,4 +25,4 @@ revP <- file("reverse_rc")
 writeLines(REV.RC, revP)
 close(revP)
 
-saveRDS(out1, "${pairId}.out.RDS")
+saveRDS(out1, "${meta.id}.out.RDS")

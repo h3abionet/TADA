@@ -4,12 +4,12 @@ suppressPackageStartupMessages(library(ShortRead))
 suppressPackageStartupMessages(library(Biostrings))
 
 out1 <- readRDS("${trimming}")
-out2 <- filterAndTrim(fwd = paste0("${pairId}",".R1.cutadapt.fastq.gz"),
-                    filt = paste0("${pairId}", ".R1.filtered.fastq.gz"),
-                    rev = paste0("${pairId}",".R2.cutadapt.fastq.gz"),
-                    filt.rev = paste0("${pairId}", ".R2.filtered.fastq.gz"),
-                    maxEE = c(${params.maxEEFor},${params.maxEERev}),
-                    truncLen = c(${params.truncFor},${params.truncRev}),
+out2 <- filterAndTrim(fwd = paste0("${meta.id}",".R1.cutadapt.fastq.gz"),
+                    filt = paste0("${meta.id}", ".R1.filtered.fastq.gz"),
+                    rev = if("${reads[1]}" == "null") NULL else paste0("${meta.id}",".R2.cutadapt.fastq.gz"),
+                    filt.rev = if("${reads[1]}" == "null") NULL else paste0("${meta.id}", ".R2.filtered.fastq.gz"),
+                    maxEE = if("${reads[1]}" == "null") ${params.maxEEFor} else c(${params.maxEEFor}, ${params.maxEERev}), 
+                    truncLen = if("${reads[1]}" == "null") ${params.truncFor} else c(${params.truncFor}, ${params.truncRev}),
                     truncQ = ${params.truncQ},
                     maxN = ${params.maxN},
                     rm.phix = as.logical(${params.rmPhiX}),
@@ -21,4 +21,4 @@ out2 <- filterAndTrim(fwd = paste0("${pairId}",".R1.cutadapt.fastq.gz"),
 #Change input read counts to actual raw read counts
 out3 <- cbind(out1, out2)
 colnames(out3) <- c('input', 'filterN', 'cutadapt', 'filtered')
-write.csv(out3, paste0("${pairId}", ".trimmed.txt"))
+write.csv(out3, paste0("${meta.id}", ".trimmed.txt"))
