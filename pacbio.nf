@@ -437,10 +437,6 @@ process PacBioPoolSamplesInferDerep {
     seqtab <- makeSequenceTable(dds)
 
     saveRDS(seqtab, "seqtab.RDS")
-    
-    # PacBio-dada2.R --errs ${errs} \\
-    #    --pool ${params.pool} \\
-    #    --cpus ${task.cpus} 
     """
 }
 
