@@ -8,8 +8,6 @@ if (!is.na(dadaOpt)) {
     cat("dada Options:\n",dadaOpt,"\n")
 }
 
-# TODO: perform --reads sanity checking (only allow R1 or R2)
-
 # File parsing (these come from the process input channel)
 filts <- list.files('.', pattern=paste0("${readmode}",".filtered.fastq.gz"), full.names = TRUE)
 sample.names <- sapply(strsplit(basename(filts), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
