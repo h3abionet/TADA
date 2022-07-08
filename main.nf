@@ -19,20 +19,19 @@ def helpMessage() {
     This pipeline can be run specifying parameters in a config file or with command line flags.
     The typical example for running the pipeline with command line flags is as follows:
     
-    nextflow run h3abionet/TADA --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 \
+      nextflow run h3abionet/TADA --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 \
         --reference 'gg_13_8_train_set_97.fa.gz' -profile uct_hex
 
     The typical command for running the pipeline with your own config (instead of command line flags) is as follows:
     
-    nextflow run h3abionet/TADA -c dada2_user_input.config -profile uct_hex
+      nextflow run h3abionet/TADA -c dada2_user_input.config -profile uct_hex
     
-    where:
-    
-    'dada2_user_input.config' is the configuration file (see example 'dada2_user_input.config')
+    where 'dada2_user_input.config' is the configuration file (see example 'dada2_user_input.config')
     
     NB: '-profile uct_hex' still needs to be specified from the command line
 
-    To override existing values from the command line, please type these parameters:
+    Parameters
+    ----------
 
     Mandatory arguments:
       -profile                      Hardware config to use. Currently profile available for UCT's HPC 'uct_hex' and UIUC's 'uiuc_singularity' - create your own if necessary
@@ -59,16 +58,17 @@ def helpMessage() {
       --minLen                      integer. Minimum length enforced after trimming and truncation; default=50
       --rmPhiX                      {"T","F"}. remove PhiX from read
 
-      --minOverlap                  integer. minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
-      --maxMismatch                 integer. The maximum mismatches allowed in the overlap region; default=0
-      --trimOverhang                {"T","F"}. If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off.
-                                    "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen when reads are longer than the amplicon and read into the other-direction                                               primer region. Default="F" (false)
-
       In addition due to modifications needed for variable-length sequences (ITS), the following are also supported.  Note if these are set,
       one should leave '--trimFor/--trimRev' set to 0.
 
       --fwdprimer                   Provided when sequence-specific trimming is required (e.g. ITS sequences using cutadapt).  Experimental
       --revprimer                   Provided when sequence-specific trimming is required (e.g. ITS sequences using cutadapt).  Experimental
+
+    Read merging:
+      --minOverlap                  integer. minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
+      --maxMismatch                 integer. The maximum mismatches allowed in the overlap region; default=0
+      --trimOverhang                {"T","F"}. If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off.
+                                    "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen when reads are longer than the amplicon and read into the other-direction                                               primer region. Default="F" (false)
 
     Error models:
       --qualityBinning              Binned quality correction (e.g. NovaSeq/NextSeq).  default: false
@@ -76,7 +76,6 @@ def helpMessage() {
                                     '--qualityBinning'
 
     Denoising using dada:
-
       --dadaOpt.XXX                 Set as e.g. --dadaOpt.HOMOPOLYMER_GAP_PENALTY=-1 Global defaults for the dada function, see ?setDadaOpt in R for available options and their defaults
       --pool                        Should sample pooling be used to aid identification of low-abundance ASVs? Options are
                                     pseudo pooling: "pseudo", true: "T", false: "F"
