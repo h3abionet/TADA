@@ -16,7 +16,7 @@ A dada2-based workflow using the Nextflow workflow manager for Targeted Amplicon
 |(3/5) community registry                                 | [bio.tools Registry](https://bio.tools/tada-amplicon) |
 |(4/5) citation                                           |[![Zenodo Status](https://zenodo.org/badge/DOI/10.5281/zenodo.4208836.svg)](https://doi.org/10.5281/zenodo.42088362)|
 |(4/5) checklist                                          | |
-|overall                                                  |[![FAIR-software Status](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B-yellow)](https://fair-software.eu)](https://fair-software.eu)|
+|overall                                                  |[![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8B-yellow)](https://fair-software.eu)|
 **GitHub Actions**
 |Docker build                                             | [![GitHub Docker Status](https://github.com/h3abionet/TADA/actions/workflows/docker.yml/badge.svg)](https://github.com/h3abionet/TADA/actions?query=workflow%3A%22Docker%22)|
 |Continuous integration                                   | [![GitHub CI Status](https://github.com/h3abionet/TADA/actions/workflows/ci.yml/badge.svg)](https://github.com/h3abionet/TADA/actions?query=workflow%3A%22CI%22)|
