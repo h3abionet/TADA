@@ -12,7 +12,7 @@
 def helpMessage() {
     log.info"""
     ===================================
-     ${workflow.repository}/TADA  ~  version ${params.version}
+     ${workflow.repository ? workflow.repository : 'TADA'}  ~  version ${params.version}
     ===================================
     Usage:
 
