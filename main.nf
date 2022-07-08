@@ -12,72 +12,123 @@
 def helpMessage() {
     log.info"""
     ===================================
-     ${workflow.repository}/16S-rDNA-dada2-pipeline  ~  version ${params.version}
+     ${workflow.repository}/TADA  ~  version ${params.version}
     ===================================
     Usage:
 
     This pipeline can be run specifying parameters in a config file or with command line flags.
     The typical example for running the pipeline with command line flags is as follows:
-    nextflow run uct-cbio/16S-rDNA-dada2-pipeline --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 --reference 'gg_13_8_train_set_97.fa.gz' -profile uct_hex
+    
+    nextflow run h3abionet/TADA --reads '*_R{1,2}.fastq.gz' --trimFor 24 --trimRev 25 \
+        --reference 'gg_13_8_train_set_97.fa.gz' -profile uct_hex
 
     The typical command for running the pipeline with your own config (instead of command line flags) is as follows:
-    nextflow run uct-cbio/16S-rDNA-dada2-pipeline -c dada2_user_input.config -profile uct_hex
+    
+    nextflow run h3abionet/TADA -c dada2_user_input.config -profile uct_hex
+    
     where:
-    dada2_user_input.config is the configuration file (see example 'dada2_user_input.config')
-    NB: -profile uct_hex still needs to be specified from the command line
+    
+    'dada2_user_input.config' is the configuration file (see example 'dada2_user_input.config')
+    
+    NB: '-profile uct_hex' still needs to be specified from the command line
 
     To override existing values from the command line, please type these parameters:
 
     Mandatory arguments:
-      --reads                       Path to input data (must be surrounded with quotes)
-      -profile                      Hardware config to use. Currently profile available for UCT's HPC 'uct_hex' - create your own if necessary
-                                    NB -profile should always be specified on the command line, not in the config file
-      --trimFor                     integer. headcrop of read1 (set 0 if no trimming is needed)
-      --trimRev                     integer. headcrop of read2 (set 0 if no trimming is needed)
-      --reference                   Path to taxonomic database to be used for annotation (e.g. gg_13_8_train_set_97.fa.gz)
+      -profile                      Hardware config to use. Currently profile available for UCT's HPC 'uct_hex' and UIUC's 'uiuc_singularity' - create your own if necessary
+                                    NB -profile should always be specified on the command line, not in the config file      
+      
+    Input (mandatory): Additionally, only one of the following must be specified:
+      --reads                       Path to FASTQ read input data.  If the data are single-end, set '--single-end' to true.
+      --input                       Path to a sample sheet (CSV); sample sheet columns must have a headers with 'id,fastq_1,fastq_2'.  
+      --seqTables                   Path to input R/dada2 sequence tables. Only sequence tables with the original ASV sequences as the identifier are supported
 
-    All available read preparation parameters:
-      --trimFor                     integer. headcrop of read1
-      --trimRev                     integer. headcrop of read2
-      --truncFor                    integer. truncate read1 here (i.e. if you want to trim 10bp off the end of a 250bp R1, truncFor should be set to 240). enforced before trimFor/trimRev
-      --truncRev                    integer. truncate read2 here ((i.e. if you want to trim 10bp off the end of a 250bp R2, truncRev should be set to 240). enforced before trimFor/trimRev
+    Output location:
+      --outdir                      The output directory where the results will be saved
+
+    Read preparation parameters:
+      --trimFor                     integer. Headcrop of read1 (set 0 if no trimming is needed)
+      --trimRev                     integer. Headcrop of read2 (set 0 if no trimming is needed)
+      --truncFor                    integer. Truncate read1 here (i.e. if you want to trim 10bp off the end of a 250bp R1, truncFor should be set to 240). Enforced before trimFor/trimRev
+      --truncRev                    integer. Truncate read2 here ((i.e. if you want to trim 10bp off the end of a 250bp R2, truncRev should be set to 240). Enforced before trimFor/trimRev
       --maxEEFor                    integer. After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2
       --maxEERev                    integer. After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2
       --truncQ                      integer. Truncate reads at the first instance of a quality score less than or equal to truncQ; default=2
       --maxN                        integer. Discard reads with more than maxN number of Ns in read; default=0
-      --maxLen                      integer. maximum length of trimmed sequence; maxLen is enforced before trimming and truncation; default=Inf (no maximum)
-      --minLen                      integer. minLen is enforced after trimming and truncation; default=50
+      --maxLen                      integer. Maximum length of trimmed sequence; maxLen is enforced before trimming and truncation; default=Inf (no maximum)
+      --minLen                      integer. Minimum length enforced after trimming and truncation; default=50
       --rmPhiX                      {"T","F"}. remove PhiX from read
+
       --minOverlap                  integer. minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
       --maxMismatch                 integer. The maximum mismatches allowed in the overlap region; default=0
       --trimOverhang                {"T","F"}. If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off.
                                     "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen when reads are longer than the amplicon and read into the other-direction                                               primer region. Default="F" (false)
 
-    Other arguments:
+      In addition due to modifications needed for variable-length sequences (ITS), the following are also supported.  Note if these are set,
+      one should leave '--trimFor/--trimRev' set to 0.
+
+      --fwdprimer                   Provided when sequence-specific trimming is required (e.g. ITS sequences using cutadapt).  Experimental
+      --revprimer                   Provided when sequence-specific trimming is required (e.g. ITS sequences using cutadapt).  Experimental
+
+    Error models:
+      --qualityBinning              Binned quality correction (e.g. NovaSeq/NextSeq).  default: false
+      --errorModel                  NYI. Error model to use (one of 'illumina', 'illumina-binned', 'pacbio-ccs', 'custom'). This will replace
+                                    '--qualityBinning'
+
+    Denoising using dada:
+
       --dadaOpt.XXX                 Set as e.g. --dadaOpt.HOMOPOLYMER_GAP_PENALTY=-1 Global defaults for the dada function, see ?setDadaOpt in R for available options and their defaults
       --pool                        Should sample pooling be used to aid identification of low-abundance ASVs? Options are
                                     pseudo pooling: "pseudo", true: "T", false: "F"
-      --outdir                      The output directory where the results will be saved
-      --email                       Set this parameter to your e-mail address to get a summary e-mail with details of the run
-                                    sent to you when the workflow exits
-      -name                         Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic.
-      --idType                      The ASV IDs are renamed to simplify downstream analysis, in particular with downstream tools.  The
-                                    default is "ASV", which simply renames the sequences in sequencial order.  Alternatively, this can be
-                                    set to "md5" which will run MD5 on the sequence and generate a QIIME2-like unique hash.
-
-    Help:
-      --help                        Will print out summary above when executing nextflow run uct-cbio/16S-rDNA-dada2-pipeline
 
     Merging arguments (optional):
       --minOverlap                  The minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
       --maxMismatch                 The maximum mismatches allowed in the overlap region; default=0.
       --trimOverhang                If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off. "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen
                                     when reads are longer than the amplicon and read into the other-direction primer region. Default="F" (false)
-      --minMergedLen                Minimum length of fragment *after* merging
-      --maxMergedLen                Maximum length of fragment *after* merging
+      --minMergedLen                Minimum length of fragment *after* merging; default = 0 (no minimum)
+      --maxMergedLen                Maximum length of fragment *after* merging; default = 0 (no maximum)
 
-    Taxonomic arguments (optional):
-      --species                     Specify path to fasta file. See dada2 addSpecies() for more detail.
+    ASV identifiers:
+      --idType                      The ASV IDs are renamed to simplify downstream analysis, in particular with downstream tools.  The
+                                    default is "md5" which will run MD5 on the sequence and generate a QIIME2-like unique hash.  Alternatively, 
+                                    this can be set to "ASV", which simply renames the sequences in sequencial order.  
+
+    Taxonomic arguments.  If unset, taxonomic assignment is skipped
+      --taxassignment               Taxonomic assignment method.  default = 'rdp'
+      --reference                   Path to taxonomic database to be used for annotation (e.g. gg_13_8_train_set_97.fa.gz). default = false
+      --species                     Specify path to fasta file. See dada2 addSpecies() for more detail. default = false
+      --minBoot                     Minimum bootstrap value.  default = 50
+      --taxLevels                   Listing of taxonomic levels for 'assignTaxonomy'. Experimental.
+
+    Chimera detection:
+      --skipChimeraDetection        Skip chimera detection/removal; default = false
+      --removeBimeraDenovoOpts      Additional removeBimeraDenovo options; default = ''
+
+    ASV multiple sequence alignment:
+      --skipAlignment               Skip alignment step; note this also skips ML phylogenetic analysis. default = false
+      --aligner                     Aligner to use, options are 'DECIPHER' or 'infernal'. default = 'DECIPHER'
+      --infernalCM                  Covariance model (Rfam-compliant) to use.  default = false.
+
+    Phylogenetic analysis:
+      --runTree                     Tool for ML phylogenetic analysis.  Options are 'phangorn' and 'fasttree'. default = 'phangorn'
+
+    Additional output:
+      --toBIOM                      Generate a BIOM v1 compliant output. default = true
+      --toQIIME2                    Generate QZA artifacts for all data for use in QIIME2. default = false
+
+    Sample names:
+      --sampleRegex                 Modify sample names based on a regular expression. default = false.  Note this option
+                                    is deprecated in favor of using a sample sheet.
+
+    Additional options:
+      --email                       Set this parameter to your e-mail address to get a summary e-mail with details of the run
+                                    sent to you when the workflow exits
+      -name                         Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic.
+
+    Help:
+      --help                        Will print out summary above when executing nextflow run uct-cbio/16S-rDNA-dada2-pipeline
+
     """.stripIndent()
 }
 
@@ -87,6 +138,90 @@ if (params.help){
     helpMessage()
     exit 0
 }
+
+// Has the run name been specified by the user?
+// this has the bonus effect of catching both -name and --name
+custom_runName = params.name
+if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
+    custom_runName = workflow.runName
+}
+
+log.info "==================================="
+log.info " ${params.base}/TADA  ~  version ${params.version}"
+log.info "==================================="
+def summary = [:]
+summary['project']        = params.project
+summary['clusterOptions'] = params.clusterOptions
+summary['name']           = params.name
+summary['base']           = params.base
+summary['version']        = params.version //pipeline version
+summary['runName']        = custom_runName ?: workflow.runName
+summary['reads']          = params.reads
+summary['input']          = params.input
+summary['seqTables']      = params.seqTables
+summary['single_end']     = params.single_end
+summary['outdir']         = params.outdir
+summary['skip_dadaQC']    = params.skip_dadaQC  // set to run this step by default, this can fail with large sample #'s
+summary['skip_multiQC']   = params.skip_multiQC  // set to run this step by default, this can fail with large sample #'s
+summary['precheck']       = params.precheck
+summary['amplicon']       = params.amplicon // Deprecated, to be replaced by more general settings
+summary['fwdprimer']      = params.fwdprimer
+summary['revprimer']      = params.revprimer
+summary['skip_trimming']  = params.skip_trimming // NYI; this bypasses all trimming and QC, assumes primers are removed and sequence(s) ready for DADA2
+summary['trimFor']        = params.trimFor
+summary['trimRev']        = params.trimRev
+summary['truncFor']       = params.truncFor
+summary['truncRev']       = params.truncRev
+summary['truncQ']         = params.truncQ
+summary['maxEEFor']       = params.maxEEFor
+summary['maxEERev']       = params.maxEERev
+summary['maxN']           = params.maxN
+summary['maxLen']         = params.maxLen
+summary['minLen']         = params.minLen
+summary['rmPhiX']         = params.rmPhiX
+summary['dadaParams']     = params.dadaParams // Check this!!! if set, these are additional arguments passed to the dada() function in the PacBio workflow 
+summary['dadaOpt']        = params.dadaOpt // Check this!!!
+summary['pool']           = params.pool
+summary['qualityBinning'] = params.qualityBinning  // false, set to true if using binned qualities (NovaSeq)
+summary['minOverlap']     = params.minOverlap
+summary['maxMismatch']    = params.maxMismatch
+summary['trimOverhang']   = params.trimOverhang
+summary['maxMergedLen']   = params.maxMergedLen // Only run if set > 1
+summary['minMergedLen']   = params.minMergedLen // Only run if set > 1
+summary['justConcatenate'] = params.justConcatenate  // TODO: test using false instead of string
+summary['rescueUnmerged'] = params.rescueUnmerged
+summary['skipChimeraDetection'] = params.skipChimeraDetection
+summary['removeBimeraDenovoOptions'] = params.removeBimeraDenovoOptions
+summary['reference']      = params.reference
+summary['species']        = params.species
+summary['taxassignment']  = params.taxassignment // default: RDP classifier implementation in dada2
+summary['minBoot']        = params.minBoot // default for dada2
+summary['taxLevels']      = params.taxLevels
+summary['skipAlignment']  = params.skipAlignment
+summary['aligner']        = params.aligner // default
+summary['infernalCM']     = params.infernalCM // NYI
+summary['runTree']        = params.runTree // default, current alternative is 'fasttree'
+summary['idType']         = params.idType
+summary['sampleRegex']    = params.sampleRegex // Deprecated; use sample sheets and --input
+summary['interactiveMultiQC'] = params.interactiveMultiQC
+summary['toBIOM']         = params.toBIOM  // generate BIOM v1 output
+summary['toQIIME2']       = params.toQIIME2  // generate QZA artifacts for QIIME2
+summary['Max Memory']     = params.max_memory
+summary['Max CPUs']       = params.max_cpus
+summary['Max Time']       = params.max_time
+summary['Working dir']    = workflow.workDir
+if(workflow.revision) summary['Pipeline Release'] = workflow.revision
+summary['Current home']   = "$HOME"
+summary['Current user']   = "$USER"
+summary['Current path']   = "$PWD"
+summary['Script dir']     = workflow.projectDir
+summary['Config Profile'] = workflow.profile
+if(params.email) {
+    summary['E-mail Address'] = params.email
+}
+log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
+log.info "========================================="
+
 
 // TODO: we need to validate/sanity-check more of the parameters
 //Validate inputs
@@ -120,13 +255,6 @@ if (params.aligner == 'infernal' && params.infernalCM == false){
 
 if (!(['simple','md5'].contains(params.idType))) {
     exit 1, "--idType can currently only be set to 'simple' or 'md5', got ${params.idType}"
-}
-
-// Has the run name been specified by the user?
-// this has the bonus effect of catching both -name and --name
-custom_runName = params.name
-if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
-    custom_runName = workflow.runName
 }
 
 // Read-specific checks
@@ -1002,7 +1130,6 @@ process ToQIIME2TaxTable {
     label 'QIIME2'
     publishDir "${params.outdir}/dada2-QIIME2", mode: "copy"
 
-    when: params.toQIIME2
 
     input:
     tuple val(seqtype), file(taxtab) from taxtableToQIIME2
@@ -1010,8 +1137,7 @@ process ToQIIME2TaxTable {
     output:
     file "*.qza"
 
-    when:
-    taxtableToQIIME2 != false
+    when: params.toQIIME2 && taxtableToQIIME2 != false
 
     script:
     """
@@ -1056,8 +1182,7 @@ process ToQIIME2Aln {
     input:
     tuple val(seqtype), file(aln) from alnToQIIME2
 
-    when:
-    alnToQIIME2 != false
+    when: params.toQIIME2 && alnToQIIME2 != false
 
     output:
     file "*.qza"
@@ -1117,64 +1242,64 @@ process SessionInfo {
  * Completion e-mail notification
  */
 
-// workflow.onComplete {
+workflow.onComplete {
 
-//     def subject = "[${params.base}/16S-rDNA-dada2-pipeline] Successful: $workflow.runName"
-//     if(!workflow.success){
-//       subject = "[${params.base}/16S-rDNA-dada2-pipeline] FAILED: $workflow.runName"
-//     }
-//     def email_fields = [:]
-//     email_fields['version'] = params.version
-//     email_fields['runName'] = custom_runName ?: workflow.runName
-//     email_fields['success'] = workflow.success
-//     email_fields['dateComplete'] = workflow.complete
-//     email_fields['duration'] = workflow.duration
-//     email_fields['exitStatus'] = workflow.exitStatus
-//     email_fields['errorMessage'] = (workflow.errorMessage ?: 'None')
-//     email_fields['errorReport'] = (workflow.errorReport ?: 'None')
-//     email_fields['commandLine'] = workflow.commandLine
-//     email_fields['projectDir'] = workflow.projectDir
-//     email_fields['summary'] = summary
-//     email_fields['summary']['Date Started'] = workflow.start
-//     email_fields['summary']['Date Completed'] = workflow.complete
-//     email_fields['summary']['Pipeline script file path'] = workflow.scriptFile
-//     email_fields['summary']['Pipeline script hash ID'] = workflow.scriptId
-//     if(workflow.repository) email_fields['summary']['Pipeline repository Git URL'] = workflow.repository
-//     if(workflow.commitId) email_fields['summary']['Pipeline repository Git Commit'] = workflow.commitId
-//     if(workflow.revision) email_fields['summary']['Pipeline Git branch/tag'] = workflow.revision
-//     if(workflow.container) email_fields['summary']['Docker image'] = workflow.container
+    def subject = "[${params.base}/TADA] Successful: $workflow.runName"
+    if(!workflow.success){
+      subject = "[${params.base}/TADA] FAILED: $workflow.runName"
+    }
+    def email_fields = [:]
+    email_fields['version'] = params.version
+    email_fields['runName'] = custom_runName ?: workflow.runName
+    email_fields['success'] = workflow.success
+    email_fields['dateComplete'] = workflow.complete
+    email_fields['duration'] = workflow.duration
+    email_fields['exitStatus'] = workflow.exitStatus
+    email_fields['errorMessage'] = (workflow.errorMessage ?: 'None')
+    email_fields['errorReport'] = (workflow.errorReport ?: 'None')
+    email_fields['commandLine'] = workflow.commandLine
+    email_fields['projectDir'] = workflow.projectDir
+    email_fields['summary'] = summary
+    email_fields['summary']['Date Started'] = workflow.start
+    email_fields['summary']['Date Completed'] = workflow.complete
+    email_fields['summary']['Pipeline script file path'] = workflow.scriptFile
+    email_fields['summary']['Pipeline script hash ID'] = workflow.scriptId
+    if(workflow.repository) email_fields['summary']['Pipeline repository Git URL'] = workflow.repository
+    if(workflow.commitId) email_fields['summary']['Pipeline repository Git Commit'] = workflow.commitId
+    if(workflow.revision) email_fields['summary']['Pipeline Git branch/tag'] = workflow.revision
+    if(workflow.container) email_fields['summary']['Docker image'] = workflow.container
 
-//     // Render the TXT template
-//     def engine = new groovy.text.GStringTemplateEngine()
-//     def tf = new File("$baseDir/assets/email_template.txt")
-//     def txt_template = engine.createTemplate(tf).make(email_fields)
-//     def email_txt = txt_template.toString()
+    // Render the TXT template
+    def engine = new groovy.text.GStringTemplateEngine()
+    def tf = new File("$baseDir/assets/email_template.txt")
+    def txt_template = engine.createTemplate(tf).make(email_fields)
+    def email_txt = txt_template.toString()
 
-//     // Render the HTML template
-//     def hf = new File("$baseDir/assets/email_template.html")
-//     def html_template = engine.createTemplate(hf).make(email_fields)
-//     def email_html = html_template.toString()
+    // Render the HTML template
+    def hf = new File("$baseDir/assets/email_template.html")
+    def html_template = engine.createTemplate(hf).make(email_fields)
+    def email_html = html_template.toString()
 
-//     // Render the sendmail template
-//     def smail_fields = [ email: params.email, subject: subject, email_txt: email_txt, email_html: email_html, baseDir: "$baseDir" ]
-//     def sf = new File("$baseDir/assets/sendmail_template.txt")
-//     def sendmail_template = engine.createTemplate(sf).make(smail_fields)
-//     def sendmail_html = sendmail_template.toString()
+    // Render the sendmail template
+    def smail_fields = [ email: params.email, subject: subject, email_txt: email_txt, email_html: email_html, baseDir: "$baseDir" ]
+    def sf = new File("$baseDir/assets/sendmail_template.txt")
+    def sendmail_template = engine.createTemplate(sf).make(smail_fields)
+    def sendmail_html = sendmail_template.toString()
 
-//     // Send the HTML e-mail
-//     if (params.email) {
-//         try {
-//           if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
-//           // Try to send HTML e-mail using sendmail
-//           [ 'sendmail', '-t' ].execute() << sendmail_html
-//           log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (sendmail)"
-//         } catch (all) {
-//           // Catch failures and try with plaintext
-//           [ 'mail', '-s', subject, params.email ].execute() << email_txt
-//           log.info "[${params.base}/16S-rDNA-dada2-pipeline] Sent summary e-mail to $params.email (mail)"
-//         }
-//     }
-// }
+    // Send the HTML e-mail
+    if (params.email) {
+        try {
+          if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
+          // Try to send HTML e-mail using sendmail
+          [ 'sendmail', '-t' ].execute() << sendmail_html
+          log.info "[${params.base}/TADA] Sent summary e-mail to $params.email (sendmail)"
+        } catch (all) {
+          // Catch failures and try with plaintext
+          [ 'mail', '-s', subject, params.email ].execute() << email_txt
+          log.info "[${params.base}/TADA] Sent summary e-mail to $params.email (mail)"
+        }
+    }
+}
 
 // code modified from the nf-core RNA-Seq workflow
 def create_fastq_channel(LinkedHashMap row) {

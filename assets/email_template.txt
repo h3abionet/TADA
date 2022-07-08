@@ -1,13 +1,13 @@
 ========================================
- uct-cbio/16S-rDNA-dada2-pipeline: version ${version}
+ h3abionet/TADA: version ${version}
 ========================================
 Run Name: $runName
 
 <% if (success){
-    out << "## uct-cbio/16S-rDNA-dada2-pipeline execution completed successfully! ##"
+    out << "## h3abionet/TADA execution completed successfully! ##"
 } else {
     out << """####################################################
-## uct-cbio/16S-rDNA-dada2-pipeline execution completed unsuccessfully! ##
+## h3abionet/TADA execution completed unsuccessfully! ##
 ####################################################
 The exit status of the task that caused the workflow execution to fail was: $exitStatus.
 The full error message was:
@@ -31,10 +31,11 @@ Pipeline Configuration:
 
 
 --
-uct-cbio/16S-rDNA-dada2-pipeline is a Nextflow bioinformatics pipeline using dada2 for 16S rRNA gene amplicon sequencing data analysis. The dada2 package infers exact amplicon sequence variants (ASVs) from
+h3abionet/TADA is a a Nextflow workflow using dada2 for targeted amplicon data analysis. 
+The dada2 package infers exact amplicon sequence variants (ASVs) from
 high-throughput amplicon sequencing data, replacing the coarser and less accurate
 OTU clustering approach. The dada2 pipeline takes as input demultiplexed fastq
 files, and outputs the sequence variants and their sample-wise abundances after
 removing substitution and chimera errors. Taxonomic classification is available
 via a native implementation of the RDP naive Bayesian classifier, and genus-species
-assignment by exact matching. Please reference the authors of dada2 if using this pipeline. For more information on dada2 usage, please visit http://benjjneb.github.io/dada2/ . For more information on the Nextflow implementation of this pipeline, please visit https://github.com/uct-cbio/16S-rDNA-dada2-pipeline.
+assignment by exact matching. Please reference the authors of dada2 if using this pipeline. For more information on dada2 usage, please visit http://benjjneb.github.io/dada2/ . For more information on the Nextflow implementation of this pipeline, please visit https://github.com/h3abionet/TADA
