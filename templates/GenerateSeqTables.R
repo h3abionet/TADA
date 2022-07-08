@@ -19,12 +19,12 @@ write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
 # https://github.com/LangilleLab/microbiome_helper/blob/master/convert_dada2_out.R#L69
 ######################################################################
 
-# Generate OTU table output (rows = samples, cols = ASV)
-write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
-    file = 'seqtab_final.simple.txt',
-    row.names = FALSE,
-    col.names=c('#SampleID', colnames(seqtab)),
-    sep = "\\t")
+# # Generate OTU table output (rows = samples, cols = ASV)
+# write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
+#     file = 'seqtab_final.simple.txt',
+#     row.names = FALSE,
+#     col.names=c('#SampleID', colnames(seqtab)),
+#     sep = "\\t")
 
 # Generate OTU table for QIIME2 import (rows = ASVs, cols = samples)
 write.table(
