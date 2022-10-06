@@ -9,10 +9,12 @@
 ----------------------------------------------------------------------------------------
 */
 
+repository = workflow.repository ? workflow.repository : 'TADA'
+
 def helpMessage() {
     log.info"""
     ===================================
-     ${workflow.repository ? workflow.repository : 'TADA'}  ~  version ${params.version}
+     ${repository}  ~  version ${params.version}
     ===================================
     Usage:
 
@@ -45,18 +47,24 @@ def helpMessage() {
     Output location:
       --outdir                      The output directory where the results will be saved
 
+    Sequencing platform and primer pair:
+      --platform                    One of 'illumina' or 'pacbio'. String. 
+      --primer_pair                 Primer combination or kit name.  Setting this can (in some cases) set
+                                    other parameters optimized for that particular primer combination or kit name.  
+                                    At the moment this only handles 'pacbio' and 'shoreline'
+
     Read preparation parameters:
-      --trimFor                     integer. Headcrop of read1 (set 0 if no trimming is needed)
-      --trimRev                     integer. Headcrop of read2 (set 0 if no trimming is needed)
-      --truncFor                    integer. Truncate read1 here (i.e. if you want to trim 10bp off the end of a 250bp R1, truncFor should be set to 240). Enforced before trimFor/trimRev
-      --truncRev                    integer. Truncate read2 here ((i.e. if you want to trim 10bp off the end of a 250bp R2, truncRev should be set to 240). Enforced before trimFor/trimRev
-      --maxEEFor                    integer. After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2
-      --maxEERev                    integer. After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2
-      --truncQ                      integer. Truncate reads at the first instance of a quality score less than or equal to truncQ; default=2
-      --maxN                        integer. Discard reads with more than maxN number of Ns in read; default=0
-      --maxLen                      integer. Maximum length of trimmed sequence; maxLen is enforced before trimming and truncation; default=Inf (no maximum)
-      --minLen                      integer. Minimum length enforced after trimming and truncation; default=50
-      --rmPhiX                      {"T","F"}. remove PhiX from read
+      --trimFor                     Headcrop of read1 (set 0 if no trimming is needed). integer. 
+      --trimRev                     Headcrop of read2 (set 0 if no trimming is needed). integer. 
+      --truncFor                    Truncate read1 here (i.e. if you want to trim 10bp off the end of a 250bp R1, truncFor should be set to 240). Enforced before trimFor/trimRev. integer. 
+      --truncRev                    Truncate read2 here ((i.e. if you want to trim 10bp off the end of a 250bp R2, truncRev should be set to 240). Enforced before trimFor/trimRev. integer. 
+      --maxEEFor                    After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2. integer. 
+      --maxEERev                    After truncation, R1 reads with higher than maxEE "expected errors" will be discarded. EE = sum(10^(-Q/10)), default=2. integer. 
+      --truncQ                      Truncate reads at the first instance of a quality score less than or equal to truncQ; default=2. integer. 
+      --maxN                        Discard reads with more than maxN number of Ns in read; default=0. integer. 
+      --maxLen                      Maximum length of trimmed sequence; maxLen is enforced before trimming and truncation; default=Inf (no maximum). integer. 
+      --minLen                      Minimum length enforced after trimming and truncation; default=50. integer. 
+      --rmPhiX                      Remove PhiX from read. {"T","F"}. 
 
       In addition due to modifications needed for variable-length sequences (ITS), the following are also supported.  Note if these are set,
       one should leave '--trimFor/--trimRev' set to 0.
@@ -65,7 +73,7 @@ def helpMessage() {
       --revprimer                   Provided when sequence-specific trimming is required (e.g. ITS sequences using cutadapt).  Experimental
 
     Read merging:
-      --minOverlap                  integer. minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
+      --minOverlap                  integer. Minimum length of the overlap required for merging R1 and R2; default=20 (dada2 package default=12)
       --maxMismatch                 integer. The maximum mismatches allowed in the overlap region; default=0
       --trimOverhang                {"T","F"}. If "T" (true), "overhangs" in the alignment between R1 and R2 are trimmed off.
                                     "Overhangs" are when R2 extends past the start of R1, and vice-versa, as can happen when reads are longer than the amplicon and read into the other-direction                                               primer region. Default="F" (false)
@@ -221,32 +229,56 @@ if(params.email) {
 log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
 log.info "========================================="
 
-
 // TODO: we need to validate/sanity-check more of the parameters
-//Validate inputs
+// Validate inputs
+
+/*
+
+Reworking this. 
+
+We need to check the sequencing platform to determine how the samples are 
+processed.  Supported platforms are 'illumina' and 'pacbio'
+
+*/
+
+def platform = ''
+platform = params.platform.toLowerCase()
+
+if (!(['illumina','pacbio'].contains(platform))) {
+    exit 1, "Only supported platforms (--platform argument) are currently 'pacbio' or 'illumina'"
+}
 
 // ${deity} there has to be a better way to check this!
-if ( (params.seqTables != false && params.reads != false) || 
-     (params.input != false && params.reads != false) || 
-     (params.seqTables != false && params.input != false )) {
+if ( (params.seqTables && params.reads) || 
+     (params.input  && params.reads) || 
+     (params.seqTables && params.input)) {
     exit 1, "Only one of --reads, --input, or --seqTables is allowed!"
 }
 
-if ( params.trimFor == false && params.amplicon == '16S') {
-    exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
+def trimFor = 0
+def trimRev = 0
+
+if ( !(params.fwdprimer) || !(params.revprimer) ) {
+    exit 1, "must set both --fwdprimer and --revprimer unless skipping all trimming steps" 
+    trimFor = params.fwdprimer.length()
+    trimRev = params.revprimer.length()
 }
 
-if ( params.trimRev == false && params.amplicon == '16S') {
-    exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
-}
+// if ( params.trimFor == false && params.amplicon == '16S') {
+//     exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
+// }
 
-if (params.fwdprimer == false && params.amplicon == 'ITS'){
-    exit 1, "Must set forward primer using --fwdprimer"
-}
+// if ( params.trimRev == false && params.amplicon == '16S') {
+//     exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
+// }
 
-if (params.revprimer == false && params.amplicon == 'ITS'){
-    exit 1, "Must set reverse primer using --revprimer"
-}
+// if (params.fwdprimer == false && params.amplicon == 'ITS'){
+//     exit 1, "Must set forward primer using --fwdprimer"
+// }
+
+// if (params.revprimer == false && params.amplicon == 'ITS'){
+//     exit 1, "Must set reverse primer using --revprimer"
+// }
 
 if (params.aligner == 'infernal' && params.infernalCM == false){
     exit 1, "Must set covariance model using --infernalCM when using Infernal"
@@ -322,6 +354,9 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         input:
         tuple val(meta), file(reads) from dada2ReadPairsToQual
 
+        when:
+        params.precheck & !(params.skip_FASTQC)
+
         output:
         file '*_fastqc.{zip,html}' into fastqc_files
 
@@ -338,7 +373,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
 
         when:
-        params.skip_dadaQC == false
+        params.precheck & !(params.skip_dadaQC)
 
         output:
         file '*.pdf'
@@ -487,7 +522,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         file '*_fastqc.{zip,html}' into fastqc_files_post
 
         when:
-        params.precheck == false
+        !(params.precheck ) & !(params.skip_FASTQC)
 
         """
         fastqc --nogroup -q ${reads}
@@ -509,7 +544,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         file "*_data"
 
         when:
-        params.precheck == false & params.skip_multiQC == false
+        !(params.precheck ) & !(params.skip_FASTQC)
 
         script:
         interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
@@ -527,9 +562,6 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
         output:
         file "all.trimmed.csv" into trimmedReadTracking
-
-        when:
-        params.precheck == false
 
         script:
         template "MergeTrimTable.R"
@@ -556,9 +588,6 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         tuple val(readmode), file("errors.${readmode}.RDS") into errorModelsPooled
         file("errors.R[12].RDS") into errorModelsPerSample
         file("${readmode}.err.pdf")
-
-        when:
-        params.precheck == false
 
         script:
         dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
