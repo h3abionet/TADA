@@ -93,7 +93,7 @@ jobs:
           sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
       - name: Run Nextflow on test data (PacBio HiFi)
         run: |
-          nextflow run ${{ github.workspace }}/pacbio.nf -profile test_pacbio,docker          
+          nextflow run ${{ github.workspace }} -profile test_pacbio,docker
       # - name: Set up Singularity
       #   run: |
       #     sudo apt-get update && sudo apt-get install -y build-essential \
