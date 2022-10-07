@@ -387,7 +387,31 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
     // Note: should explore cutadapt options more: https://github.com/benjjneb/dada2/issues/785
     // https://cutadapt.readthedocs.io/en/stable/guide.html#more-than-one
 
-    if (params.amplicon == 'ITS') {
+    if (platform == 'pacbio') {
+
+        process PacBioFilterAndTrim {
+            tag { "PacBio_${meta.id}" }
+            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+            input:
+            // TODO: Note the channel name here should probably be changed
+            tuple val(meta), file(reads) from dada2ReadPairs
+
+            output:
+            // tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1
+            tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1,readsToFastQC,readsToPerSample
+            file "*.trimmed.txt" into trimTracking
+
+            when:
+            params.precheck == false
+
+            script:
+            template "PacBioFilterAndTrim.R"
+            
+        }
+        Channel.empty().into {filteredReadsR2;cutadaptToMultiQC}
+
+    } else if (params.platform == 'illumina' && params.amplicon == 'ITS') {
 
         // TODO: note this path is only needed when using variable length sequences
         process ITSFilterAndTrimStep1 {
@@ -462,7 +486,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         }
     }
     /* 16S amplicon filtering */
-    else if (params.amplicon == '16S'){
+    else if (params.platform == 'illumina' && params.amplicon == '16S'){
         process FilterAndTrim {
             tag { "FilterAndTrim_${meta.id}" }
             publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
@@ -591,7 +615,11 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
         script:
         dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
-        template "LearnErrors.R"
+        if (platform == 'pacbio') {
+          template "PacBioLearnErrors.R"
+        } else {
+          template "LearnErrors.R"
+        }
     }
 
     /*
