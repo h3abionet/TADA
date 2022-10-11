@@ -255,13 +255,16 @@ if ( (params.seqTables && params.reads) ||
     exit 1, "Only one of --reads, --input, or --seqTables is allowed!"
 }
 
-def trimFor = 0
-def trimRev = 0
-
-if ( !(params.fwdprimer) || !(params.revprimer) ) {
-    exit 1, "must set both --fwdprimer and --revprimer unless skipping all trimming steps" 
-    trimFor = params.fwdprimer.length()
-    trimRev = params.revprimer.length()
+// TODO: logic is a bit convoluted here....
+if ( !params.skip_trimming && (!(params.fwdprimer) || !(params.revprimer)) ) {
+    log.info "Both --fwdprimer and --revprimer should be set unless skipping all trimming steps.\n" 
+    log.info "[These options will become requirements in future releases]"
+} else { 
+    // this is a check if the primers are supplied but trimming is also set, which is almost certainly a mistake
+    if ( params.trimFor != 0 || params.trimFor != 0 ) {
+        log.info "trimFor and/or trimRev are set along with one or more primers (fwdprimer/revprimer).\n" 
+        log.info "This will trim additional bases *in addition to* the supplied primers!"
+    }
 }
 
 // if ( params.trimFor == false && params.amplicon == '16S') {
@@ -411,7 +414,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         }
         Channel.empty().into {filteredReadsR2;cutadaptToMultiQC}
 
-    } else if (params.platform == 'illumina' && params.amplicon == 'ITS') {
+    } else if (platform == 'illumina' && params.amplicon == 'ITS') {
 
         // TODO: note this path is only needed when using variable length sequences
         process ITSFilterAndTrimStep1 {
@@ -486,7 +489,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         }
     }
     /* 16S amplicon filtering */
-    else if (params.platform == 'illumina' && params.amplicon == '16S'){
+    else if (platform == 'illumina' && params.amplicon == '16S'){
         process FilterAndTrim {
             tag { "FilterAndTrim_${meta.id}" }
             publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
@@ -792,7 +795,7 @@ if (!params.skipChimeraDetection) {
         tuple val(seqtype), file(st) from seqTable
 
         output:
-        tuple val(seqtype), file("seqtab_final.${seqtype}.RDS") into seqTableToTax,seqTableToRename
+        tuple val(seqtype), file("seqtab_final.${seqtype}.RDS") into seqTableToRename
 
         when:
         params.precheck == false
@@ -803,106 +806,12 @@ if (!params.skipChimeraDetection) {
     }
 } else {
     if (params.skipChimeraDetection == true) {
-        seqTable.into {seqTableToTax;seqTableToRename}
+        seqTable.into {seqTableToRename}
     } else if (params.skipChimeraDetection == 'all') { // stop completely!
         // this should effectively halt the pipeline from going further
         Channel.empty()
             .into {seqTableToTax;seqTableToRename}
     }
-}
-
-/*
- *
- * Step 9: Taxonomic assignment
- *
- */
-
-if (params.reference) {
-
-    if (params.taxassignment == 'rdp') {
-        // TODO: we could combine these into the same script
-        refFile = file(params.reference)
-
-        if (params.species) {
-
-            speciesFile = file(params.species)
-
-            process AssignTaxSpeciesRDP {
-                tag { "AssignTaxSpeciesRDP:${seqtype}" }
-                publishDir "${params.outdir}/dada2-Taxonomy", mode: "copy"
-
-                input:
-                tuple val(seqtype), file(st) from seqTableToTax
-                file ref from refFile
-                file sp from speciesFile
-
-                output:
-                tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
-                tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
-
-                when:
-                params.precheck == false
-
-                script:
-                template "AssignTaxonomySpeciesRDP.R"
-            }
-
-        } else {
-
-            process AssignTaxonomyRDP {
-                tag { "TaxonomyRDP:${seqtype}" }
-                publishDir path: "${params.outdir}/dada2-Taxonomy", mode: "copy", overwrite: true
-
-                input:
-                tuple val(seqtype), file(st) from seqTableToTax
-                file ref from refFile
-
-                output:
-                tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
-                tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
-
-                when:
-                params.precheck == false
-
-                // TODO: this is not tested yet
-                script:
-                taxLevels = params.taxLevels ? "c( ${params.taxLevels} )," : ''
-                template "AssignTaxonomyRDP.R"
-            }
-        }
-    } else if (params.taxassignment == 'idtaxa') {
-        // Experimental!!! This assigns full taxonomy to species level, but only for
-        // some databases; unknown whether this works with concat sequences.  ITS
-        // doesn't seem to be currently supported
-        process TaxonomyIDTAXA {
-            tag { "TaxonomyIDTAXA:${seqtype}" }
-            publishDir "${params.outdir}/dada2-Taxonomy", mode: "copy", overwrite: true
-
-            input:
-            tuple val(seqtype), file(st) from seqTableToTax
-            file ref from refFile // this needs to be a database from the IDTAXA site
-
-            output:
-            tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
-            tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
-            file "raw_idtaxa.${seqtype}.RDS"
-
-            when:
-            params.precheck == false
-
-            // TODO: this is not tested yet
-            script:
-            template "TaxonomyIDTAXA.R"
-        }
-
-    } else if (params.taxassignment) {
-        exit 1, "Unknown taxonomic assignment method set: ${params.taxassignment}"
-    } else {
-        exit 1, "No taxonomic assignment method set, but reference passed"
-    }
-} else {
-    // set tax channels to 'false', do NOT assign taxonomy
-    Channel.empty().into { taxFinal;taxTableToTable;bootstrapFinal }
 }
 
 /*
@@ -931,12 +840,141 @@ process RenameASVs {
 
     output:
     tuple val(seqtype), file("seqtab_final.${params.idType}.${seqtype}.RDS") into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
-    tuple val(seqtype), file("asvs.${params.idType}.nochim.${seqtype}.fna") into seqsToAln, seqsToQIIME2
-    tuple val(seqtype), file("readmap.${seqtype}.RDS") into readsToRenameTaxIDs // needed for remapping tax IDs
+    tuple val(seqtype), file("asvs.${params.idType}.nochim.${seqtype}.fna") into seqsToAln,seqsToQIIME2
+    tuple val(seqtype), file("readmap.${seqtype}.RDS") into seqsToTax,readsToRenameTaxIDs // needed for remapping tax IDs
     file "asvs.${params.idType}.raw.${seqtype}.fna"
 
     script:
     template "RenameASVs.R"
+}
+
+
+/*
+ *
+ * Step 9: Taxonomic assignment
+ *
+ */
+
+// if (platform == 'pacbio' && params.amplicon == 'StrainID' && params.trim_StrainID) {
+//     // Trim down the StrainID ASVs to just 16S region for taxonomic assignment
+//     // this is a very specific processing step, so the standard 16S primers  
+//     // this kit are used: 
+//     // Shoreline 16S = For:AGRRTTYGATYHTDGYTYAG, Rev:YCNTTCCYTYDYRGTACT(rc)
+//     // Std = For:AGRGTTYGATYMTGGCTCAG,  Rev:RGYTACCTTGTTACGACTT(not rc!)
+//     process TrimStrainID {
+//         tag { "TrimStrainID" }
+//         publishDir "${params.outdir}/dada2-TrimStrainID", mode: "copy", overwrite: true
+
+//         input:
+//         tuple val(seqtype), file(st) from seqTableToTax
+//         file ref from refFile
+//         file sp from speciesFile
+
+//         output:
+//         tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
+//         tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
+
+//         when:
+//         params.precheck == false
+
+//         script:
+//         """
+//         FOR=AGRRTTYGATYHTDGYTYAG
+//         REV=YCNTTCCYTYDYRGTACT
+//         cutadapt --rc -a "\$FOR...\$REV" \\
+//                  -m 100 -j ${task.cpus} --discard-untrimmed \\
+//                  -o "./cutadapt/${nm}.noprimer.fastq.gz" \\
+//                  "${reads}" > "./cutadapt/${nm}.cutadapt.log"
+//         """
+//     }
+// }
+
+if (params.reference) {
+
+    if (params.taxassignment == 'rdp') {
+        // TODO: we could combine these into the same script
+        refFile = file(params.reference)
+
+        if (params.species) {
+
+            speciesFile = file(params.species)
+
+            process AssignTaxSpeciesRDP {
+                tag { "AssignTaxSpeciesRDP:${seqtype}" }
+                publishDir "${params.outdir}/dada2-Taxonomy", mode: "copy"
+
+                input:
+                tuple val(seqtype), file(st) from seqsToTax
+                file ref from refFile
+                file sp from speciesFile
+
+                output:
+                tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
+                tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
+
+                when:
+                params.precheck == false
+
+                script:
+                template "AssignTaxonomySpeciesRDP.R"
+            }
+
+        } else {
+
+            process AssignTaxonomyRDP {
+                tag { "TaxonomyRDP:${seqtype}" }
+                publishDir path: "${params.outdir}/dada2-Taxonomy", mode: "copy", overwrite: true
+
+                input:
+                tuple val(seqtype), file(st) from seqsToTax
+                file ref from refFile
+
+                output:
+                tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
+                tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
+
+                when:
+                params.precheck == false
+
+                // TODO: this is not tested yet
+                script:
+                taxLevels = params.taxLevels ? "c( ${params.taxLevels} )," : ''
+                template "AssignTaxonomyRDP.R"
+            }
+        }
+    } else if (params.taxassignment == 'idtaxa') {
+        // Experimental!!! This assigns full taxonomy to species level, but only for
+        // some databases; unknown whether this works with concat sequences.  ITS
+        // doesn't seem to be currently supported
+        process TaxonomyIDTAXA {
+            tag { "TaxonomyIDTAXA:${seqtype}" }
+            publishDir "${params.outdir}/dada2-Taxonomy", mode: "copy", overwrite: true
+
+            input:
+            tuple val(seqtype), file(st) from seqsToTax
+            file ref from refFile // this needs to be a database from the IDTAXA site
+
+            output:
+            tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
+            tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
+            file "raw_idtaxa.${seqtype}.RDS"
+
+            when:
+            params.precheck == false
+
+            // TODO: this is not tested yet
+            script:
+            template "TaxonomyIDTAXA.R"
+        }
+
+    } else if (params.taxassignment) {
+        exit 1, "Unknown taxonomic assignment method set: ${params.taxassignment}"
+    } else {
+        exit 1, "No taxonomic assignment method set, but reference passed"
+    }
+} else {
+    // set tax channels to 'false', do NOT assign taxonomy
+    Channel.empty().into { taxFinal;taxTableToTable;bootstrapFinal }
 }
 
 process GenerateSeqTables {

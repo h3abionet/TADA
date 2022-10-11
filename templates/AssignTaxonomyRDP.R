@@ -1,17 +1,20 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(dada2))
 
-seqtab <- readRDS("${st}")
+seqs <- readRDS("${st}")
 
 # Assign taxonomy
-tax <- assignTaxonomy(seqtab, "${ref}",
-                      multithread=${task.cpus},
-                      minBoot = ${params.minBoot},
-                      tryRC = TRUE,
-                      outputBootstraps = TRUE, ${taxLevels}
-                      verbose = TRUE 
-                      )
+tax <- assignTaxonomy(seqs\$seq, "${ref}",
+                multithread=${task.cpus},
+                tryRC = TRUE,
+                outputBootstraps = TRUE,
+                minBoot = ${params.minBoot},
+                verbose = TRUE)
+
 boots <- tax\$boot
+
+rownames(tax\$tax) <- seqs[rownames(tax),]\$id
+rownames(boots) <- seqs[rownames(boots),]\$id
 
 # Write to disk
 saveRDS(tax\$tax, "tax_final.${seqtype}.RDS")
