@@ -3,15 +3,15 @@ suppressPackageStartupMessages(library(dada2))
 suppressPackageStartupMessages(library(ShortRead))
 suppressPackageStartupMessages(library(Biostrings))
 
-out1 <- removePrimers("${reads}",
-    paste0("${meta.id}",".noprimer.fastq.gz"),
-    primer.fwd="${params.fwdprimer}",
-    primer.rev=dada2:::rc("${params.revprimer}"),
-    orient=TRUE,
-    compress=TRUE,
-    verbose=TRUE)
+# out1 <- removePrimers("${reads}",
+#     paste0("${meta.id}",".noprimer.fastq.gz"),
+#     primer.fwd="${params.fwdprimer}",
+#     primer.rev=dada2:::rc("${params.revprimer}"),
+#     orient=TRUE,
+#     compress=TRUE,
+#     verbose=TRUE)
 
-out2 <- filterAndTrim(fwd = paste0("${meta.id}",".noprimer.fastq.gz"),
+out2 <- filterAndTrim(fwd = "${reads}",
                     filt = "${meta.id}.R1.filtered.fastq.gz",
                     maxEE = ${params.maxEEFor},
                     maxN = ${params.maxN},
