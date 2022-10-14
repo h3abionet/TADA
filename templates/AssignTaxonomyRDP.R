@@ -13,7 +13,7 @@ tax <- assignTaxonomy(seqs\$seq, "${ref}",
 
 boots <- tax\$boot
 
-rownames(tax\$tax) <- seqs[rownames(tax),]\$id
+rownames(tax\$tax) <- seqs[rownames(tax\$tax),]\$id
 rownames(boots) <- seqs[rownames(boots),]\$id
 
 # Write to disk
