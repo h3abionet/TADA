@@ -358,13 +358,16 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         tuple val(meta), file(reads) from dada2ReadPairsToQual
 
         when:
-        params.precheck & !(params.skip_FASTQC)
+        !(params.precheck) & !(params.skip_FASTQC)
 
         output:
         file '*_fastqc.{zip,html}' into fastqc_files
 
+        script:
+        nano = params.platform == "pacbio" ? '--nano' : ''
+        nogroup = params.platform == "illumina" ? '--nogroup' : ''
         """
-        fastqc --nogroup -q ${reads}
+        fastqc -t ${task.cpus} ${nano} ${nogroup} -q ${reads}
         """
     }
 
@@ -376,7 +379,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
 
         when:
-        params.precheck & !(params.skip_dadaQC)
+        !(params.precheck) & !(params.skip_dadaQC)
 
         output:
         file '*.pdf'
@@ -392,13 +395,48 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
     if (platform == 'pacbio') {
 
-        process PacBioFilterAndTrim {
-            tag { "PacBio_${meta.id}" }
+        process PacBioTrim {
+            tag { "PacBioTrim_${meta.id}" }
             publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
 
             input:
             // TODO: Note the channel name here should probably be changed
             tuple val(meta), file(reads) from dada2ReadPairs
+
+            output:
+            // tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1
+            tuple val(meta), file("${meta.id}.noprimer.fastq.gz") optional true into filteredReadsToDADA2
+            file("*.cutadapt.out") into cutadaptToMultiQC
+            file("${meta.id}.untrimmed.fastq.gz")
+
+            when:
+            !(params.precheck)
+
+            script:
+            strictness = params.pacbio_strict_match ? '-g' : '-a'
+            """
+            # Logic: we should trim out the HiFi reads and require *both* primers be present (-g).
+            # This should also reorient the sequence to match the primers (--rc).
+            # Keep anything longer than 50bp, and allow users to filter their data by length later
+            revprimer_rc=\$( echo -n ${params.revprimer} | tr "[ATGCUNYRSWKMBDHV]" "[TACGANRYSWMKVHDB]" | rev )
+
+            cutadapt --rc \\
+                ${strictness} "${params.fwdprimer}...\${revprimer_rc}" \\
+                -m 50 \\
+                -j ${task.cpus} \\
+                --untrimmed-output "${meta.id}.untrimmed.fastq.gz" \\
+                -o "${meta.id}.noprimer.fastq.gz" \\
+                ${reads} > "${meta.id}.noprimer.cutadapt.out"
+            """
+        }
+
+        process PacBioFilter {
+            tag { "PacBioFilter_${meta.id}" }
+            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+            input:
+            // TODO: Note the channel name here should probably be changed
+            tuple val(meta), file(reads) from filteredReadsToDADA2
 
             output:
             // tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1
@@ -412,7 +450,8 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             template "PacBioFilterAndTrim.R"
             
         }
-        Channel.empty().into {filteredReadsR2;cutadaptToMultiQC}
+
+        filteredReadsR2 = Channel.empty()
 
     } else if (platform == 'illumina' && params.amplicon == 'ITS') {
 
@@ -551,8 +590,11 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         when:
         !(params.precheck ) & !(params.skip_FASTQC)
 
+        script:
+        nano = params.platform == "pacbio" ? '--nano' : ''
+        nogroup = params.platform == "illumina" ? '--nogroup' : ''
         """
-        fastqc --nogroup -q ${reads}
+        fastqc -t ${task.cpus} ${nano} ${nogroup} -q ${reads}
         """
     }
 
@@ -761,7 +803,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             template "PerSampleSeqTable.R"
         }
     }
-} else if (params.seqTables != false) { // TODO maybe we should check the channel here
+} else if (params.seqTables) { // TODO maybe we should check the channel here
     process MergeSeqTables {
         tag { "MergeSeqTables" }
         publishDir "${params.outdir}/dada2-MergedSeqTable", mode: 'copy'
@@ -840,7 +882,7 @@ process RenameASVs {
 
     output:
     tuple val(seqtype), file("seqtab_final.${params.idType}.${seqtype}.RDS") into seqTableFinalToBiom,seqTableFinalToTax,seqTableFinalTree,seqTableFinalTracking,seqTableToTable,seqtabToPhyloseq,seqtabToTaxTable
-    tuple val(seqtype), file("asvs.${params.idType}.nochim.${seqtype}.fna") into seqsToAln,seqsToQIIME2
+    tuple val(seqtype), file("asvs.${params.idType}.nochim.${seqtype}.fna") into seqsToAln,seqsToQIIME2,seqsToShoreline
     tuple val(seqtype), file("readmap.${seqtype}.RDS") into seqsToTax,readsToRenameTaxIDs // needed for remapping tax IDs
     file "asvs.${params.idType}.raw.${seqtype}.fna"
 
@@ -848,46 +890,51 @@ process RenameASVs {
     template "RenameASVs.R"
 }
 
-
 /*
  *
  * Step 9: Taxonomic assignment
  *
  */
 
-// if (platform == 'pacbio' && params.amplicon == 'StrainID' && params.trim_StrainID) {
-//     // Trim down the StrainID ASVs to just 16S region for taxonomic assignment
-//     // this is a very specific processing step, so the standard 16S primers  
-//     // this kit are used: 
-//     // Shoreline 16S = For:AGRRTTYGATYHTDGYTYAG, Rev:YCNTTCCYTYDYRGTACT(rc)
-//     // Std = For:AGRGTTYGATYMTGGCTCAG,  Rev:RGYTACCTTGTTACGACTT(not rc!)
-//     process TrimStrainID {
-//         tag { "TrimStrainID" }
-//         publishDir "${params.outdir}/dada2-TrimStrainID", mode: "copy", overwrite: true
+if (platform == 'pacbio' && params.amplicon == 'StrainID' && params.trim_StrainID) {
+    // Trim down the StrainID ASVs to just 16S region for taxonomic assignment
+    // this is a very specific processing step, so the standard 16S primers  
+    // this kit are used: 
+    // Shoreline 16S = For:AGRRTTYGATYHTDGYTYAG, Rev:YCNTTCCYTYDYRGTACT(rc)
+    // Std = For:AGRGTTYGATYMTGGCTCAG,  Rev:RGYTACCTTGTTACGACTT(not rc!)
+    process TrimStrainID {
+        tag { "TrimStrainID" }
+        publishDir "${params.outdir}/dada2-TrimStrainID", mode: "copy", overwrite: true
 
-//         input:
-//         tuple val(seqtype), file(st) from seqTableToTax
-//         file ref from refFile
-//         file sp from speciesFile
+        input:
+        tuple val(seqtype), file(st) from seqsToShoreline
 
-//         output:
-//         tuple val(seqtype), file("tax_final.${seqtype}.RDS") into taxFinal,taxTableToTable
-//         tuple val(seqtype), file("bootstrap_final.${seqtype}.RDS") into bootstrapFinal
+        output:
+        tuple val(seqtype), file("asvs.${params.idType}.nochim.${seqtype}.16S-only.fna") into shorelineToTax
+        file("asvs.shoreline.cutadapt.log")
 
-//         when:
-//         params.precheck == false
+        when:
+        params.precheck == false
 
-//         script:
-//         """
-//         FOR=AGRRTTYGATYHTDGYTYAG
-//         REV=YCNTTCCYTYDYRGTACT
-//         cutadapt --rc -a "\$FOR...\$REV" \\
-//                  -m 100 -j ${task.cpus} --discard-untrimmed \\
-//                  -o "./cutadapt/${nm}.noprimer.fastq.gz" \\
-//                  "${reads}" > "./cutadapt/${nm}.cutadapt.log"
-//         """
-//     }
-// }
+        script:
+        """
+        FOR=AGRRTTYGATYHTDGYTYAG
+        REV=YCNTTCCYTYDYRGTACT
+        cutadapt --rc -g "\$FOR...\$REV" \\
+                 -m 100 -j ${task.cpus} --discard-untrimmed \\
+                 -o "asvs.${params.idType}.nochim.${seqtype}.16S-only.fna" \\
+                 "${seqtype}" > "asvs.shoreline.cutadapt.log"
+        """
+    }
+} else {
+    
+}
+
+/*
+ *
+ * Step 9: Taxonomic assignment
+ *
+ */
 
 if (params.reference) {
 
