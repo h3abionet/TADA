@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-library(dada2); packageVersion("dada2")
+suppressPackageStartupMessages(library(dada2))
 
 fns <- list.files("./fastq", full.names=TRUE)
 
@@ -7,10 +7,10 @@ fns <- list.files("./fastq", full.names=TRUE)
 # https://www.nextflow.io/docs/latest/process.html?highlight=env#output-env
 # untested within R though
 
-pdf("qualities.pdf", onefile = TRUE)
+# pdf("qualities.pdf", onefile = TRUE)
 for (i in seq(1, length(fns), by = 4)) {
+    pdf(paste0("qualities.", i,".pdf"), onefile = TRUE)
     pl <- plotQualityProfile(fns[i:(i+3)])
     print(pl)
+    dev.off()
 }
-
-dev.off()
