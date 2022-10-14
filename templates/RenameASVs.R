@@ -18,8 +18,8 @@ ids_study.raw <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.raw), 
                             md5=sapply(colnames(st.raw), digest, algo="md5"))
 
 # sub IDs
-colnames(st) <- ids_study
-colnames(st.raw) <- ids_study.raw
+colnames(st) <- unname(ids_study)
+colnames(st.raw) <- unname(ids_study.raw)
 
 # generate FASTA
 seqs.dna <- ShortRead(sread = DNAStringSet(seqs), id = BStringSet(ids_study))
