@@ -896,10 +896,10 @@ process RenameASVs {
  *
  */
 
-if (platform == 'pacbio' && params.amplicon == 'StrainID' && params.trim_StrainID) {
-    // Trim down the StrainID ASVs to just 16S region for taxonomic assignment
-    // this is a very specific processing step, so the standard 16S primers  
-    // this kit are used: 
+if (platform == 'pacbio' && params.amplicon == 'strainid' && !params.pacbio_strict_match) {
+    // Trim down StrainID ASVs to just the 16S region for taxonomic assignment.
+    // This is a very specific processing step, standard 16S primers V1-V9 primers
+    // are used: 
     // Shoreline 16S = For:AGRRTTYGATYHTDGYTYAG, Rev:YCNTTCCYTYDYRGTACT(rc)
     // Std = For:AGRGTTYGATYMTGGCTCAG,  Rev:RGYTACCTTGTTACGACTT(not rc!)
     process TrimStrainID {
@@ -907,10 +907,11 @@ if (platform == 'pacbio' && params.amplicon == 'StrainID' && params.trim_StrainI
         publishDir "${params.outdir}/dada2-TrimStrainID", mode: "copy", overwrite: true
 
         input:
-        tuple val(seqtype), file(st) from seqsToShoreline
+        tuple val(seqtype), file(seqs) from seqsToShoreline
 
         output:
-        tuple val(seqtype), file("asvs.${params.idType}.nochim.${seqtype}.16S-only.fna") into shorelineToTax
+        tuple val(seqtype), file("asvs.${params.idType}.nochim.${seqtype}.16S-only.fna")
+        file("asvs.${params.idType}.nochim.${seqtype}.untrimmed.fna")
         file("asvs.shoreline.cutadapt.log")
 
         when:
@@ -918,16 +919,17 @@ if (platform == 'pacbio' && params.amplicon == 'StrainID' && params.trim_StrainI
 
         script:
         """
-        FOR=AGRRTTYGATYHTDGYTYAG
-        REV=YCNTTCCYTYDYRGTACT
-        cutadapt --rc -g "\$FOR...\$REV" \\
-                 -m 100 -j ${task.cpus} --discard-untrimmed \\
+        FOR=AGRGTTYGATYMTGGCTCAG
+        REV=RGYTACCTTGTTACGACTT
+
+        revprimer_rc=\$( echo -n \$REV | tr "[ATGCUNYRSWKMBDHV]" "[TACGANRYSWMKVHDB]" | rev )
+        cutadapt -a \$revprimer_rc \\
+                 -m 50 -j ${task.cpus} \\
+                 --untrimmed-output "asvs.${params.idType}.nochim.${seqtype}.untrimmed.fna" \\
                  -o "asvs.${params.idType}.nochim.${seqtype}.16S-only.fna" \\
-                 "${seqtype}" > "asvs.shoreline.cutadapt.log"
+                 "${seqs}" > "asvs.shoreline.cutadapt.log"
         """
     }
-} else {
-    
 }
 
 /*
