@@ -15,6 +15,7 @@ jobs:
     name: Run workflow tests (Illumina V4)
     if: ${{ github.event_name != 'push' || (github.event_name == 'push' && github.repository == 'h3abionet/TADA') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -44,11 +45,13 @@ jobs:
           cd $HOME/test-data/illumina 
           wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/dog_stool_small.tgz 
           tar -xzvf dog_stool_small.tgz
+
       - name: Set up and install Nextflow
         run: |
           mkdir /tmp/nextflow && cd /tmp/nextflow
           wget -qO- get.nextflow.io | bash
           sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
+
       - name: Run Nextflow on test data (Illumina V4)
         run: |
           nextflow run ${{ github.workspace }}/main.nf -profile test_illumina,docker
@@ -57,6 +60,7 @@ jobs:
     name: Run workflow tests (PacBio HiFi)
     if: ${{ github.event_name != 'push' || (github.event_name == 'push' && github.repository == 'h3abionet/TADA') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -77,46 +81,24 @@ jobs:
           java-version: '11'
           distribution: 'adopt'
 
-      - name: Setup ref-data and test-data directories 
+      - name: Set up ref-data
         run: |
-          mkdir -p $HOME/ref-data $HOME/test-data/pacbio
+          mkdir -p $HOME/ref-data
           cd $HOME/ref-data 
-          wget https://zenodo.org/record/1172783/files/silva_nr_v132_train_set.fa.gz 
-          wget https://zenodo.org/record/1172783/files/silva_species_assignment_v132.fa.gz
+          wget https://zenodo.org/record/4587955/files/silva_nr99_v138.1_wSpecies_train_set.fa.gz
+
+      - name: Set up test-data directories 
+          mkdir -p $HOME/test-data/pacbio
           cd $HOME/test-data/pacbio
           wget --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/Small_PacBio.tgz 
           tar -xzvf Small_PacBio.tgz
+
       - name: Set up and install Nextflow
         run: |
           mkdir /tmp/nextflow && cd /tmp/nextflow
           wget -qO- get.nextflow.io | bash
           sudo ln -s /tmp/nextflow/nextflow /usr/local/bin/nextflow
+          
       - name: Run Nextflow on test data (PacBio HiFi)
         run: |
-          nextflow run ${{ github.workspace }} -profile test_pacbio,docker
-      # - name: Set up Singularity
-      #   run: |
-      #     sudo apt-get update && sudo apt-get install -y build-essential \
-      #     libssl-dev \
-      #     uuid-dev \
-      #     libgpgme11-dev \
-      #     squashfs-tools \
-      #     libseccomp-dev \
-      #     pkg-config
-      #     export VERSION=1.16.5 OS=linux ARCH=amd64 && \
-      #     wget https://dl.google.com/go/go$VERSION.$OS-$ARCH.tar.gz && \
-      #     sudo tar -C /usr/local -xzvf go$VERSION.$OS-$ARCH.tar.gz && \
-      #     rm go$VERSION.$OS-$ARCH.tar.gz
-      #     echo 'export GOPATH=${HOME}/go' >> $HOME/.bashrc && \
-      #     echo 'export PATH=/usr/local/go/bin:${PATH}:${GOPATH}/bin' >> $HOME/.bashrc && \
-      #     source $HOME/.bashrc
-      #     export GOPATH=${HOME}/go # Sourcing does not work, need to explicitly set GOPATH
-      #     go get -u github.com/golang/dep/cmd/dep
-      #     go get -d github.com/sylabs/singularity ||:
-      #     export VERSION=v3.8.0 && \
-      #     cd $GOPATH/src/github.com/sylabs/singularity && \
-      #     git fetch && \
-      #     git checkout $VERSION
-      #     ./mconfig && \
-      #     make -C ./builddir && \
-      #     sudo make -C ./builddir install
+          nextflow run ${{ github.workspace }}/main.nf -profile test_pacbio,docker
