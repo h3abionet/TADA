@@ -8,9 +8,9 @@ fns <- list.files("./fastq", full.names=TRUE)
 # untested within R though
 
 # pdf("qualities.pdf", onefile = TRUE)
-for (i in seq(1, length(fns), by = 4)) {
+for (i in seq(1, length(fns), by = 16)) {
     pdf(paste0("qualities.", i,".pdf"), onefile = TRUE)
-    pl <- plotQualityProfile(fns[i:(i+3)])
+    pl <- plotQualityProfile(fns[i:(i+15)])
     print(pl)
     dev.off()
 }
