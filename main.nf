@@ -358,7 +358,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         tuple val(meta), file(reads) from dada2ReadPairsToQual
 
         when:
-        !(params.precheck) & !(params.skip_FASTQC)
+        params.precheck & !(params.skip_FASTQC)
 
         output:
         file '*_fastqc.{zip,html}' into fastqc_files
@@ -379,7 +379,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
 
         when:
-        !(params.precheck) & !(params.skip_dadaQC)
+        params.precheck & !(params.skip_dadaQC)
 
         output:
         file '*.pdf'
@@ -444,7 +444,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             file "*.trimmed.txt" into trimTracking
 
             when:
-            params.precheck == false
+            !(params.precheck)
 
             script:
             template "PacBioFilterAndTrim.R"
@@ -470,7 +470,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             file('reverse_rc') into reverseP
 
             when:
-            params.precheck == false
+            !(params.precheck)
 
             script:
             template "ITSFilterAndTrimStep1.R"
@@ -490,7 +490,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             file("*.cutadapt.out") into cutadaptToMultiQC
 
             when:
-            params.precheck == false
+            !(params.precheck)
 
             script:
             outr2 = meta.single_end ? '' : "-p ${meta.id}.R2.cutadapt.fastq.gz"
@@ -521,7 +521,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             file "*.trimmed.txt" into trimTracking
 
             when:
-            params.precheck == false
+            !(params.precheck)
 
             script:
             template "ITSFilterAndTrimStep3.R"
@@ -545,7 +545,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             file "*.trimmed.txt" into trimTracking
 
             when:
-            params.precheck == false
+            !(params.precheck)
 
             script:
             phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
@@ -588,7 +588,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         file '*_fastqc.{zip,html}' into fastqc_files_post
 
         when:
-        !(params.precheck ) & !(params.skip_FASTQC)
+        !(params.skip_FASTQC)
 
         script:
         nano = params.platform == "pacbio" ? '--nano' : ''
@@ -613,7 +613,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         file "*_data"
 
         when:
-        !(params.precheck ) & !(params.skip_FASTQC)
+        !(params.skip_FASTQC)
 
         script:
         interactivePlots = params.interactiveMultiQC == true ? "-ip" : ""
