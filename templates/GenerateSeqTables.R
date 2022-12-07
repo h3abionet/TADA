@@ -10,21 +10,9 @@ if (as.logical('${params.sampleRegex}' != FALSE )) {
 
 # Generate table output
 write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
-    file = 'seqtab_final.${seqtype}.txt',
-    row.names = FALSE,
-    col.names=c('#SampleID', colnames(seqtab)), sep = "\\t")
-
-######################################################################
-# Convert to simple table + FASTA, from
-# https://github.com/LangilleLab/microbiome_helper/blob/master/convert_dada2_out.R#L69
-######################################################################
-
-# Generate OTU table output (rows = samples, cols = ASV)
-write.table(data.frame('SampleID' = row.names(seqtab), seqtab),
     file = 'seqtab_final.${params.idType}.${seqtype}.txt',
     row.names = FALSE,
-    col.names=c('#SampleID', colnames(seqtab)),
-    sep = "\\t")
+    col.names=c('#SampleID', colnames(seqtab)), sep = "\\t")
 
 # Generate OTU table for QIIME2 import (rows = ASVs, cols = samples)
 write.table(
