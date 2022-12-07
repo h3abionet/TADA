@@ -2,13 +2,14 @@
 suppressPackageStartupMessages(library(dada2))
 
 seqs <- readRDS("${st}")
+seqtab <- seqs\$seq
 
 # Assign taxonomy
 tax <- NULL
 boots <- NULL
 
 if ( ${params.taxBatch} == 0 ) { # no batch, run normally
-    cat("Running all samples\n")
+    cat("Running all samples\\n")
     tax <- assignTaxonomy(seqtab, "${ref}",
                     multithread=${task.cpus},
                     tryRC = TRUE,
@@ -19,12 +20,12 @@ if ( ${params.taxBatch} == 0 ) { # no batch, run normally
     boots <- tax\$boot
 } else {
     # see https://github.com/benjjneb/dada2/issues/1429 for this
-    to_split <- seq(1, ncol(seqtab), by = ${params.taxBatch})
-    to_split2 <- c(to_split[2:length(to_split)]-1, ncol(seqtab))
+    to_split <- seq(1, length(seqtab), by = ${params.taxBatch})
+    to_split2 <- c(to_split[2:length(to_split)]-1, length(seqtab))
 
     for(i in 1:length(to_split)){
-        cat(paste("Running all samples from",to_split[i], "to", to_split2[i], "\n"))
-        seqtab2 <- seqtab[, to_split[i]:to_split2[i]]
+        cat(paste("Running all samples from",to_split[i], "to", to_split2[i], "\\n"))
+        seqtab2 <- seqtab[to_split[i]:to_split2[i]]
         tax2 <- assignTaxonomy(seqtab2, "${ref}",
                 multithread=${task.cpus},
                 tryRC = TRUE,
