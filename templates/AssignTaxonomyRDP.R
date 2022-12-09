@@ -8,7 +8,7 @@ seqtab <- seqs\$seq
 tax <- NULL
 boots <- NULL
 
-if ( ${params.taxBatch} == 0 ) { # no batch, run normally
+if ( ${params.taxBatch} == 0 | length(seqtab) < ${params.taxBatch} ) { # no batch, run normally
     cat("Running all samples\\n")
     tax <- assignTaxonomy(seqtab, "${ref}",
                     multithread=${task.cpus},
