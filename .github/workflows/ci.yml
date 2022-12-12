@@ -47,7 +47,8 @@ jobs:
         run: |
           mkdir -p $HOME/ref-data $HOME/test-data/illumina
           cd $HOME/ref-data
-          wget -nv --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/silva_nr_v132_train_set.fa.gz 
+          wget -nv --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/silva_nr_v138.1_train_set.fa.gz 
+          wget -nv --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/silva_nr99_v138.1_wSpecies_train_set.fa.gz 
           cd $HOME/test-data/illumina
           wget -nv --no-check-certificate https://file-server.igb.illinois.edu/~cjfields/dog_stool_small.tgz 
           tar -xzvf dog_stool_small.tgz
