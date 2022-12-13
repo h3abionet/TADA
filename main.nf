@@ -1094,9 +1094,8 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
             file cm from cmFile
 
             output:
-            file "aligned_seqs.${seqtype}.stk"
+            // file "aligned_seqs.${seqtype}.stk" into alnToFASTA
             file "aln.${seqtype}.scores"
-            tuple val(seqtype), file("aligned_seqs.${seqtype}.fasta") optional true into alnFile,alnToQIIME2
 
             script:
             """
@@ -1106,7 +1105,22 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
                   --sfile aln.${seqtype}.scores \\
                   -o aligned_seqs.${seqtype}.stk \\
                   ${cm} ${seqs}
+            """
+        }
 
+        process StockholmToFASTA {
+            tag { "StockholmToFASTA:${seqtype}" }
+            publishDir "${params.outdir}/dada2-Infernal", mode: "copy", overwrite: true
+
+            input:
+            tuple val(seqtype), file(seqs) from seqsToAln
+            file cm from cmFile
+
+            output:
+            tuple val(seqtype), file("aligned_seqs.${seqtype}.fasta") optional true into alnFile,alnToQIIME2
+
+            script:
+            """
             # script from P. Jeraldo (Mayo)
             stkToFasta.py aligned_seqs.${seqtype}.stk aligned_seqs.${seqtype}.fasta
             """
