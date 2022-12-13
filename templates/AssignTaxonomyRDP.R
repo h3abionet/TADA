@@ -18,6 +18,7 @@ if ( ${params.taxBatch} == 0 | length(seqtab) < ${params.taxBatch} ) { # no batc
                     verbose = TRUE)
 
     boots <- tax\$boot
+    tax <- tax\$tax
 } else {
     # see https://github.com/benjjneb/dada2/issues/1429 for this
     to_split <- seq(1, length(seqtab), by = ${params.taxBatch})
@@ -40,7 +41,7 @@ if ( ${params.taxBatch} == 0 | length(seqtab) < ${params.taxBatch} ) { # no batc
         }
 
         if (is.null(tax)) {
-            tax <- tax2
+            tax <- tax2\$tax
         } else {
             tax <- rbind(tax, tax2)
         }
