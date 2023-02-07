@@ -141,8 +141,8 @@ if (file.exists("all.dd.R2.RDS")) {
        returnRejects = TRUE,
        minOverlap = ${params.minOverlap},
        maxMismatch = ${params.maxMismatch},
-       trimOverhang = as.logical(${params.trimOverhang}),
-       justConcatenate = as.logical(${params.justConcatenate}),
+       trimOverhang = as.logical("${params.trimOverhang}"),
+       justConcatenate = as.logical("${params.justConcatenate}"),
        rescueUnmerged=rescuePairs,
        verbose = TRUE
        ) 
@@ -151,8 +151,8 @@ if (file.exists("all.dd.R2.RDS")) {
        returnRejects = TRUE,
        minOverlap = ${params.minOverlap},
        maxMismatch = ${params.maxMismatch},
-       trimOverhang = as.logical(${params.trimOverhang}),
-       justConcatenate = as.logical(${params.justConcatenate}),
+       trimOverhang = as.logical("${params.trimOverhang}"),
+       justConcatenate = as.logical("${params.justConcatenate}"),
        verbose = TRUE
        )
       }

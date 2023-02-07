@@ -267,22 +267,6 @@ if ( !params.skip_trimming && (!(params.fwdprimer) || !(params.revprimer)) ) {
     }
 }
 
-// if ( params.trimFor == false && params.amplicon == '16S') {
-//     exit 1, "Must set length of R1 (--trimFor) that needs to be trimmed (set 0 if no trimming is needed)"
-// }
-
-// if ( params.trimRev == false && params.amplicon == '16S') {
-//     exit 1, "Must set length of R2 (--trimRev) that needs to be trimmed (set 0 if no trimming is needed)"
-// }
-
-// if (params.fwdprimer == false && params.amplicon == 'ITS'){
-//     exit 1, "Must set forward primer using --fwdprimer"
-// }
-
-// if (params.revprimer == false && params.amplicon == 'ITS'){
-//     exit 1, "Must set reverse primer using --revprimer"
-// }
-
 if (params.aligner == 'infernal' && params.infernalCM == false){
     exit 1, "Must set covariance model using --infernalCM when using Infernal"
 }
@@ -358,7 +342,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         tuple val(meta), file(reads) from dada2ReadPairsToQual
 
         when:
-        params.precheck & !(params.skip_FASTQC)
+        params.precheck | !(params.skip_FASTQC)
 
         output:
         file '*_fastqc.{zip,html}' into fastqc_files
@@ -379,7 +363,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
 
         when:
-        params.precheck & !(params.skip_dadaQC)
+        params.precheck | !(params.skip_dadaQC)
 
         output:
         file '*.pdf'
@@ -388,7 +372,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         template "DadaQC.R"
     }
 
-    /* ITS amplicon filtering */
+    /* ITS and PacBio amplicon filtering */
 
     // Note: should explore cutadapt options more: https://github.com/benjjneb/dada2/issues/785
     // https://cutadapt.readthedocs.io/en/stable/guide.html#more-than-one
@@ -453,7 +437,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
         filteredReadsR2 = Channel.empty()
 
-    } else if (platform == 'illumina' && params.amplicon == 'ITS') {
+    } else if (platform == 'illumina' && ( params.amplicon == 'ITS' || params.amplicon == 'variable'))  {
 
         // TODO: note this path is only needed when using variable length sequences
         process ITSFilterAndTrimStep1 {
