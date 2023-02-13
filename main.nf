@@ -357,7 +357,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
     process RunDADA2QC {
         tag { "DADA2-FASTQ-QC" }
-        publishDir "${params.outdir}/dada2-RawQC", mode: "copy", overwrite: true
+        publishDir "${params.outdir}/dada2-DadaQC", mode: "copy", overwrite: true
 
         input:
         path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
@@ -367,6 +367,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
         output:
         file '*.pdf'
+        file '*.RDS'
 
         script:
         template "DadaQC.R"
@@ -707,8 +708,8 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
             output:
             tuple val(readmode), file("seqtab.${readmode}.RDS") into seqTable,rawSeqTableToRename
-            file "all.merged.RDS" optional true into mergerTracking
-            file "seqtab.original.*.RDS" // we keep this for comparison and possible QC
+            file "all.merged.RDS" optional true into mergerTracking,mergerQC
+            file "seqtab.original.*.RDS" into seqtabQC// we keep this for comparison and possible QC
 
             when:
             params.precheck == false
@@ -777,8 +778,8 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
             output:
             tuple val(readmode), file("seqtab.${readmode}.RDS") into seqTable,rawSeqTableToRename
-            file "all.merged.RDS" optional true into mergerTracking
-            file "seqtab.original.${readmode}.RDS" // we keep this for comparison and possible QC
+            file "all.merged.RDS" optional true into mergerTracking,mergerQC
+            file "seqtab.original.${readmode}.RDS" into seqtabQC // we keep this for comparison and possible QC
             
             when:
             params.precheck == false
@@ -803,7 +804,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         script:
         template "MergeSeqTables.R"
     }
-    Channel.empty().into { SEChimera;RawSEChimeraToRename;trimmedReadTracking;dadaToReadTracking;mergerTracking }
+    Channel.empty().into { SEChimera;RawSEChimeraToRename;trimmedReadTracking;dadaToReadTracking;mergerTracking;mergerQC }
 }
 
 /*
@@ -1236,6 +1237,34 @@ process ReadTracking {
 
     script:
     template "ReadTracking.R"
+}
+
+process MergingQC {
+    tag { "MergingQC" }
+    publishDir "${params.outdir}/dada2-DadaQC", mode: "copy", overwrite: true
+
+    input:
+    file(mergers) from mergerQC
+
+    output:
+    file "read-overlap-heatmap*"
+
+    script:
+    template "PlotMergers.R"
+}
+
+process SeqLengthQC {
+    tag { "SeqLengthQC" }
+    publishDir "${params.outdir}/dada2-DadaQC", mode: "copy", overwrite: true
+
+    input:
+    file(seqtab) from seqtabQC
+
+    output:
+    file "asv-length-distribution*"
+
+    script:
+    template "PlotSeqLengths.R"
 }
 
 process ToQIIME2FeatureTable {
