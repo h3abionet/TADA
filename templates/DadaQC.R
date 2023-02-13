@@ -7,10 +7,9 @@ fns <- list.files("./fastq", full.names=TRUE)
 # https://www.nextflow.io/docs/latest/process.html?highlight=env#output-env
 # untested within R though
 
-# pdf("qualities.pdf", onefile = TRUE)
-for (i in seq(1, length(fns), by = 16)) {
-    pdf(paste0("qualities.", i,".pdf"), onefile = TRUE)
-    pl <- plotQualityProfile(fns[i:(i+15)])
-    print(pl)
-    dev.off()
-}
+pdf(paste0("aggregate-qualities.pdf"), onefile = TRUE)
+pl <- plotQualityProfile(fns, aggregate=TRUE)
+ggsave("aggregate-qualities.pdf", plot=pl, device=".pdf")
+
+# we may revisit the quality scores and other info in this plot for other purposes
+saveRDS(pl, "aggregate-qualities.RDS")
