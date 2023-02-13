@@ -1,14 +1,18 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(tidyverse))
 
-# change to input channel name
-seqtab <- readRDS('seqtab.original.merged.RDS')
+# note this has to be a seqtable with the actual sequences in them 
+# (e.g. IDs are not transformed to md5 or otherwise)
+seqtab <- readRDS("${seqtab}")
 
 seqlens <- data.frame(seqs = colnames(seqtab), lengths = nchar(colnames(seqtab)))
 
-ggplot(seqlens, aes(x = lengths)) + 
+gg <- ggplot(seqlens, aes(x = lengths)) + 
 	geom_density() + 
 	ggtitle("Sequence Length Distribution") + 
 	xlab("Length (nt)")
 
 ggsave('asv-length-distribution.png', device = 'png', height = 3, width = 5, units = 'in')
+
+# save the plot; we may want to make this dynamic (e.g. plotly)
+saveRDS(gg, 'asv-length-distribution.RDS')
