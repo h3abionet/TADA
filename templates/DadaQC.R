@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(dada2))
+suppressPackageStartupMessages(library(tidyverse))
 
 fns <- list.files("./fastq", full.names=TRUE)
 
@@ -7,9 +8,8 @@ fns <- list.files("./fastq", full.names=TRUE)
 # https://www.nextflow.io/docs/latest/process.html?highlight=env#output-env
 # untested within R though
 
-pdf(paste0("aggregate-qualities.pdf"), onefile = TRUE)
 pl <- plotQualityProfile(fns, aggregate=TRUE)
-ggsave("aggregate-qualities.pdf", plot=pl, device=".pdf")
+ggsave("aggregate-qualities.${readtype}.pdf", plot=pl, device="pdf")
 
 # we may revisit the quality scores and other info in this plot for other purposes
-saveRDS(pl, "aggregate-qualities.RDS")
+saveRDS(pl, "aggregate-qualities.${readtype}.RDS")
