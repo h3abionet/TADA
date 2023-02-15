@@ -22,7 +22,7 @@ if (${params.maxMergedLen} > 0) {
 	gg <- gg + geom_vline(xintercept=${params.maxMergedLen}, linetype="dashed", color = "red")
 }
 
-ggsave('read-overlap-heatmap.png', plot=gg, device = 'png', width = 7, height = (0.09 * nlevels(all_mergers\$SampleID)), units = 'in')
+ggsave('read-overlap-heatmap.pdf', plot=gg, device = 'pdf', width = 7, height = (0.09 * nlevels(all_mergers\$SampleID)), units = 'in')
 
 # save the plot; we may want to make this dynamic (e.g. plotly)
 saveRDS(gg, 'read-overlap-heatmap.RDS')

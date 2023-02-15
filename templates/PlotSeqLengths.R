@@ -12,7 +12,7 @@ gg <- ggplot(seqlens, aes(x = lengths)) +
 	ggtitle("Sequence Length Distribution") + 
 	xlab("Length (nt)")
 
-ggsave('asv-length-distribution.png', device = 'png', height = 3, width = 5, units = 'in')
+ggsave('asv-length-distribution.pdf', device = 'pdf', height = 3, width = 5, units = 'in')
 
 # save the plot; we may want to make this dynamic (e.g. plotly)
 saveRDS(gg, 'asv-length-distribution.RDS')
