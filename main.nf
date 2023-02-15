@@ -355,23 +355,31 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         """
     }
 
-    process RunDADA2QC {
-        tag { "DADA2-FASTQ-QC" }
-        publishDir "${params.outdir}/dada2-DadaQC", mode: "copy", overwrite: true
+    // dada2ReadPairsToDada2Qual
+    //   .flatMap { n -> n[1] }
+    //   .map { 
+    //     ['R1', n[0]], ['R2', n[1]]
+    //   }
+    //   .groupTuple()
+    //   .set { dada2ReadPairsToDada2QC }
 
-        input:
-        path("fastq/*") from dada2ReadPairsToDada2Qual.flatMap({ n -> n[1] }).collect()
+    // process RunDADA2QC {
+    //     tag { "ReadQualQC:${readtype}" }
+    //     publishDir "${params.outdir}/dada2-DadaQC", mode: "copy", overwrite: true
 
-        when:
-        params.precheck | !(params.skip_dadaQC)
+    //     input:
+    //     tuple(readtype), path("fastq/*") from dada2ReadPairsToDada2QC
 
-        output:
-        file '*.pdf'
-        file '*.RDS'
+    //     when:
+    //     params.precheck | !(params.skip_dadaQC)
 
-        script:
-        template "DadaQC.R"
-    }
+    //     output:
+    //     file '*.pdf'
+    //     file '*.RDS'
+
+    //     script:
+    //     template "DadaQC.R"
+    // }
 
     /* ITS and PacBio amplicon filtering */
 
@@ -1383,7 +1391,7 @@ process ToQIIME2Tree {
     """
     qiime tools import \
         --input-path ${tree} \
-        --output-path unrooted-tree.${seqtype}qza \
+        --output-path unrooted-tree.${seqtype}.qza \
         --type 'Phylogeny[Unrooted]'
 
     qiime tools import \
