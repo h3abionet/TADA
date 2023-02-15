@@ -8,7 +8,7 @@
 
 A dada2-based workflow using the Nextflow workflow manager for Targeted Amplicon Diversity Analysis.
 
-## Badges
+## Badges 
 | fair-software.nl recommendations                        |                             |
 | ------------------------------------------------------- | --------------------------- |
 |(1/5) code repository                                    |[![GitHub Repo Status](https://img.shields.io/badge/github-repo-000.svg?logo=github&labelColor=gray&color=blue)](https://github.com/h3abionet/TADA)|
