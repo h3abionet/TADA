@@ -22,7 +22,7 @@ write.table(data.frame('ASVID' = row.names(tax), tax),
     row.names = FALSE,
     col.names=c('#OTU ID', colnames(tax)), sep = "\t")
 
-if (file.exists('bootstrap_final.RDS')) {
+if (file.exists('bootstrap_final.${seqtype}.RDS')) {
     boots <- readRDS("${bt}")
     write.table(data.frame('ASVID' = row.names(boots), boots),
         file = 'tax_final.bootstraps.${params.idType}.${seqtype}.full.txt',
