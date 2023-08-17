@@ -234,18 +234,11 @@ process PacBioFilterAndTrim {
     library(ShortRead); packageVersion("ShortRead")
     library(Biostrings); packageVersion("Biostrings")
 
-    # Remove primers
-    #out1 <- removePrimers("${reads}", 
-    #    paste0("${id}",".noprimer.fastq.gz"), 
-    #    primer.fwd="${params.fwdprimer}", 
-    #    primer.rev=dada2:::rc("${params.revprimer}"), 
-    #    orient=TRUE, 
-    #    compress=TRUE,
-    #    allow.indels=TRUE, 
-    #    max.mismatch = 2,
-    #    verbose=TRUE)
+    # samples that have been demultiplexed using Shoreline's SBAnalyzer will
+    # have primers already removed and reads reoriented.  Expected sizes of
+    # the amplicon will range more, from ~1500-3500nt
 
-    # filterAndTrim(nops2, filts2, minQ=3, minLen=1000, maxLen=1600, maxN=0, rm.phix=FALSE, maxEE=2)
+    # Here we just perform the basic trimming based on any additional parameters
 
     out2 <- filterAndTrim(fwd = "${reads}",
                         filt = paste0("${id}",".filtered.fastq.gz"),
@@ -1102,7 +1095,7 @@ process ReadTracking {
 
 if (params.toQIIME2) {
 
-    process toQIIME2FeatureTable {
+    process ToQIIME2FeatureTable {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
@@ -1128,7 +1121,7 @@ if (params.toQIIME2) {
         """
     }
 
-    process toQIIME2TaxTable {
+    process ToQIIME2TaxTable {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
@@ -1153,7 +1146,7 @@ if (params.toQIIME2) {
         """
     }
 
-    process toQIIME2Seq {
+    process ToQIIME2Seq {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
@@ -1173,7 +1166,7 @@ if (params.toQIIME2) {
         """
     }
 
-    process toQIIME2Aln {
+    process ToQIIME2Aln {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
@@ -1196,7 +1189,7 @@ if (params.toQIIME2) {
         """
     }
 
-    process toQIIME2Tree {
+    process ToQIIME2Tree {
         tag { "QIIME2-Output" }
         label 'QIIME2'
         publishDir "${params.outdir}/dada2-QIIME2", mode: "link"
