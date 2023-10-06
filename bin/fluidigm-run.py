@@ -8,6 +8,7 @@ import re
 import csv
 import itertools
 import yaml
+import pandas as pd
 
 
 def main():
@@ -88,21 +89,24 @@ def parse_fluidigm_mapping(mapping):
         "trimFor",
         "trimRev",
     ]
-    with open(mapping, "r", newline="") as csvfile:
-        # skip comments
-        fl_reader = csv.DictReader(
-            filter(lambda row: row[0] != "#", csvfile), delimiter="\t"
-        )
-        for row in fl_reader:
-            # we want simple lookup table 'PrimerPairID'
-            tmp = dict(itertools.islice(row.items(), 2, None))
-            for i in to_bool:
-                tmp[i] = bool(tmp[i])
-            for i in to_int:
-                if tmp[i] == "":
-                    tmp[i] = 0
-                tmp[i] = int(tmp[i])
-            fl_mapping[row["PrimerPairID"]] = tmp
+
+    # the current version of the 'database' is an Excel table
+    xlsx_data = pd.read_excel(mapping, index_col=None)
+    csv_as_string = xlsx_data.to_csv(index=False)
+    # reader = csv.DictReader(csv_as_string.splitlines())
+    fl_reader = csv.DictReader(
+        filter(lambda row: row[0] != "#", csv_as_string.splitlines()),
+    )
+    for row in fl_reader:
+        # we want simple lookup table 'PrimerPairID'
+        tmp = dict(itertools.islice(row.items(), 2, None))
+        for i in to_bool:
+            tmp[i] = bool(tmp[i])
+        for i in to_int:
+            if tmp[i] == "":
+                tmp[i] = 0
+            tmp[i] = int(tmp[i])
+        fl_mapping[row["PrimerPairID"]] = tmp
 
     return fl_mapping
 
@@ -203,13 +207,15 @@ def setup_workspace(args, seq_files, mapping_file):
 
             mapping = {}
             if mapping_file:
-                mapping = {p: mapping_file[pair][p] for p in params}
+                if pair in mapping_file:
+                    for p in params:
+                        mapping = {p: mapping_file[pair][p] for p in params}
             else:
                 mapping = {p: None for p in params}
 
             mapping.update(opts)
 
-            print(yaml.dump(mapping, param_yaml))
+            yaml.dump(mapping, param_yaml)
 
 
 if __name__ == "__main__":
