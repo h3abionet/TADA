@@ -77,9 +77,9 @@ def check_samplesheet(FileIn, FileOut):
             # Auto-detect paired-end/single-end
             sample_info = []  # [single_end, fastq_1, fastq_2]
             fastq_1, fastq_2 = fastQFiles
-            if sample and fastq_1 and fastq_2:  # Paired-end short reads
+            if sample and fastq_1 and fastq_2:  # Paired-end (likely short) reads
                 sample_info = ['0', fastq_1, fastq_2]
-            elif sample and fastq_1 and not fastq_2:  # Single-end short reads
+            elif sample and fastq_1 and not fastq_2:  # Single-end reads of any kind
                 sample_info = ['1', fastq_1, fastq_2]
             else:
                 print_error("Invalid combination of columns provided!", line)
@@ -88,13 +88,10 @@ def check_samplesheet(FileIn, FileOut):
             elif libType != sample_info[0]:
                 print_error("Sample has mixed library types, which is not supported", line)
 
-            if sample not in sampleRunDict:
-                sampleRunDict[sample] = [sample_info]
+            if sample in sampleRunDict:
+                print_error("Samplesheet contains duplicate sample IDs;\n" + "Joining multiple sequence data from the same sample is currently not supported", line)
             else:
-                if sample_info in sampleRunDict[sample]:
-                    print_error("Samplesheet contains duplicate rows!", line)
-                else:
-                    sampleRunDict[sample].append(sample_info)
+                sampleRunDict[sample] = sample_info
         else:
             fin.close()
             break
@@ -109,13 +106,13 @@ def check_samplesheet(FileIn, FileOut):
         for sample in sorted(sampleRunDict.keys()):
 
             # Check that multiple runs of the same sample are of the same datatype
-            if not all(x[0] == sampleRunDict[sample][0][0] for x in sampleRunDict[sample]):
-                print_error(
-                    "Multiple runs of a sample must be of the same datatype", "Sample: {}".format(sample))
+            # if not all(x[0] == sampleRunDict[sample][0][0] for x in sampleRunDict[sample]):
+            #     print_error(
+            #         "Multiple runs of a sample must be of the same datatype", "Sample: {}".format(sample))
 
-            for idx, val in enumerate(sampleRunDict[sample]):
+            for idx, val in sampleRunDict.items():
                 fout.write(
-                    ','.join(["{}_T{}".format(sample, idx + 1)] + val) + '\n')
+                    ','.join([idx] + val ) + '\n')
         fout.close()
 
 
