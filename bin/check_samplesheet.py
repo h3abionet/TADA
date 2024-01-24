@@ -103,16 +103,15 @@ def check_samplesheet(FileIn, FileOut):
         fout = open(FileOut, 'w')
         fout.write(
             ','.join(['sample', 'single_end', 'fastq_1', 'fastq_2']) + '\n')
-        for sample in sorted(sampleRunDict.keys()):
 
-            # Check that multiple runs of the same sample are of the same datatype
-            # if not all(x[0] == sampleRunDict[sample][0][0] for x in sampleRunDict[sample]):
-            #     print_error(
-            #         "Multiple runs of a sample must be of the same datatype", "Sample: {}".format(sample))
+        # Check that multiple runs of the same sample are of the same datatype
+        # if not all(x[0] == sampleRunDict[sample][0][0] for x in sampleRunDict[sample]):
+        #     print_error(
+        #         "Multiple runs of a sample must be of the same datatype", "Sample: {}".format(sample))
 
-            for idx, val in sampleRunDict.items():
-                fout.write(
-                    ','.join([idx] + val ) + '\n')
+        for idx, val in sampleRunDict.items():
+            fout.write(
+                ','.join([idx] + val ) + '\n')
         fout.close()
 
 
