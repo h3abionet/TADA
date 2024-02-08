@@ -732,7 +732,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
     } else {
 
         process PerSampleInferDerepAndMerge {
-            tag { "PerSampleInferDerepAndMerge: ${meta.id}" }
+            tag { "PerSampleInferDerepAndMerge:${meta.id}" }
             publishDir "${params.outdir}/dada2-Derep-Single/Per-Sample", mode: "copy", overwrite: true
 
             input:
