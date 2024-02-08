@@ -21,7 +21,9 @@ if(pool != "pseudo"){
   pool <- as.logical(pool)
 }
 
+dereps <- derepFastq(filts, n=100000, verbose=TRUE)
+
 cat(paste0("Denoising ${readmode} reads: pool:", pool, "\\n"))
-dds <- dada(filts, err=err, multithread=${task.cpus}, pool=pool)
+dds <- dada(dereps, err=err, multithread=${task.cpus}, pool=pool)
 
 saveRDS(dds, "all.dd.${readmode}.RDS")
