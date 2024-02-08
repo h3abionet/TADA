@@ -652,6 +652,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         file("${readmode}.err.pdf")
 
         script:
+        derepreads = 100000
         dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
         if (platform == 'pacbio') {
           template "PacBioLearnErrors.R"
@@ -729,9 +730,6 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         }
 
     } else {
-        // pool = F, process per sample or in batches (a little more compute efficient)
-        // TODO: need to address for SE/PE work
-        // Getting an 'input.2' file here, which may be from the null R2 input
 
         process PerSampleInferDerepAndMerge {
             tag { "PerSampleInferDerepAndMerge: ${meta.id}" }
@@ -755,7 +753,6 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             template "PerSampleDadaInfer.R"
         }
 
-        // TODO: need to address for SE/PE work
         process MergeDadaRDS {
             tag { "mergeDadaRDS" }
             publishDir "${params.outdir}/dada2-Derep-Single", mode: "copy", overwrite: true
