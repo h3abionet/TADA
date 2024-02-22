@@ -3,14 +3,6 @@ suppressPackageStartupMessages(library(dada2))
 suppressPackageStartupMessages(library(ShortRead))
 suppressPackageStartupMessages(library(Biostrings))
 
-# out1 <- removePrimers("${reads}",
-#     paste0("${meta.id}",".noprimer.fastq.gz"),
-#     primer.fwd="${params.fwdprimer}",
-#     primer.rev=dada2:::rc("${params.revprimer}"),
-#     orient=TRUE,
-#     compress=TRUE,
-#     verbose=TRUE)
-
 out2 <- filterAndTrim(fwd = "${reads}",
                     filt = "${meta.id}.R1.filtered.fastq.gz",
                     maxEE = ${params.maxEEFor},
@@ -22,5 +14,4 @@ out2 <- filterAndTrim(fwd = "${reads}",
                     multithread = ${task.cpus})
 
 #Change input read counts to actual raw read counts
-# out2[1] <- out1[1]
 write.csv(out2, paste0("${meta.id}", ".trimmed.txt"))
