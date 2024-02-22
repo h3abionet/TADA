@@ -9,7 +9,7 @@ fns <- list.files("./fastq", full.names=TRUE)
 # untested within R though
 
 pl <- plotQualityProfile(fns, aggregate=TRUE)
-ggsave("aggregate-qualities.${readtype}.pdf", plot=pl, device="pdf")
+ggsave("${meta.id}.aggregate-qualities.pdf", plot=pl, device="pdf")
 
 # we may revisit the quality scores and other info in this plot for other purposes
-saveRDS(pl, "aggregate-qualities.${readtype}.RDS")
+saveRDS(pl, "${meta.id}.aggregate-qualities.${meta.readtype}.RDS")

@@ -281,7 +281,7 @@ if (params.reads != false) {
     .fromFilePairs( params.reads, size: params.single_end ? 1 : 2  )
     .ifEmpty { error "Cannot find any reads matching: ${params.reads}" }
     .map { row -> create_fastq_channel_reads(row, params.single_end) }
-    .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
+    .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs; dada2ReadPairsToDada2QC }
 } else if (params.seqTables != false) {
     // Experimental: combine pre-chimera sequence tables from prior DADA2 runs.  This assumes:
     // 1. Unique sample IDs in all runs
@@ -321,7 +321,7 @@ if (params.reads != false) {
     samplesheet
         .splitCsv(header:true, sep:',')
         .map{ row -> create_fastq_channel(row) } 
-        .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs }
+        .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs; dada2ReadPairsToDada2QC }
 } else {
     exit 1, "Must set either --input, --reads, or --seqTables as input"
 }
@@ -363,23 +363,23 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
     //   .groupTuple()
     //   .set { dada2ReadPairsToDada2QC }
 
-    // process RunDADA2QC {
-    //     tag { "ReadQualQC:${readtype}" }
-    //     publishDir "${params.outdir}/dada2-DadaQC", mode: "copy", overwrite: true
+    process RunDADA2QC {
+        tag { "RunDADA2QC" }
+        publishDir "${params.outdir}/dada2-DadaQC", mode: "copy", overwrite: true
 
-    //     input:
-    //     tuple(readtype), path("fastq/*") from dada2ReadPairsToDada2QC
+        input:
+        tuple val(meta), file(reads) from dada2ReadPairsToDada2QC
 
-    //     when:
-    //     params.precheck | !(params.skip_dadaQC)
+        when:
+        params.precheck | !(params.skip_dadaQC)
 
-    //     output:
-    //     file '*.pdf'
-    //     file '*.RDS'
+        output:
+        file '*.pdf'
+        file '*.RDS'
 
-    //     script:
-    //     template "DadaQC.R"
-    // }
+        script:
+        template "DadaQC.R"
+    }
 
     /* ITS and PacBio amplicon filtering */
 
