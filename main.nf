@@ -654,7 +654,9 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         script:
         derepreads = 100000
         dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
-        if (platform == 'pacbio') {
+        if (platform == 'pacbio-kinnex') {
+          template "PacBioKinnexLearnErrors.R"
+        else if (platform == 'pacbio') {
           template "PacBioLearnErrors.R"
         } else {
           template "LearnErrors.R"
