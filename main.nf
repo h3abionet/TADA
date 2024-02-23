@@ -244,8 +244,8 @@ processed.  Supported platforms are 'illumina' and 'pacbio'
 def platform = ''
 platform = params.platform.toLowerCase()
 
-if (!(['illumina','pacbio'].contains(platform))) {
-    exit 1, "Only supported platforms (--platform argument) are currently 'pacbio' or 'illumina'"
+if (!(["illumina","pacbio","pacbio-kinnex"].contains(platform))) {
+    exit 1, "Only supported platforms (--platform argument) are currently 'pacbio', 'pacbio-kinnex', or 'illumina'"
 }
 
 // ${deity} there has to be a better way to check this!
@@ -386,7 +386,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
     // Note: should explore cutadapt options more: https://github.com/benjjneb/dada2/issues/785
     // https://cutadapt.readthedocs.io/en/stable/guide.html#more-than-one
 
-    if (platform == 'pacbio') {
+    if (platform == 'pacbio' || platform == 'pacbio-kinnex') {
 
         process PacBioTrim {
             tag { "PacBioTrim_${meta.id}" }
@@ -654,10 +654,10 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         script:
         derepreads = 100000
         dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
-        if (platform == 'pacbio-kinnex') {
-          template "PacBioKinnexLearnErrors.R"
-        else if (platform == 'pacbio') {
+        if (platform == 'pacbio') {
           template "PacBioLearnErrors.R"
+        } else if (platform == 'pacbio-kinnex') {
+          template "PacBioKinnexLearnErrors.R"
         } else {
           template "LearnErrors.R"
         }
