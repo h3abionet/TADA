@@ -6,6 +6,8 @@
 
 # TADA - Targeted Amplicon Diversity Analysis using DADA2, implemented in Nextflow
 
+*NOTE:* We are working on a DSL2 implementation using the nf-core tools on separate branches.  Based on some differences in focus we don't currently anticipate combining this with the nf-core `ampliseq` workflow, though we may revisit this in the future.  In the meantime: We will continue to address critical bugs on this branch, but the majority of effort will be in converting the workflow to DSL2
+
 A dada2-based workflow using the Nextflow workflow manager for Targeted Amplicon Diversity Analysis.
 
 ## Badges 
