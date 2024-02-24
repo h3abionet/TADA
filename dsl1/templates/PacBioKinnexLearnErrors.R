@@ -1,0 +1,93 @@
+#!/usr/bin/env Rscript
+suppressPackageStartupMessages(library(dada2))
+suppressPackageStartupMessages(library(dplyr))
+
+# see https://github.com/benjjneb/dada2/issues/1307
+# and https://github.com/benjjneb/dada2/issues/1892
+
+# THIS IS EXPERIMENTAL
+loessErrfun_mod4 <- function(trans) {
+  qq <- as.numeric(colnames(trans))
+  est <- matrix(0, nrow=0, ncol=length(qq))
+  for(nti in c("A","C","G","T")) {
+    for(ntj in c("A","C","G","T")) {
+      if(nti != ntj) {
+        errs <- trans[paste0(nti,"2",ntj),]
+        tot <- colSums(trans[paste0(nti,"2",c("A","C","G","T")),])
+        rlogp <- log10((errs+1)/tot)  # 1 psuedocount for each err, but if tot=0 will give NA
+        rlogp[is.infinite(rlogp)] <- NA
+        df <- data.frame(q=qq, errs=errs, tot=tot, rlogp=rlogp)
+        
+        # original
+        # ###! mod.lo <- loess(rlogp ~ q, df, weights=errs) ###!
+        # mod.lo <- loess(rlogp ~ q, df, weights=tot) ###!
+        # #        mod.lo <- loess(rlogp ~ q, df)
+        
+        # jonalim's solution
+        # https://github.com/benjjneb/dada2/issues/938
+        mod.lo <- loess(rlogp ~ q, df, weights = log10(tot),degree = 1, span = 0.95)
+        
+        pred <- predict(mod.lo, qq)
+        maxrli <- max(which(!is.na(pred)))
+        minrli <- min(which(!is.na(pred)))
+        pred[seq_along(pred)>maxrli] <- pred[[maxrli]]
+        pred[seq_along(pred)<minrli] <- pred[[minrli]]
+        est <- rbind(est, 10^pred)
+      } # if(nti != ntj)
+    } # for(ntj in c("A","C","G","T"))
+  } # for(nti in c("A","C","G","T"))
+  
+  # HACKY
+  MAX_ERROR_RATE <- 0.25
+  MIN_ERROR_RATE <- 1e-7
+  est[est>MAX_ERROR_RATE] <- MAX_ERROR_RATE
+  est[est<MIN_ERROR_RATE] <- MIN_ERROR_RATE
+  
+  # enforce monotonicity
+  # https://github.com/benjjneb/dada2/issues/791
+  estorig <- est
+  est <- est %>%
+    data.frame() %>%
+    mutate_all(funs(case_when(. < X40 ~ X40,
+                              . >= X40 ~ .))) %>% as.matrix()
+  rownames(est) <- rownames(estorig)
+  colnames(est) <- colnames(estorig)
+  
+  # Expand the err matrix with the self-transition probs
+  err <- rbind(1-colSums(est[1:3,]), est[1:3,],
+               est[4,], 1-colSums(est[4:6,]), est[5:6,],
+               est[7:8,], 1-colSums(est[7:9,]), est[9,],
+               est[10:12,], 1-colSums(est[10:12,]))
+  rownames(err) <- paste0(rep(c("A","C","G","T"), each=4), "2", c("A","C","G","T"))
+  colnames(err) <- colnames(trans)
+  # Return
+  return(err)
+}
+
+dadaOpt <- ${dadaOpt}
+
+if (!is.na(dadaOpt)) {
+    setDadaOpt(dadaOpt)
+    cat("dada Options:\n",dadaOpt,"\n")
+}
+ 
+# File parsing
+filts <- list.files('.', pattern="filtered.fastq.gz", full.names = TRUE)
+sample.namesF <- sapply(strsplit(basename(filts), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
+set.seed(100)
+
+dereps <- derepFastq(filts, n=${derepreads}, verbose=TRUE)
+
+# Learn forward error rates
+errs <- learnErrors(dereps, 
+    nbases = 1e9,
+    errorEstimationFunction=loessErrfun_mod4, 
+    BAND_SIZE=32, 
+    multithread=${task.cpus},
+    verbose=2)
+
+pdf(paste0("${readmode}",".err.pdf"))
+plotErrors(errs, nominalQ=TRUE, err_in=TRUE)
+dev.off()
+
+saveRDS(errs, paste0("errors.","${readmode}",".RDS"))

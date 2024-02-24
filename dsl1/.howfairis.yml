@@ -1,0 +1,4 @@
+skip_registry_checks_reason : "Registered in biotools as biotools:tada-amplicon"
+skip_checklist_checks_reason: "Using the Codacy dashboard to guide development"
+
+ignore_commented_badges: false
