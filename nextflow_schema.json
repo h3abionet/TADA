@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema",
-    "$id": "https://raw.githubusercontent.com/nf-core/tada/master/nextflow_schema.json",
-    "title": "nf-core/tada pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/h3abionet/TADA/master/nextflow_schema.json",
+    "title": "h3abionet/TADA pipeline parameters",
     "description": "Targeted Amplicon Diversity Analysis",
     "type": "object",
     "definitions": {

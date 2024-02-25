@@ -1,4 +1,4 @@
-# nf-core/tada: Citations
+# h3abionet/TADA: Citations
 
 ## [nf-core](https://pubmed.ncbi.nlm.nih.gov/32055031/)
 

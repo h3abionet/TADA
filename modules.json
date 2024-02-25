@@ -1,6 +1,6 @@
 {
-    "name": "nf-core/tada",
-    "homePage": "https://github.com/nf-core/tada",
+    "name": "h3abionet/TADA",
+    "homePage": "https://github.com/h3abionet/TADA",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {
