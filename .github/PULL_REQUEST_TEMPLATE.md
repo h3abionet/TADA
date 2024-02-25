@@ -1,7 +1,7 @@
 <!--
-# nf-core/tada pull request
+# h3abionet/TADA pull request
 
-Many thanks for contributing to nf-core/tada!
+Many thanks for contributing to h3abionet/TADA!
 
 Please fill in the appropriate checklist below (delete whatever is not relevant).
 These are the most common things requested on pull requests (PRs).

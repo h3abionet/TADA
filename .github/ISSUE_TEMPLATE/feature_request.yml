@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an idea for the nf-core/tada pipeline
+description: Suggest an idea for the h3abionet/TADA pipeline
 labels: enhancement
 body:
   - type: textarea
