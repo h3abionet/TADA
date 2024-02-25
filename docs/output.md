@@ -1,4 +1,4 @@
-# nf-core/tada: Output
+# TADA: Output
 
 ## Introduction
 

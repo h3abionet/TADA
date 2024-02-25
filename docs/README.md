@@ -1,6 +1,6 @@
-# nf-core/tada: Documentation
+# TADA: Documentation
 
-The nf-core/tada documentation is split into the following pages:
+TADA documentation is split into the following pages:
 
 - [Usage](usage.md)
   - An overview of how the pipeline works, how to run it and a description of all of the different command-line flags.
