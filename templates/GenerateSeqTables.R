@@ -4,6 +4,7 @@ suppressPackageStartupMessages(library(ShortRead))
 
 seqtab <- readRDS("${st}")
 
+# This is deprecated and will likely be removed in DSL2 release, it's too brittle
 if (as.logical('${params.sampleRegex}' != FALSE )) {
     rownames(seqtab) <- gsub('${params.sampleRegex}', "\\\\1", rownames(seqtab), perl = TRUE)
 }
