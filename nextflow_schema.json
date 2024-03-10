@@ -285,5 +285,145 @@
         {
             "$ref": "#/definitions/generic_options"
         }
-    ]
+    ],
+    "properties": {
+        "pacbio_strict_match": {
+            "type": "boolean",
+            "default": true
+        },
+        "fwd_adapter": {
+            "type": "boolean"
+        },
+        "rev_adapter": {
+            "type": "boolean"
+        },
+        "trim_for": {
+            "type": "integer",
+            "default": 0
+        },
+        "trim_rev": {
+            "type": "integer",
+            "default": 0
+        },
+        "trunc_for": {
+            "type": "integer",
+            "default": 0
+        },
+        "trunc_rev": {
+            "type": "integer",
+            "default": 0
+        },
+        "maxEE_for": {
+            "type": "integer",
+            "default": 0
+        },
+        "maxEE_rev": {
+            "type": "integer",
+            "default": 0
+        },
+        "truncQ": {
+            "type": "integer",
+            "default": 2
+        },
+        "maxN": {
+            "type": "integer",
+            "default": 0
+        },
+        "max_read_len": {
+            "type": "string"
+        },
+        "min_read_len": {
+            "type": "integer",
+            "default": 50
+        },
+        "rmPhiX": {
+            "type": "boolean"
+        },
+        "qualityBinning": {
+            "type": "boolean"
+        },
+        "errorModel": {
+            "type": "string",
+            "default": "illumina"
+        },
+        "min_overlap": {
+            "type": "integer",
+            "default": 20
+        },
+        "max_mismatch": {
+            "type": "integer",
+            "default": 0
+        },
+        "trim_overhang": {
+            "type": "string",
+            "default": "F"
+        },
+        "just_concatenate": {
+            "type": "string",
+            "default": "F"
+        },
+        "dadaOpt": {
+            "type": "string",
+            "default": "[]"
+        },
+        "max_asv_len": {
+            "type": "integer",
+            "default": 0
+        },
+        "min_asv_len": {
+            "type": "integer",
+            "default": 0
+        },
+        "chimera_detection": {
+            "type": "boolean",
+            "default": true
+        },
+        "tax_assignment_method": {
+            "type": "string",
+            "default": "rdp"
+        },
+        "reference": {
+            "type": "boolean"
+        },
+        "species": {
+            "type": "boolean"
+        },
+        "min_boot": {
+            "type": "integer",
+            "default": 50
+        },
+        "tax_levels": {
+            "type": "boolean"
+        },
+        "tax_batch": {
+            "type": "integer",
+            "default": 0
+        },
+        "skip_alignment": {
+            "type": "boolean"
+        },
+        "aligner": {
+            "type": "string",
+            "default": "DECIPHER"
+        },
+        "run_tree": {
+            "type": "string",
+            "default": "phangorn"
+        },
+        "pool": {
+            "type": "string",
+            "default": "pseudo"
+        },
+        "to_BIOM": {
+            "type": "boolean",
+            "default": true
+        },
+        "to_QIIME2": {
+            "type": "boolean"
+        },
+        "id_type": {
+            "type": "string",
+            "default": "md5"
+        }
+    }
 }
