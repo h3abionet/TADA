@@ -36,6 +36,25 @@ workflow TADA {
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
     ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
+    // Trimming: remove adapters and truncation by length; default is no quality trimming
+    //     cutadapt (overlapping paired: V4, COI)
+    //     cutadapt (variable paired: ITS)
+    //     cutadapt (long reads: PacBio 16S)
+    //     DADA2 filterAndTrim
+
+    // Denoising: DADA2 
+    //     Pooled
+    //     Per-sample
+
+    // Denoising (proposed alt): VSEARCH/Deblur
+    //     Per-sample
+
+    // Optional: Taxonomic assignment
+
+    // Optional: Alignment + Phylogenetic Tree
+
+    // 
+
     //
     // Collate and save software versions
     //
