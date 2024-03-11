@@ -6,6 +6,7 @@
 
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
+include { PLOTQUALITYPROFILE     } from '../modules/local/plotqualityprofile'
 include { paramsSummaryMap       } from 'plugin/nf-validation'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -35,6 +36,15 @@ workflow TADA {
     )
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
     ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+
+    PLOTQUALITYPROFILE (
+        ch_samplesheet
+    )
+
+    // ch_multiqc_files = ch_multiqc_files.mix(PLOTQUALITYPROFILE.out.zip.collect{it[1]})
+    // ch_versions = ch_versions.mix(PLOTQUALITYPROFILE.out.versions.first())
+
+
 
     // Trimming: remove adapters and truncation by length; default is no quality trimming
     //     cutadapt (overlapping paired: V4, COI)
