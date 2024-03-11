@@ -292,10 +292,12 @@
             "default": true
         },
         "fwd_adapter": {
-            "type": "boolean"
+            "type": "string",
+            "default": ""
         },
         "rev_adapter": {
-            "type": "boolean"
+            "type": "string",
+            "default": ""
         },
         "trim_for": {
             "type": "integer",
@@ -337,10 +339,12 @@
             "default": 50
         },
         "rmPhiX": {
-            "type": "boolean"
+            "type": "boolean",
+            "default": false
         },
         "qualityBinning": {
-            "type": "boolean"
+            "type": "boolean",
+            "default": false
         },
         "errorModel": {
             "type": "string",
@@ -355,12 +359,12 @@
             "default": 0
         },
         "trim_overhang": {
-            "type": "string",
-            "default": "F"
+            "type": "boolean",
+            "default": false
         },
         "just_concatenate": {
-            "type": "string",
-            "default": "F"
+            "type": "boolean",
+            "default": false
         },
         "dadaOpt": {
             "type": "string",
@@ -383,24 +387,28 @@
             "default": "rdp"
         },
         "reference": {
-            "type": "boolean"
+            "type": "string",
+            "default": ""
         },
         "species": {
-            "type": "boolean"
+            "type": "string",
+            "default": ""
         },
         "min_boot": {
             "type": "integer",
             "default": 50
         },
         "tax_levels": {
-            "type": "boolean"
+            "type": "string",
+            "default": ""
         },
         "tax_batch": {
             "type": "integer",
             "default": 0
         },
-        "skip_alignment": {
-            "type": "boolean"
+        "alignment": {
+            "type": "boolean",
+            "default": true
         },
         "aligner": {
             "type": "string",
@@ -408,7 +416,7 @@
         },
         "run_tree": {
             "type": "string",
-            "default": "phangorn"
+            "default": "fasttree"
         },
         "pool": {
             "type": "string",
@@ -419,7 +427,8 @@
             "default": true
         },
         "to_QIIME2": {
-            "type": "boolean"
+            "type": "boolean",
+            "default": true
         },
         "id_type": {
             "type": "string",
