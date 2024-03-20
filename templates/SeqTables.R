@@ -173,11 +173,11 @@ saveRDS(seqtab, "seqtab.original.${readmode}.RDS")
 # this is an optional filtering step to remove *merged* sequences based on 
 # min/max length criteria
 if (${params.minMergedLen} > 0) {
-   seqtab <- seqtab[,nchar(colnames(seqtab)) >= ${params.minMergedLen}]
+   seqtab <- seqtab[,nchar(colnames(seqtab)) >= ${params.minMergedLen}, drop=FALSE]
 }
 
 if (${params.maxMergedLen} > 0) {
-   seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params.maxMergedLen}]
+   seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params.maxMergedLen}, drop=FALSE]
 }
 
 saveRDS(seqtab, "seqtab.${readmode}.RDS")
