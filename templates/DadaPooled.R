@@ -29,6 +29,7 @@ dds <- dada(dereps, err=err, multithread=${task.cpus}, pool=pool)
 if (length(filts) == 1) {
   nm <- basename(filts[1])
   dds <- list(nm = dds)
+  names(dds)[1] <- nm
 }
 
 saveRDS(dds, "all.dd.${readmode}.RDS")

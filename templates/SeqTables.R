@@ -162,6 +162,7 @@ if (file.exists("all.dd.R2.RDS")) {
    if (length(filtFs) == 1) {
       nm <- basename(filtFs[1])
       mergers <- list(nm = mergers)
+      names(mergers)[1] <- nm
    }
 
    saveRDS(mergers, "all.merged.RDS")
