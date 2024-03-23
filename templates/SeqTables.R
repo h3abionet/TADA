@@ -157,8 +157,13 @@ if (file.exists("all.dd.R2.RDS")) {
        )
       }
 
-   # TODO: make this a single item list with ID as the name, this is lost
-   # further on
+   # mergers returns a list if there is more than one sample, but this causes issues
+   # downstream in rare cases
+   if (length(filtFs) == 1) {
+      nm <- basename(filtFs[1])
+      mergers <- list(nm = mergers)
+   }
+
    saveRDS(mergers, "all.merged.RDS")
 
    # go ahead and make seqtable

@@ -26,4 +26,9 @@ dereps <- derepFastq(filts, n=100000, verbose=TRUE)
 cat(paste0("Denoising ${readmode} reads: pool:", pool, "\\n"))
 dds <- dada(dereps, err=err, multithread=${task.cpus}, pool=pool)
 
+if (length(filts) == 1) {
+  nm <- basename(filts[1])
+  dds <- list(nm = dds)
+}
+
 saveRDS(dds, "all.dd.${readmode}.RDS")
