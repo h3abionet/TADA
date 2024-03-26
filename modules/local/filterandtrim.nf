@@ -17,16 +17,14 @@
 
 process FILTERANDTRIM {
     tag "$meta.id"
-    label 'process_me'
+    label 'FILTERANDTRIM'
 
     // TODO nf-core: List required Conda package(s).
     //               Software MUST be pinned to channel (i.e. "bioconda"), version (i.e. "1.10").
     //               For Conda, the build (i.e. "h9402c20_2") must be EXCLUDED to support installation on different operating systems.
     // TODO nf-core: See section in main README for further information regarding finding and adding container addresses to the section below.
-    conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/YOUR-TOOL-HERE':
-        'biocontainers/YOUR-TOOL-HERE' }"
+    // TODO: pin to a versioned docker instance
+    container "ghcr.io/h3abionet/tada:dev"
 
     input:
     // TODO nf-core: Where applicable all sample-specific information e.g. "id", "single_end", "read_group"
@@ -35,13 +33,14 @@ process FILTERANDTRIM {
     //               https://github.com/nf-core/modules/blob/master/modules/nf-core/bwa/index/main.nf
     // TODO nf-core: Where applicable please provide/convert compressed files as input/output
     //               e.g. "*.fastq.gz" and NOT "*.fastq", "*.bam" and NOT "*.sam" etc.
-    tuple val(meta), path(bam)
+    tuple val(meta), path(reads)
 
     output:
     // TODO nf-core: Named file extensions MUST be emitted for ALL output channels
-    tuple val(meta), path("*.bam"), emit: bam
+    tuple val(meta), path("*.fastq.gz"), emit: trimmed_reads
+    tuple val(meta), path("*.txt"), emit: trimmed_report
     // TODO nf-core: List additional required output channels/values here
-    path "versions.yml"           , emit: versions
+    // path "versions.yml"           , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -59,18 +58,29 @@ process FILTERANDTRIM {
     // TODO nf-core: Please replace the example samtools command below with your module's command
     // TODO nf-core: Please indent the command appropriately (4 spaces!!) to help with readability ;)
     """
-    samtools \\
-        sort \\
-        $args \\
-        -@ $task.cpus \\
-        -o ${prefix}.bam \\
-        -T $prefix \\
-        $bam
+    #!/usr/bin/env Rscript
+    suppressPackageStartupMessages(library(dada2))
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        filterandtrim: \$(samtools --version |& sed '1!d ; s/samtools //')
-    END_VERSIONS
+    out <- filterAndTrim(fwd        = "${reads[0]}",
+                        filt        = "${meta.id}.R1.filtered.fastq.gz",
+                        rev         = if("${reads[1]}" == "null") NULL else "${reads[1]}",
+                        filt.rev    = if("${reads[1]}" == "null") NULL else "${meta.id}.R2.filtered.fastq.gz",
+                        trimLeft    = if("${reads[1]}" == "null") ${params.trim_for} else  c(${params.trim_for}, ${params.trim_rev}),
+                        truncLen    = if("${reads[1]}" == "null") ${params.trunc_for} else c(${params.trunc_for}, ${params.trunc_rev}),
+                        maxEE       = if("${reads[1]}" == "null") ${params.maxEE_for} else c(${params.maxEE_for}, ${params.maxEE_rev}), 
+                        truncQ      = ${params.truncQ},
+                        maxN        = ${params.maxN},
+                        rm.phix     = as.logical("${params.rmPhiX}"),
+                        maxLen      = ${params.max_read_len},
+                        minLen      = ${params.min_read_len},
+                        compress    = TRUE,
+                        verbose     = TRUE,
+                        multithread = ${task.cpus}
+                        )
+
+    colnames(out) <- c('input', 'filtered')
+
+    write.csv(out, "${meta.id}.trimmed.txt")
     """
 
     stub:
@@ -81,11 +91,8 @@ process FILTERANDTRIM {
     //               Simple example: https://github.com/nf-core/modules/blob/818474a292b4860ae8ff88e149fbcda68814114d/modules/nf-core/bcftools/annotate/main.nf#L47-L63
     //               Complex example: https://github.com/nf-core/modules/blob/818474a292b4860ae8ff88e149fbcda68814114d/modules/nf-core/bedtools/split/main.nf#L38-L54
     """
-    touch ${prefix}.bam
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        filterandtrim: \$(samtools --version |& sed '1!d ; s/samtools //')
-    END_VERSIONS
+    touch ${prefix}.R1.filtered.fastq.gz
+    touch ${prefix}.R2.filtered.fastq.gz
+    touch ${prefix}.trimmed.txt
     """
 }

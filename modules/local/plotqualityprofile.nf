@@ -17,7 +17,7 @@
 
 process PLOTQUALITYPROFILE {
     tag "$meta.id"
-    label 'process_me'
+    label 'PLOTQUALITYPROFILE'
 
     // TODO: pin to a versioned docker instance
     container "ghcr.io/h3abionet/tada:dev"
@@ -59,29 +59,13 @@ process PLOTQUALITYPROFILE {
     suppressPackageStartupMessages(library(dada2))
     suppressPackageStartupMessages(library(tidyverse))
 
-    fns <- list.files(pattern="fastq", full.names=TRUE)
-
-    # this may switch to 'env' in the process at some point: 
-    # https://www.nextflow.io/docs/latest/process.html?highlight=env#output-env
-    # untested within R though
-
-    # pl <- plotQualityProfile(fns, aggregate=TRUE)
-    # ggsave("${meta.id}.aggregate-qualities.pdf", plot=pl, device="pdf")
-
-    # # we may revisit the quality scores and other info in this plot for other purposes
-    # saveRDS(pl, "${meta.id}.aggregate-qualities.RDS")
+    fns <- list.files(pattern="fastq.gz", full.names=TRUE)
 
     pl <- plotQualityProfile(fns)
     ggsave("${meta.id}.qualities.pdf", plot=pl, device="pdf")
 
     # we may revisit the quality scores and other info in this plot for other purposes
     saveRDS(pl, "${meta.id}.qualities.RDS")
-
-    # TODO: output a version.yml with R + library versions
-    # cat <<-END_VERSIONS > versions.yml
-    # "${task.process}":
-    #     plotqualityprofile: \$(samtools --version |& sed '1!d ; s/samtools //')
-    # END_VERSIONS
     """
 
     stub:
