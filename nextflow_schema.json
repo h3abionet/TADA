@@ -292,12 +292,10 @@
             "default": true
         },
         "fwd_adapter": {
-            "type": "string",
-            "default": ""
+            "type": "string"
         },
         "rev_adapter": {
-            "type": "string",
-            "default": ""
+            "type": "string"
         },
         "trim_for": {
             "type": "integer",
@@ -317,11 +315,11 @@
         },
         "maxEE_for": {
             "type": "integer",
-            "default": 0
+            "default": 2
         },
         "maxEE_rev": {
             "type": "integer",
-            "default": 0
+            "default": 2
         },
         "truncQ": {
             "type": "integer",
@@ -332,19 +330,18 @@
             "default": 0
         },
         "max_read_len": {
-            "type": "string"
+            "type": "string",
+            "default": 5000
         },
         "min_read_len": {
             "type": "integer",
             "default": 50
         },
         "rmPhiX": {
-            "type": "boolean",
-            "default": false
+            "type": "boolean"
         },
         "qualityBinning": {
-            "type": "boolean",
-            "default": false
+            "type": "boolean"
         },
         "errorModel": {
             "type": "string",
@@ -359,12 +356,10 @@
             "default": 0
         },
         "trim_overhang": {
-            "type": "boolean",
-            "default": false
+            "type": "boolean"
         },
         "just_concatenate": {
-            "type": "boolean",
-            "default": false
+            "type": "boolean"
         },
         "dadaOpt": {
             "type": "string",
@@ -387,20 +382,17 @@
             "default": "rdp"
         },
         "reference": {
-            "type": "string",
-            "default": ""
+            "type": "string"
         },
         "species": {
-            "type": "string",
-            "default": ""
+            "type": "string"
         },
         "min_boot": {
             "type": "integer",
             "default": 50
         },
         "tax_levels": {
-            "type": "string",
-            "default": ""
+            "type": "string"
         },
         "tax_batch": {
             "type": "integer",
@@ -416,7 +408,7 @@
         },
         "run_tree": {
             "type": "string",
-            "default": "fasttree"
+            "default": "phangorn"
         },
         "pool": {
             "type": "string",
@@ -427,8 +419,7 @@
             "default": true
         },
         "to_QIIME2": {
-            "type": "boolean",
-            "default": true
+            "type": "boolean"
         },
         "id_type": {
             "type": "string",
