@@ -17,7 +17,7 @@
 
 process FILTERANDTRIM {
     tag "$meta.id"
-    label 'FILTERANDTRIM'
+    label 'process_medium'
 
     // TODO nf-core: List required Conda package(s).
     //               Software MUST be pinned to channel (i.e. "bioconda"), version (i.e. "1.10").
@@ -37,8 +37,13 @@ process FILTERANDTRIM {
 
     output:
     // TODO nf-core: Named file extensions MUST be emitted for ALL output channels
-    tuple val(meta), path("*.fastq.gz"), emit: trimmed_reads
-    tuple val(meta), path("*.txt"), emit: trimmed_report
+    // tuple val(meta), path("*.fastq.gz"), emit: trimmed_reads
+    // tuple val(meta), path("*.txt"), emit: trimmed_report
+    tuple val(meta), path("${meta.id}.R1.filtered.fastq.gz"), optional: true, emit: trimmed_R1
+    tuple val(meta), path("${meta.id}.R2.filtered.fastq.gz"), optional: true, emit: trimmed_R2
+    tuple val(meta), path("${meta.id}.R[12].filtered.fastq.gz"), optional: true, emit: trimmed
+    path("*.trimmed.txt"), emit: trimmed_report
+
     // TODO nf-core: List additional required output channels/values here
     // path "versions.yml"           , emit: versions
 

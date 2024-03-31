@@ -1,47 +1,18 @@
-// TODO nf-core: If in doubt look at other nf-core/modules to see how we are doing things! :)
-//               https://github.com/nf-core/modules/tree/master/modules/nf-core/
-//               You can also ask for help via your pull request or on the #modules channel on the nf-core Slack workspace:
-//               https://nf-co.re/join
-// TODO nf-core: A module file SHOULD only define input and output files as command-line parameters.
-//               All other parameters MUST be provided using the "task.ext" directive, see here:
-//               https://www.nextflow.io/docs/latest/process.html#ext
-//               where "task.ext" is a string.
-//               Any parameters that need to be evaluated in the context of a particular sample
-//               e.g. single-end/paired-end data MUST also be defined and evaluated appropriately.
-// TODO nf-core: Software that can be piped together SHOULD be added to separate module files
-//               unless there is a run-time, storage advantage in implementing in this way
-//               e.g. it's ok to have a single module for bwa to output BAM instead of SAM:
-//                 bwa mem | samtools view -B -T ref.fasta
-// TODO nf-core: Optional inputs are not currently supported by Nextflow. However, using an empty
-//               list (`[]`) instead of a file can be used to work around this issue.
-
 process POOLEDSEQTABLE {
-    tag '$bam'
-    label 'process_m'
+    label 'process_medium'
 
-    // TODO nf-core: List required Conda package(s).
-    //               Software MUST be pinned to channel (i.e. "bioconda"), version (i.e. "1.10").
-    //               For Conda, the build (i.e. "h9402c20_2") must be EXCLUDED to support installation on different operating systems.
-    // TODO nf-core: See section in main README for further information regarding finding and adding container addresses to the section below.
-    conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/YOUR-TOOL-HERE':
-        'biocontainers/YOUR-TOOL-HERE' }"
+    container "ghcr.io/h3abionet/tada:dev"
 
     input:
-    // TODO nf-core: Where applicable all sample-specific information e.g. "id", "single_end", "read_group"
-    //               MUST be provided as an input via a Groovy Map called "meta".
-    //               This information may not be required in some instances e.g. indexing reference genome files:
-    //               https://github.com/nf-core/modules/blob/master/modules/nf-core/bwa/index/main.nf
-    // TODO nf-core: Where applicable please provide/convert compressed files as input/output
-    //               e.g. "*.fastq.gz" and NOT "*.fastq", "*.bam" and NOT "*.sam" etc.
-    path bam
+    path(dds)
+    path(filts)
 
     output:
-    // TODO nf-core: Named file extensions MUST be emitted for ALL output channels
-    path "*.bam", emit: bam
+    path("seqtab.filtered.RDS"), emit: seqtable
+    path("all.merged.RDS"), optional: true, emit: merged
+    path("seqtab.full.RDS"), emit: seqtabQC// we keep this for comparison and possible QC    
     // TODO nf-core: List additional required output channels/values here
-    path "versions.yml"           , emit: versions
+    // path "versions.yml"           , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -49,41 +20,195 @@ process POOLEDSEQTABLE {
     script:
     def args = task.ext.args ?: ''
     
-    // TODO nf-core: Where possible, a command MUST be provided to obtain the version number of the software e.g. 1.10
-    //               If the software is unable to output a version number on the command-line then it can be manually specified
-    //               e.g. https://github.com/nf-core/modules/blob/master/modules/nf-core/homer/annotatepeaks/main.nf
-    //               Each software used MUST provide the software name and version number in the YAML version file (versions.yml)
-    // TODO nf-core: It MUST be possible to pass additional parameters to the tool as a command-line string via the "task.ext.args" directive
-    // TODO nf-core: If the tool supports multi-threading then you MUST provide the appropriate parameter
-    //               using the Nextflow "task" variable e.g. "--threads $task.cpus"
-    // TODO nf-core: Please replace the example samtools command below with your module's command
-    // TODO nf-core: Please indent the command appropriately (4 spaces!!) to help with readability ;)
     """
-    samtools \\
-        sort \\
-        $args \\
-        -@ $task.cpus \\
-        $bam
+    #!/usr/bin/env Rscript
+    suppressPackageStartupMessages(library(dada2))
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        pooledseqtable: \$(samtools --version |& sed '1!d ; s/samtools //')
-    END_VERSIONS
+    rescuePairs <- as.logical("${params.rescue_unmerged}")
+
+    mergePairsRescue <- function(dadaF, derepF, dadaR, derepR,
+                            minOverlap = 12, maxMismatch=0, returnRejects=FALSE,
+                            propagateCol=character(0), justConcatenate=FALSE,
+                            trimOverhang=FALSE, verbose=FALSE, rescueUnmerged=FALSE, ...) {
+       if(is(dadaF, "dada")) dadaF <- list(dadaF)
+       if(is(dadaR, "dada")) dadaR <- list(dadaR)
+       if(is(derepF, "derep")) derepF <- list(derepF)
+          else if(is(derepF, "character") && length(derepF)==1 && dir.exists(derepF)) derepF <- parseFastqDirectory(derepF)
+       if(is(derepR, "derep")) derepR <- list(derepR)
+          else if(is(derepR, "character") && length(derepR)==1 && dir.exists(derepR)) derepR <- parseFastqDirectory(derepR)
+       
+       if( !(is.list.of(dadaF, "dada") && is.list.of(dadaR, "dada")) ) {
+        stop("dadaF and dadaR must be provided as dada-class objects or lists of dada-class objects.")
+       }
+       if( !( (is.list.of(derepF, "derep") || is(derepF, "character")) &&
+             (is.list.of(derepR, "derep") || is(derepR, "character")) )) {
+        stop("derepF and derepR must be provided as derep-class objects or as character vectors of filenames.")
+       }
+       nrecs <- c(length(dadaF), length(derepF), length(dadaR), length(derepR))
+       if(length(unique(nrecs))>1) stop("The dadaF/derepF/dadaR/derepR arguments must be the same length.")
+
+       rval <- lapply(seq_along(dadaF), function (i)  {
+       mapF <- getDerep(derepF[[i]])\$map
+       mapR <- getDerep(derepR[[i]])\$map
+       if(!(is.integer(mapF) && is.integer(mapR))) stop("Incorrect format of \$map in derep-class arguments.")
+       #    if(any(is.na(rF)) || any(is.na(rR))) stop("Non-corresponding maps and dada-outputs.")
+       if(!(length(mapF) == length(mapR) && 
+            max(mapF, na.rm=TRUE) == length(dadaF[[i]]\$map) &&
+            max(mapR, na.rm=TRUE) == length(dadaR[[i]]\$map))) {
+          stop("Non-corresponding derep-class and dada-class objects.")
+       }
+       rF <- dadaF[[i]]\$map[mapF]
+       rR <- dadaR[[i]]\$map[mapR]
+
+       pairdf <- data.frame(sequence = "", abundance=0, forward=rF, reverse=rR)
+       ups <- unique(pairdf) # The unique forward/reverse pairs of denoised sequences
+       keep <- !is.na(ups\$forward) & !is.na(ups\$reverse)
+       ups <- ups[keep, ]
+       if (nrow(ups)==0) {
+          outnames <- c("sequence", "abundance", "forward", "reverse",
+                        "nmatch", "nmismatch", "nindel", "prefer", "accept")
+          ups <- data.frame(matrix(ncol = length(outnames), nrow = 0))
+          names(ups) <- outnames
+          if(verbose) {
+            message("No paired-reads (in ZERO unique pairings) successfully merged out of ", nrow(pairdf), " pairings) input.")
+          }
+          return(ups)
+        } else {
+          Funqseq <- unname(as.character(dadaF[[i]]\$clustering\$sequence[ups\$forward]))
+          Runqseq <- rc(unname(as.character(dadaR[[i]]\$clustering\$sequence[ups\$reverse])))
+          if (justConcatenate == TRUE) {
+             # Simply concatenate the sequences together
+             ups\$sequence <- mapply(function(x,y) paste0(x,"NNNNNNNNNN", y),
+                                   Funqseq, Runqseq, SIMPLIFY=FALSE);
+             ups\$nmatch <- 0
+             ups\$nmismatch <- 0
+             ups\$nindel <- 0
+             ups\$prefer <- NA
+             ups\$accept <- TRUE
+          } else {
+             # Align forward and reverse reads.
+             # Use unbanded N-W align to compare forward/reverse
+             # Adjusting align params to prioritize zero-mismatch merges
+             tmp <- getDadaOpt(c("MATCH", "MISMATCH", "GAP_PENALTY"))
+             if(maxMismatch==0) {
+              setDadaOpt(MATCH=1L, MISMATCH=-64L, GAP_PENALTY=-64L)
+             } else {
+              setDadaOpt(MATCH=1L, MISMATCH=-8L, GAP_PENALTY=-8L)
+             }
+             alvecs <- mapply(function(x,y) nwalign(x,y,band=-1,...), Funqseq, Runqseq, SIMPLIFY=FALSE)
+             setDadaOpt(tmp)
+             outs <- t(sapply(alvecs, function(x) C_eval_pair(x[1], x[2])))
+             ups\$nmatch <- outs[,1]
+             ups\$nmismatch <- outs[,2]
+             ups\$nindel <- outs[,3]
+             ups\$prefer <- 1 + (dadaR[[i]]\$clustering\$n0[ups\$reverse] > dadaF[[i]]\$clustering\$n0[ups\$forward])
+             ups\$accept <- (ups\$nmatch >= minOverlap) & ((ups\$nmismatch + ups\$nindel) <= maxMismatch)
+             # Make the sequence
+             ups\$sequence <- mapply(C_pair_consensus, sapply(alvecs,`[`,1), sapply(alvecs,`[`,2), ups\$prefer, trimOverhang);
+             # Additional param to indicate whether 1:forward or 2:reverse takes precedence
+             # Must also strip out any indels in the return
+             # This function is only used here.
+          }
+
+          # Add abundance and sequence to the output data.frame
+          tab <- table(pairdf\$forward, pairdf\$reverse)
+          ups\$abundance <- tab[cbind(ups\$forward, ups\$reverse)]
+          if (rescueUnmerged == TRUE) {
+             rescue <- which(!ups\$accept)
+             ups\$sequence[rescue] <- mapply(function(x,y) paste0(x,"NNNNNNNNNN", y),
+                                   Funqseq[rescue], Runqseq[rescue], SIMPLIFY=FALSE);
+          } else {
+             ups\$sequence[!ups\$accept] <- ""
+          }
+          # Add columns from forward/reverse clustering
+          propagateCol <- propagateCol[propagateCol %in% colnames(dadaF[[i]]\$clustering)]
+          for(col in propagateCol) {
+            ups[,paste0("F.",col)] <- dadaF[[i]]\$clustering[ups\$forward,col]
+            ups[,paste0("R.",col)] <- dadaR[[i]]\$clustering[ups\$reverse,col]
+          }
+          # Sort output by abundance and name
+          ups <- ups[order(ups\$abundance, decreasing=TRUE),]
+          rownames(ups) <- NULL
+          if(verbose) {
+             message(sum(ups\$abundance[ups\$accept]), " paired-reads (in ", sum(ups\$accept), " unique pairings) successfully merged out of ", sum(ups\$abundance), " (in ", nrow(ups), " pairings) input.")
+          }
+          if(!returnRejects) { ups <- ups[ups\$accept,] }
+
+          if(any(duplicated(ups\$sequence))) {
+             message("Duplicate sequences in merged output.")
+          }
+          return(ups)
+        }
+      })
+      if(!is.null(names(dadaF))) names(rval) <- names(dadaF)
+      if(length(rval) == 1) rval <- rval[[1]]
+
+      return(rval)
+    }
+
+    # this is to ensure this acts as if in the dada2 package (so uses any functions definted within)
+    environment(mergePairsRescue) <- asNamespace('dada2')
+
+    filtFs <- list.files('.', pattern="R1.filtered.fastq.gz", full.names = TRUE)
+    filtRs <- list.files('.', pattern="R2.filtered.fastq.gz", full.names = TRUE)
+
+    # read in denoised reads for both
+    ddFs <- readRDS("all.dd.R1.RDS")
+
+    if (file.exists("all.dd.R2.RDS")) {
+
+       ddRs <- readRDS("all.dd.R2.RDS")
+
+       mergers <- if(rescuePairs) {
+          mergePairsRescue(ddFs, filtFs, ddRs, filtRs,
+           returnRejects = TRUE,
+           minOverlap = ${params.min_overlap},
+           maxMismatch = ${params.max_mismatch},
+           trimOverhang = as.logical("${params.trim_overhang}"),
+           justConcatenate = as.logical("${params.just_concatenate}"),
+           rescueUnmerged=rescuePairs,
+           verbose = TRUE
+           ) 
+          } else {
+          mergePairs(ddFs, filtFs, ddRs, filtRs,
+           returnRejects = TRUE,
+           minOverlap = ${params.min_overlap},
+           maxMismatch = ${params.max_mismatch},
+           trimOverhang = as.logical("${params.trim_overhang}"),
+           justConcatenate = as.logical("${params.just_concatenate}"),
+           verbose = TRUE
+           )
+          }
+
+       # TODO: make this a single item list with ID as the name, this is lost
+       # further on
+       saveRDS(mergers, "all.merged.RDS")
+
+       # go ahead and make seqtable
+       seqtab <- makeSequenceTable(mergers)
+    } else {
+       # No merging, just make a seqtable off R1 only
+       seqtab <- makeSequenceTable(ddFs)
+    }
+
+    saveRDS(seqtab, "seqtab.full.RDS")
+
+    # this is an optional filtering step to remove *merged* sequences based on 
+    # min/max length criteria
+    if (${params.min_asv_len} > 0) {
+       seqtab <- seqtab[,nchar(colnames(seqtab)) >= ${params.min_asv_len}]
+    }
+
+    if (${params.max_asv_len} > 0) {
+       seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params.max_asv_len}]
+    }
+
+    saveRDS(seqtab, "seqtab.filtered.RDS")
     """
 
     stub:
     def args = task.ext.args ?: ''
-    
-    // TODO nf-core: A stub section should mimic the execution of the original module as best as possible
-    //               Have a look at the following examples:
-    //               Simple example: https://github.com/nf-core/modules/blob/818474a292b4860ae8ff88e149fbcda68814114d/modules/nf-core/bcftools/annotate/main.nf#L47-L63
-    //               Complex example: https://github.com/nf-core/modules/blob/818474a292b4860ae8ff88e149fbcda68814114d/modules/nf-core/bedtools/split/main.nf#L38-L54
     """
-    touch ${prefix}.bam
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        pooledseqtable: \$(samtools --version |& sed '1!d ; s/samtools //')
-    END_VERSIONS
+    # add some real stuff here
     """
 }

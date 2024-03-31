@@ -17,7 +17,7 @@
 
 process PLOTQUALITYPROFILE {
     tag "$meta.id"
-    label 'PLOTQUALITYPROFILE'
+    label 'process_low'
 
     // TODO: pin to a versioned docker instance
     container "ghcr.io/h3abionet/tada:dev"
