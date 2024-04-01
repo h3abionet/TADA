@@ -8,11 +8,9 @@ process POOLEDSEQTABLE {
     path(filts)
 
     output:
-    path("seqtab.filtered.RDS"), emit: seqtable
-    path("all.merged.RDS"), optional: true, emit: merged
-    path("seqtab.full.RDS"), emit: seqtabQC// we keep this for comparison and possible QC    
-    // TODO nf-core: List additional required output channels/values here
-    // path "versions.yml"           , emit: versions
+    path("seqtab.filtered.RDS"), emit: filtered_seqtable
+    path("all.merged.RDS"), optional: true, emit: merged_seqs
+    path("seqtab.full.RDS"), emit: full_seqtable// we keep this for comparison and possible QC    
 
     when:
     task.ext.when == null || task.ext.when

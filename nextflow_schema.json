@@ -437,6 +437,9 @@
         },
         "rescue_unmerged": {
             "type": "boolean"
+        },
+        "removeBimeraDenovo_options": {
+            "type": "string"
         }
     }
 }
