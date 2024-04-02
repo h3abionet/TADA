@@ -1,4 +1,4 @@
-process DADAINFER {
+process DADA_INFER {
     tag "$readmode"    
     label 'process_medium'
 

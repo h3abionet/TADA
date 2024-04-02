@@ -1,4 +1,4 @@
-process LEARNERRORS {
+process LEARN_ERRORS {
     tag "$readmode"
     label 'process_medium'
 

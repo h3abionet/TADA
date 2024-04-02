@@ -1,4 +1,4 @@
-process MERGETRIMTABLES {
+process MERGE_TRIM_TABLES {
     label 'process_low'
 
     container "ghcr.io/h3abionet/tada:dev"

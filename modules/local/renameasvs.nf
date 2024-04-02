@@ -1,4 +1,4 @@
-process RENAMEASVS {
+process RENAME_ASVS {
     label 'process_low'
 
     container "ghcr.io/h3abionet/tada:dev"

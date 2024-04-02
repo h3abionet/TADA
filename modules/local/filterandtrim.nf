@@ -1,4 +1,4 @@
-process FILTERANDTRIM {
+process ILLUMINA_FILTER_AND_TRIM {
     tag "$meta.id"
     label 'process_medium'
 
