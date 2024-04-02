@@ -1,4 +1,4 @@
-process ROOTTREE {
+process ROOT_TREE {
     label 'process_medium'
 
     container "ghcr.io/h3abionet/tada:dev"
