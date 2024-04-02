@@ -7,24 +7,28 @@
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { PLOTQUALITYPROFILE     } from '../modules/local/plotqualityprofile'
-// TODO: we will use the module, but the trimming step will get more complex and
-//       should be moved to a subworkflow
-// include { FILTERANDTRIM          } from '../subworkflows/local/'
-include { FILTERANDTRIM          } from '../modules/local/filterandtrim'
-include { MERGETRIMTABLES        } from '../modules/local/mergetrimtables'
-include { LEARNERRORS            } from '../modules/local/learnerrors'
-include { DADAINFER              } from '../modules/local/dadainfer'
-include { POOLEDSEQTABLE         } from '../modules/local/pooledseqtable'
-include { REMOVECHIMERAS         } from '../modules/local/removechimeras'
-include { RENAMEASVS             } from '../modules/local/renameasvs'
+
+include { FILTER_AND_TRIM        } from '../subworkflows/local/filter_and_trim'
+include { DADA2_DENOISE          } from '../subworkflows/local/dada2_denoise'
+
+// // TODO: move to a subworkflow and implement pooled vs per-sample + optional priors
+// include { LEARNERRORS            } from '../modules/local/learnerrors'
+// include { DADAINFER              } from '../modules/local/dadainfer'
+// include { POOLEDSEQTABLE         } from '../modules/local/pooledseqtable'
+// include { REMOVECHIMERAS         } from '../modules/local/removechimeras'
+// include { RENAMEASVS             } from '../modules/local/renameasvs'
 include { ASSIGNTAXASPECIES      } from '../modules/local/assigntaxaspecies'
 include { DECIPHER               } from '../modules/local/decipher'
 include { PHANGORN               } from '../modules/local/phangorn'
 include { FASTTREE               } from '../modules/local/fasttree'
 include { ROOT_TREE              } from '../modules/local/roottree'
+
+// TODO: Move into subworkflow(s)
 include { READ_TRACKING          } from '../modules/local/readtracking'
 include { PLOT_MERGED_HEATMAP    } from '../modules/local/plotmerged'
 include { PLOT_ASV_DIST          } from '../modules/local/plotasvlen'
+
+// TODO: Move into subworkflow(s)
 include { BIOM                   } from '../modules/local/biom'
 include { SEQTABLE2TEXT          } from '../modules/local/seqtable2txt'
 include { TAXTABLE2TEXT          } from '../modules/local/taxtable2txt'
@@ -33,6 +37,8 @@ include { QIIME2_TAXTABLE        } from '../modules/local/qiime2taxtable'
 include { QIIME2_SEQUENCE        } from '../modules/local/qiime2seqs'
 include { QIIME2_ALIGNMENT       } from '../modules/local/qiime2aln'
 include { QIIME2_TREE            } from '../modules/local/qiime2tree'
+
+// TODO: this can be captured in scripts and used in the versions.yml
 include { SESSION_INFO           } from '../modules/local/rsessioninfo'
 
 include { paramsSummaryMap       } from 'plugin/nf-validation'
@@ -107,6 +113,8 @@ workflow TADA {
         ch_samplesheet
     )
     
+    // TODO: notice aggregation of data for multiqc and for version tracking, 
+    // needs to be added throughout the workflow
     // ch_multiqc_files = ch_multiqc_files.mix(PLOTQUALITYPROFILE.out.zip.collect{it[1]})
     // ch_versions = ch_versions.mix(PLOTQUALITYPROFILE.out.versions.first())
 
@@ -117,34 +125,9 @@ workflow TADA {
     //     DADA2 filterAndTrim
     //     Alternative est error filtering
 
-    FILTERANDTRIM (
+    FILTER_AND_TRIM (
         ch_samplesheet
     )
-
-    ch_trimmed_reads = FILTERANDTRIM.out.trimmed
-    ch_reports = FILTERANDTRIM.out.trimmed_report.collect()
-
-    // TODO: add variable-length and PacBio
-    MERGETRIMTABLES(
-        ch_reports
-    )
-
-    // Channel setup
-
-    // We need to group data depending on which downstream steps are needed.  There
-    // are two combinations possible
-
-    // 1. The immediate downstream QC steps can use the meta info and the read pairs.
-    //    Instead of doing handstands reusing the two channels above, we emit channels 
-    //    with the reads paired if needed.
-
-    // 2. LearnErrors and the pooled denoising branch requires all R1 and all R2, but 
-    //    the two groups can be processed in parallel.  So we set up the channels with 
-    //    this in mind. No sample ID info is really needed.
-    ch_trimmed_infer = FILTERANDTRIM.out.trimmed_R1
-            .map { [ 'R1', it[1]] }
-            .concat(FILTERANDTRIM.out.trimmed_R2.map {['R2', it[1]] } )
-            .groupTuple(sort: true)
 
     // Subworkflows-Denoising:
     //     DADA2 
@@ -153,38 +136,11 @@ workflow TADA {
     //     Denoising (proposed alts): VSEARCH/Deblur
     //          Per-sample
 
-    // TODO: This can go into a DADA2-specific subworkflow
-    LEARNERRORS (
-        ch_trimmed_infer
-    )
-
-    ch_infer = LEARNERRORS.out.error_models.join(ch_trimmed_infer)
-
-    // TODO: add single-sample ('big data') run
-    // this is always in pooled mode at the moment, should be adjusted
-    // if (params.pool == "T" || params.pool == 'pseudo') { 
-    DADAINFER(
-        ch_infer
-    )
-
-    ch_trimmed = ch_trimmed_infer
-        .map { it[1] }
-        .flatten()
-        .collect()
-
-    POOLEDSEQTABLE(
-        DADAINFER.out.inferred.collect(),
-        ch_trimmed
-        )
-
-    REMOVECHIMERAS(
-        POOLEDSEQTABLE.out.filtered_seqtable
-    )
-
-    RENAMEASVS(
-        REMOVECHIMERAS.out.nonchim_seqtable,
-        POOLEDSEQTABLE.out.filtered_seqtable
-    )
+    // TODO: Input for these should be the trimmed reads from above, but
+    // they may need to be mixed in different ways depending on the 
+    // denoising workflow used.  
+    
+    DADA2_DENOISE(FILTER_AND_TRIM.out.trimmed_infer)
 
     // Subworkflows-Taxonomic assignment (optional)
     ch_taxtab = Channel.empty()
@@ -193,18 +149,18 @@ workflow TADA {
         ref_file = file(params.reference, checkIfExists: true)
         species_file = params.species ? file(params.species, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
 
-        ASSIGNTAXASPECIES(
-            RENAMEASVS.out.readmap,
+        ASSIGN_TAXA_SPECIES(
+            DADA2_DENOISE.out.readmap,
             ref_file,
             species_file
         )
-        ch_taxtab = ASSIGNTAXASPECIES.out.taxtab
-        ch_boots = ASSIGNTAXASPECIES.out.bootstraps
+        ch_taxtab = ASSIGN_TAXA_SPECIES.out.taxtab
+        ch_boots = ASSIGN_TAXA_SPECIES.out.bootstraps
     }
     
     // Subworkflows-Alignment + Phylogenetic Tree (optional)
     DECIPHER(
-        RENAMEASVS.out.nonchimeric_asvs
+        DADA2_DENOISE.out.nonchimeric_asvs
     )
 
     ch_tree = Channel.empty()
@@ -234,34 +190,34 @@ workflow TADA {
     // QC
 
     READ_TRACKING(
-        MERGETRIMTABLES.out.trimmed_report,
-        RENAMEASVS.out.seqtable_renamed,
-        DADAINFER.out.inferred.collect(),
-        POOLEDSEQTABLE.out.merged_seqs
+        FILTER_AND_TRIM.out.trimmed_report,
+        DADA2_DENOISE.out.seqtable_renamed,
+        DADA2_DENOISE.out.inferred.collect(),
+        DADA2_DENOISE.out.merged_seqs
     )
 
     PLOT_MERGED_HEATMAP(
-        POOLEDSEQTABLE.out.merged_seqs
+        DADA2_DENOISE.out.merged_seqs
     )
 
     PLOT_ASV_DIST(
-        POOLEDSEQTABLE.out.filtered_seqtable
+        DADA2_DENOISE.out.filtered_seqtable
     )
 
     // Subworkflow - Outputs
 
     SEQTABLE2TEXT(
-        POOLEDSEQTABLE.out.filtered_seqtable
+        DADA2_DENOISE.out.filtered_seqtable
     )
 
     TAXTABLE2TEXT(
         ch_taxtab,
         ch_boots,
-        RENAMEASVS.out.readmap
+        DADA2_DENOISE.out.readmap
     )
 
     BIOM(
-        RENAMEASVS.out.seqtable_renamed,
+        DADA2_DENOISE.out.seqtable_renamed,
         ch_taxtab
     )
 
@@ -269,7 +225,7 @@ workflow TADA {
 
     QIIME2_TAXTABLE(TAXTABLE2TEXT.out.taxtab2qiime)
 
-    QIIME2_SEQUENCE(RENAMEASVS.out.nonchimeric_asvs)
+    QIIME2_SEQUENCE(DADA2_DENOISE.out.nonchimeric_asvs)
 
     QIIME2_ALIGNMENT(DECIPHER.out.alignment)
 
