@@ -21,8 +21,19 @@ include { ASSIGNTAXASPECIES      } from '../modules/local/assigntaxaspecies'
 include { DECIPHER               } from '../modules/local/decipher'
 include { PHANGORN               } from '../modules/local/phangorn'
 include { FASTTREE               } from '../modules/local/fasttree'
-include { ROOTTREE               } from '../modules/local/roottree'
-
+include { ROOT_TREE              } from '../modules/local/roottree'
+include { READ_TRACKING          } from '../modules/local/readtracking'
+include { PLOT_MERGED_HEATMAP    } from '../modules/local/plotmerged'
+include { PLOT_ASV_DIST          } from '../modules/local/plotasvlen'
+include { BIOM                   } from '../modules/local/biom'
+include { SEQTABLE2TEXT          } from '../modules/local/seqtable2txt'
+include { TAXTABLE2TEXT          } from '../modules/local/taxtable2txt'
+include { QIIME2_FEATURETABLE    } from '../modules/local/qiime2featuretable'
+include { QIIME2_TAXTABLE        } from '../modules/local/qiime2taxtable'
+include { QIIME2_SEQUENCE        } from '../modules/local/qiime2seqs'
+include { QIIME2_ALIGNMENT       } from '../modules/local/qiime2aln'
+include { QIIME2_TREE            } from '../modules/local/qiime2tree'
+include { SESSION_INFO           } from '../modules/local/rsessioninfo'
 
 include { paramsSummaryMap       } from 'plugin/nf-validation'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -46,7 +57,7 @@ workflow TADA {
     ch_multiqc_files = Channel.empty()
 
     // def platform = ''
-    // platform = params.platform.toLowerCase()
+    // def platform = params.platform.toLowerCase()
 
     // if (!(["illumina","pacbio","pacbio-kinnex"].contains(platform))) {
     //     exit 1, "Only supported platforms (--platform argument) are currently 'pacbio', 'pacbio-kinnex', or 'illumina'"
@@ -113,6 +124,7 @@ workflow TADA {
     ch_trimmed_reads = FILTERANDTRIM.out.trimmed
     ch_reports = FILTERANDTRIM.out.trimmed_report.collect()
 
+    // TODO: add variable-length and PacBio
     MERGETRIMTABLES(
         ch_reports
     )
@@ -138,7 +150,7 @@ workflow TADA {
     //     DADA2 
     //          Pooled
     //          Per-sample
-    //     Denoising (proposed alt): VSEARCH/Deblur
+    //     Denoising (proposed alts): VSEARCH/Deblur
     //          Per-sample
 
     // TODO: This can go into a DADA2-specific subworkflow
@@ -148,10 +160,9 @@ workflow TADA {
 
     ch_infer = LEARNERRORS.out.error_models.join(ch_trimmed_infer)
 
+    // TODO: add single-sample ('big data') run
     // this is always in pooled mode at the moment, should be adjusted
-
     // if (params.pool == "T" || params.pool == 'pseudo') { 
-
     DADAINFER(
         ch_infer
     )
@@ -176,7 +187,8 @@ workflow TADA {
     )
 
     // Subworkflows-Taxonomic assignment (optional)
-    taxtab = Channel.empty()
+    ch_taxtab = Channel.empty()
+    ch_boots =  Channel.empty()
     if (params.reference) {
         ref_file = file(params.reference, checkIfExists: true)
         species_file = params.species ? file(params.species, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
@@ -186,7 +198,8 @@ workflow TADA {
             ref_file,
             species_file
         )
-        taxtab = ASSIGNTAXASPECIES.out.taxtab
+        ch_taxtab = ASSIGNTAXASPECIES.out.taxtab
+        ch_boots = ASSIGNTAXASPECIES.out.bootstraps
     }
     
     // Subworkflows-Alignment + Phylogenetic Tree (optional)
@@ -196,8 +209,11 @@ workflow TADA {
 
     ch_tree = Channel.empty()
     ch_tool = Channel.empty()
+
     // this seems like the sort of thing a function map 
     // would be useful for...
+    // this needs to die with an error message if method is not defined, or
+    // it needs to be caught above
     if (params.run_tree == 'phangorn') {
         PHANGORN(
             DECIPHER.out.alignment
@@ -208,19 +224,61 @@ workflow TADA {
             DECIPHER.out.alignment
         )
         ch_tree = FASTTREE.out.treeGTR
-    } else {
-        // this needs to die with an error message, or
-        // it needs to be caught above
-    }
+    } 
 
-    ROOTTREE(
+    ROOT_TREE(
         ch_tree,
         params.run_tree
     )
 
-    // Subworkflows-Alternative outputs
+    // QC
 
+    READ_TRACKING(
+        MERGETRIMTABLES.out.trimmed_report,
+        RENAMEASVS.out.seqtable_renamed,
+        DADAINFER.out.inferred.collect(),
+        POOLEDSEQTABLE.out.merged_seqs
+    )
 
+    PLOT_MERGED_HEATMAP(
+        POOLEDSEQTABLE.out.merged_seqs
+    )
+
+    PLOT_ASV_DIST(
+        POOLEDSEQTABLE.out.filtered_seqtable
+    )
+
+    // Subworkflow - Outputs
+
+    SEQTABLE2TEXT(
+        POOLEDSEQTABLE.out.filtered_seqtable
+    )
+
+    TAXTABLE2TEXT(
+        ch_taxtab,
+        ch_boots,
+        RENAMEASVS.out.readmap
+    )
+
+    BIOM(
+        RENAMEASVS.out.seqtable_renamed,
+        ch_taxtab
+    )
+
+    QIIME2_FEATURETABLE(SEQTABLE2TEXT.out.seqtab2qiime)
+
+    QIIME2_TAXTABLE(TAXTABLE2TEXT.out.taxtab2qiime)
+
+    QIIME2_SEQUENCE(RENAMEASVS.out.nonchimeric_asvs)
+
+    QIIME2_ALIGNMENT(DECIPHER.out.alignment)
+
+    QIIME2_TREE(
+        ch_tree,
+        ROOT_TREE.out.rooted_tree
+    )
+
+    SESSION_INFO()
 
     //
     // Collate and save software versions
