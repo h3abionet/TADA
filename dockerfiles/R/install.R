@@ -13,7 +13,8 @@ pkgs <- c(
   "DECIPHER",
   "digest",
   "biomformat",
-  "optparse"
+  "optparse",
+  "yaml"
 )
 
 # check that desired packages are available
