@@ -1,4 +1,4 @@
-process PLOTQUALITYPROFILE {
+process PLOT_QUALITY_PROFILE {
     tag "$meta.id"
     label 'process_low'
 
@@ -23,17 +23,7 @@ process PLOTQUALITYPROFILE {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    #!/usr/bin/env Rscript
-    suppressPackageStartupMessages(library(dada2))
-    suppressPackageStartupMessages(library(tidyverse))
-
-    fns <- list.files(pattern="fastq.gz", full.names=TRUE)
-
-    pl <- plotQualityProfile(fns)
-    ggsave("${meta.id}.qualities.pdf", plot=pl, device="pdf")
-
-    # we may revisit the quality scores and other info in this plot for other purposes
-    saveRDS(pl, "${meta.id}.qualities.RDS")
+    plot_quality_profile.R --id ${meta.id}
     """
 
     stub:

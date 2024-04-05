@@ -1,4 +1,4 @@
-process ASSIGNTAXASPECIES {
+process ASSIGN_TAXA_SPECIES {
     label 'process_medium'
 
     container "ghcr.io/h3abionet/tada:dev"
