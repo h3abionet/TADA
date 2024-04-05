@@ -6,18 +6,17 @@
 
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
-include { PLOTQUALITYPROFILE     } from '../modules/local/plotqualityprofile'
+include { PLOT_QUALITY_PROFILE   } from '../modules/local/plotqualityprofile'
+include { VSEARCH_EESTATS        } from '../modules/local/vsearch_eestats'
 
 include { FILTER_AND_TRIM        } from '../subworkflows/local/filter_and_trim'
 include { DADA2_DENOISE          } from '../subworkflows/local/dada2_denoise'
 
-// // TODO: move to a subworkflow and implement pooled vs per-sample + optional priors
-// include { LEARNERRORS            } from '../modules/local/learnerrors'
-// include { DADAINFER              } from '../modules/local/dadainfer'
-// include { POOLEDSEQTABLE         } from '../modules/local/pooledseqtable'
-// include { REMOVECHIMERAS         } from '../modules/local/removechimeras'
-// include { RENAMEASVS             } from '../modules/local/renameasvs'
-include { ASSIGNTAXASPECIES      } from '../modules/local/assigntaxaspecies'
+// TODO: may want to move into a subworkflow since we will likely implement a 
+//       few additional methods (q2-feature-classifier, IDTAXA, etc)
+include { ASSIGN_TAXA_SPECIES    } from '../modules/local/assigntaxaspecies'
+
+// TODO: Move into phylogenetic subworkflow
 include { DECIPHER               } from '../modules/local/decipher'
 include { PHANGORN               } from '../modules/local/phangorn'
 include { FASTTREE               } from '../modules/local/fasttree'
@@ -109,7 +108,11 @@ workflow TADA {
 
     // TODO: we may want to allow aggregation of the read files for larger projects;
     // current version is per read per sample
-    PLOTQUALITYPROFILE (
+    PLOT_QUALITY_PROFILE (
+        ch_samplesheet
+    )
+
+    VSEARCH_EESTATS (
         ch_samplesheet
     )
     
@@ -164,7 +167,6 @@ workflow TADA {
     )
 
     ch_tree = Channel.empty()
-    ch_tool = Channel.empty()
 
     // this seems like the sort of thing a function map 
     // would be useful for...
@@ -188,7 +190,6 @@ workflow TADA {
     )
 
     // QC
-
     READ_TRACKING(
         FILTER_AND_TRIM.out.trimmed_report,
         DADA2_DENOISE.out.seqtable_renamed,
