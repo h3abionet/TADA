@@ -61,12 +61,11 @@ workflow TADA {
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
 
-    // def platform = ''
-    // def platform = params.platform.toLowerCase()
+    def platform = params.platform.toLowerCase()
 
-    // if (!(["illumina","pacbio","pacbio-kinnex"].contains(platform))) {
-    //     exit 1, "Only supported platforms (--platform argument) are currently 'pacbio', 'pacbio-kinnex', or 'illumina'"
-    // }
+    if (!(["illumina","pacbio"].contains(platform))) {
+        exit 1, "Only supported platforms (--platform argument) are currently 'pacbio' or 'illumina'"
+    }
 
     // TODO: implement seqtable input
     // // ${deity} there has to be a better way to check this!
@@ -88,9 +87,9 @@ workflow TADA {
     //     }
     // }
 
-    if (params.aligner == 'infernal' && params.infernalCM == false){
-        exit 1, "Must set covariance model using --infernalCM when using Infernal"
-    }
+    // if (params.aligner == 'infernal' && params.infernalCM == false){
+    //     exit 1, "Must set covariance model using --infernalCM when using Infernal"
+    // }
 
     if (!(['simple','md5'].contains(params.id_type))) {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
@@ -112,10 +111,14 @@ workflow TADA {
         ch_samplesheet
     )
 
+    ch_versions = ch_versions.mix(PLOT_QUALITY_PROFILE.out.versions.first())
+
     VSEARCH_EESTATS (
         ch_samplesheet
     )
     
+    ch_versions = ch_versions.mix(VSEARCH_EESTATS.out.versions.first())
+
     // TODO: notice aggregation of data for multiqc and for version tracking, 
     // needs to be added throughout the workflow
     // ch_multiqc_files = ch_multiqc_files.mix(PLOTQUALITYPROFILE.out.zip.collect{it[1]})

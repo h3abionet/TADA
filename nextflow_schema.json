@@ -429,17 +429,28 @@
             "default": "md5"
         },
         "quality_binning": {
-            "type": "boolean"
-        },
-        "error_model": {
-            "type": "string",
-            "default": "illumina"
+            "type": "boolean",
+            "description": "Are the quality scores binned?  This can be used to adjust the error model for DADA2."
         },
         "rescue_unmerged": {
             "type": "boolean"
         },
         "removeBimeraDenovo_options": {
             "type": "string"
+        },
+        "amplicon": {
+            "type": "string",
+            "description": "Amplicon name",
+            "default": "16S"
+        },
+        "platform": {
+            "type": "string",
+            "default": "illumina",
+            "description": "Sequencing platform"
+        },
+        "amplicon_type": {
+            "type": "string",
+            "default": "overlapping"
         }
     }
 }

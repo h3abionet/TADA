@@ -1,7 +1,9 @@
 #!/usr/bin/env Rscript
-suppressPackageStartupMessages(library(dada2))
-suppressPackageStartupMessages(library(tidyverse))
-suppressPackageStartupMessages(library(optparse))
+packages <- c('dada2', 'tidyverse', 'optparse', 'yaml', 'tibble')
+
+suppressPackageStartupMessages({
+    lapply(packages, require, character.only = TRUE)
+    })
 
 option_list = list(
     make_option(c("-i","--id"),
@@ -13,8 +15,13 @@ option_list = list(
         help="File pattern [default \"%default\"]"),
     make_option(c("--session"),
         action = "store_true", 
-        help="Generate nf-core compliant YAML file w/ version information",
+        help="Generate nf-core compliant YAML file w/ version information"
         ),
+    # make_option(c("--process"),
+    #     type="character",
+    #     default = "PLOT_QUALITY_PROFILE",
+    #     help="Process call"
+    #     ),
     make_option(c("--yaml"),
         default = "versions.yml", 
         help="YAML file name (see --session)")
@@ -29,3 +36,9 @@ ggsave(paste0(opt$id,".qualities.pdf"), plot=pl, device="pdf")
 
 # we may revisit the quality scores and other info in this plot for other purposes
 saveRDS(pl, paste0(opt$id,".qualities.RDS"))
+
+if (opt$session) {
+    pv <- sapply(packages, function(x) { as.character(packageVersion(x)) }, simplify = FALSE)
+    pv$R <- paste0(R.Version()[c("major", "minor")], collapse = ".")
+    write_yaml(list("PLOT_QUALITY_PROFILE"=pv), "versions.yml")
+}

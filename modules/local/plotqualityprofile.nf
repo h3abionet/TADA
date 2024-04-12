@@ -14,7 +14,7 @@ process PLOT_QUALITY_PROFILE {
     tuple val(meta), path("*.RDS"), emit: rds
 
     // TODO nf-core: List additional required output channels/values here
-    // path "versions.yml"           , emit: versions
+    path "versions.yml"           , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
@@ -23,7 +23,7 @@ process PLOT_QUALITY_PROFILE {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    plot_quality_profile.R --id ${meta.id}
+    plot_quality_profile.R --id ${meta.id} --session
     """
 
     stub:
