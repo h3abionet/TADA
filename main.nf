@@ -1174,7 +1174,7 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
 
             script:
             """
-            OMP_NUM_THREADS=${task.cpus} FastTree -nt \\
+            OMP_NUM_THREADS=${task.cpus} FastTreeMP -nt \\
                 -gtr -gamma -spr 4 -mlacc 2 -slownni \\
                 -out fasttree.${seqtype}.tree \\
                 ${aln}
