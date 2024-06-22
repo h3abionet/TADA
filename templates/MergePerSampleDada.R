@@ -5,9 +5,10 @@ suppressPackageStartupMessages(library(openssl))
 
 # we want to standardize these for later changes, so let's generate a 
 # simple FASTA file of the priors, using 
-generate_priors <- function(x, idtype) {
-	priors <- makeSequenceTable(x) |> colnames()
-	ids <- switch(idtype, simple=paste("priorF", 1:length(priors), sep = ""),
+generate_priors <- function(x, idtype="md5") {
+	st <- makeSequenceTable(x)
+	priors <- st[,colSums(st>1) > 1] |> colnames()
+	ids <- switch(idtype, simple=paste("priorF_", 1:length(priors), sep = ""),
                             md5=md5(priors))
 	seqs.dna <- ShortRead(sread = DNAStringSet(priors), id = BStringSet(ids))
 	return(seqs.dna)
