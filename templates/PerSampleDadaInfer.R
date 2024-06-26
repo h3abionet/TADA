@@ -28,7 +28,7 @@ paramsF <- list(
   pool=as.logical("${params.pool}")
   )
 if ("${params.fwd_priors}") {
-  paramsF$priors <- getPriors("${fwd_priors}")
+  paramsF\$priors <- getPriors("${fwd_priors}")
 }
 ddF <- do.call(dada, paramsF)
 saveRDS(ddF, "${meta.id}.dd.R1.RDS")
@@ -43,7 +43,7 @@ if (file.exists ("errors.R2.RDS")) {
     pool=as.logical("${params.pool}")
     )
   if ("${params.rev_priors}") {
-    paramsR$priors <- getPriors("${rev_priors}")
+    paramsR\$priors <- getPriors("${rev_priors}")
   }
   ddR <- do.call(dada, paramsR)
   # dada(derepR, err=errR, multithread=${task.cpus}, pool=as.logical("${params.pool}") ${rpriors})
