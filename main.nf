@@ -275,6 +275,12 @@ if (!(['simple','md5'].contains(params.idType))) {
     exit 1, "--idType can currently only be set to 'simple' or 'md5', got ${params.idType}"
 }
 
+// Priors, by default these are off
+// fwd_priors = ""
+// rev_priors = ""
+def fwd_priors = params.fwd_priors ? file(params.fwd_priors) : file("$projectDir/assets/NO_FILE")
+def rev_priors = params.rev_priors ? file(params.rev_priors) : file("$projectDir/assets/NO_FILE")
+
 // Read-specific checks
 if (params.reads != false) {
     Channel
@@ -752,6 +758,8 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             script:
             dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
             readmode = errs.size() == 2 ? 'merged' : 'R1'
+            fpriors = params.fwd_priors ? ", priors=${fwd_priors}" : ""
+            rpriors = params.rev_priors ? ", priors=${rev_priors}" : ""
             template "PerSampleDadaInfer.R"
         }
 
@@ -767,6 +775,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
             output:
             file("all.dd.R{1,2}.RDS") into dadaToReadTracking
+            file("priors.${params.idType}.R{1,2}.fna") optional true
 
             when:
             params.precheck == false

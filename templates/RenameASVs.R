@@ -12,6 +12,7 @@ seqs <- colnames(st)
 seqs.raw <- colnames(st.raw)
 
 # get IDs based on idType
+# TODO: switch to using openssl::md5; see MergePerSampleDada.R for example
 ids_study <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st), sep = ""),
                             md5=sapply(colnames(st), digest, algo="md5"))
 ids_study.raw <- switch("${params.idType}", simple=paste("ASV", 1:ncol(st.raw), sep = ""),
