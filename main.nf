@@ -681,7 +681,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
      *
      */
 
-    if (params.pool == "T" || params.pool == 'pseudo') { 
+    if (params.pool == "T" || params.pool == 'pseudo' || params.pool) { 
 
         process DadaInfer {
             tag { "DadaInfer:${readmode}" }
