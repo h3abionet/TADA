@@ -22,14 +22,15 @@ derepF <- derepFastq("${reads[0]}", n=100000)
 # TODO: there is probably a better way of doing this 
 # when using optparse
 paramsF <- list(
-  x=derepF, 
+  derep=derepF, 
   err=errF,
   multithread=${task.cpus}, 
   pool=as.logical("${params.pool}")
   )
-if ("${params.fwd_priors}") {
-  paramsF\$priors <- getPriors("${fwd_priors}")
+if (as.logical("$run_fpriors")) {
+  paramsF\$priors <- getPriors("${fp}")
 }
+
 ddF <- do.call(dada, paramsF)
 saveRDS(ddF, "${meta.id}.dd.R1.RDS")
 
@@ -37,16 +38,17 @@ if (file.exists ("errors.R2.RDS")) {
   errR <- readRDS("errors.R2.RDS")
   derepR <- derepFastq("${reads[1]}", n=100000)
   paramsR <- list(
-    x=derepR, 
+    derep=derepR, 
     err=errR, 
     multithread=${task.cpus}, 
     pool=as.logical("${params.pool}")
     )
-  if ("${params.rev_priors}") {
-    paramsR\$priors <- getPriors("${rev_priors}")
+  if (as.logical("$run_rpriors")) {
+    paramsR\$priors <- getPriors("${rp}")
   }
+
+  message("DADA2 params, R2:", paramsR, "\\n")
   ddR <- do.call(dada, paramsR)
-  # dada(derepR, err=errR, multithread=${task.cpus}, pool=as.logical("${params.pool}") ${rpriors})
   saveRDS(ddR, "${meta.id}.dd.R2.RDS")
 
   merger <- mergePairs(ddF, derepF, ddR, derepR,

@@ -746,6 +746,8 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             input:
             tuple val(meta), file(reads) from readsToPerSample
             file(errs) from errorModelsPerSample.collect()
+            path(fp, stageAs: "priors_R1") from fwd_priors
+            path(rp, stageAs: "priors_R2") from rev_priors
 
             output:
             file("${meta.id}.{R1,merged}.RDS") into combinedReads
@@ -758,8 +760,8 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             script:
             dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
             readmode = errs.size() == 2 ? 'merged' : 'R1'
-            fpriors = params.fwd_priors ? ", priors=${fwd_priors}" : ""
-            rpriors = params.rev_priors ? ", priors=${rev_priors}" : ""
+            run_fpriors = params.fwd_priors ? "TRUE" : "FALSE"
+            run_rpriors = params.rev_priors ? "TRUE" : "FALSE"
             template "PerSampleDadaInfer.R"
         }
 
@@ -781,6 +783,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             params.precheck == false
 
             script:
+            dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
             template "MergePerSampleDada.R"
         }
 
@@ -796,6 +799,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             tuple val(readmode), file("seqtab.${readmode}.RDS") into seqTable,rawSeqTableToRename
             file "all.merged.RDS" optional true into mergerTracking,mergerQC
             file "seqtab.original.${readmode}.RDS" into seqtabQC // we keep this for comparison and possible QC
+            file "priors.${params.idType}.R{1,2}.fna" optional true
             
             when:
             params.precheck == false
