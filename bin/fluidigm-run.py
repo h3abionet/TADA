@@ -5,44 +5,148 @@ import shutil
 import argparse
 import traceback
 import re
-import csv
-import itertools
 import yaml
 import pandas as pd
+from dataclasses import dataclass
+
+# import csv
+
+# import itertools
+
+
+# TODO: decide on best decorator for this
+@dataclass
+class AmpliconSet(object):
+    """
+    Simple data class to hold amplicon data along with
+    associated functions for guessing settings given a
+    specific read length.
+
+    General primer info:
+        paired_end=True,
+        forward_primer=None,
+        reverse_primer=None,
+        amplicon_length=None,
+        read_length=[0,0]
+    Trimming behavior:
+        trunc=[0,0],
+        maxEE=[2,2],
+    Filtering (trimming):
+        maxLength=0,
+        minLength=0,
+        minOverlap=0,
+        trimOverhang=False,
+        justConcatenate=False,
+        minMergedLength=50,
+        maxMergedLength=None
+
+    """
+
+    paired_end: bool = True
+    forward_primer: str = None
+    reverse_primer: str = None
+    amplicon_length: int = None
+
+
+# TODO: set up a minimal parameters object for DADA2 runs
+# TODO: set global defaults for DADA2 in this
+class DadaParams(object):
+    """docstring for ClassName"""
+
+    def __init__(self, arg):
+        super(ClassName, self).__init__()
+        self.arg = arg
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Add something here!")
-    parser.add_argument(
-        "-f", "--fluidigm", required=False, help="Fluidigm mapping file", default=None
+    parser = argparse.ArgumentParser(
+        description="""
+    Simple script to take data from a primer-sorted Fluidigm run and generate:
+    1) formatted samplesheet with sample IDs and the full path to the FASTQ data
+    2) a general configuration file for all the runs (can be passed in from 
+       the command line)
+
+    and (optionally but recommended)
+
+    3) a parameters file using information from a spreadsheet of 
+    primer combinations
+
+    This assumes the directory structure the '-s' option points to has a folder
+    with sequences split into subfolders by primer pair; this primer pair is used
+    for optionally identifying from the mapping file which parameters to use.
+
+    Note that some will be predictive values if defaults are not present.
+    """
     )
     parser.add_argument(
-        "-s", "--seqdata", required=True, help="Location of sequence data"
+        "-f",
+        "--fluidigm",
+        required=False,
+        help="""
+        Fluidigm mapping file
+        """,
+        default=None,
     )
-    parser.add_argument("-e", "--email", default=None, help="Email address for reports")
     parser.add_argument(
-        "-w", "--workdir", required=True, help="Location of directory to set up jobs"
+        "-s",
+        "--seqdata",
+        required=True,
+        help="""
+        Location of sequence data
+        """,
+    )
+    parser.add_argument(
+        "-e",
+        "--email",
+        default=None,
+        help="""
+        Email address for reports
+        """,
+    )
+    parser.add_argument(
+        "-w",
+        "--workdir",
+        required=True,
+        help="""
+        Location of directory to set up jobs
+        """,
     )
     parser.add_argument(
         "-c",
         "--config",
         default="",
-        help="Common config file for runs (leave blank to use baseline config)",
+        help="""
+        Common config file for runs (leave blank to use baseline config)
+        """,
     )
     parser.add_argument(
-        "--paired", default=True, help="Paired reads (set to False if single-end"
+        "-g",
+        "--guess",
+        required=False,
+        help="""
+        If using parameter mapping and some fields are blank, 
+        guess settings (use with caution)
+        """,
+        default=None,
+    )
+    parser.add_argument(
+        "--paired",
+        default=True,
+        help="""
+        Paired reads (set to False if single-end
+        """,
     )
     args = parser.parse_args()
 
-    print("Step 1: get sequence files")
+    # print("Step 1: get sequence files")
     seq_files = parse_seqdata(args.seqdata)
 
-    print("Step 2: get primer pair data")
+    # print("Step 2: get primer pair data")
     mapping_file = None
-    if args.fluidigm:
-        mapping_file = parse_fluidigm_mapping(args.fluidigm)
+    # if args.fluidigm:
+    #     mapping_file = parse_fluidigm_mapping(args.fluidigm)
 
-    print("Step 3: set up workspace")
+    # print("Step 3: set up workspace")
     setup_workspace(args, seq_files, mapping_file)
 
 
@@ -79,36 +183,37 @@ def parse_fluidigm_mapping(mapping):
     very little validation at the moment
     """
     fl_mapping = {}
-    to_bool = ["justConcatenate", "trimOverhang", "variable"]
-    to_int = [
-        "maxEEFor",
-        "maxEERev",
-        "minOverlap",
-        "truncFor",
-        "truncRev",
-        "trimFor",
-        "trimRev",
-    ]
+    # to_bool = ["justConcatenate", "trimOverhang", "variable"]
+    # to_int = [
+    #     "maxEEFor",
+    #     "maxEERev",
+    #     "minOverlap",
+    #     "truncFor",
+    #     "truncRev",
+    #     "trimFor",
+    #     "trimRev",
+    # ]
 
     # the current version of the 'database' is an Excel table
-    xlsx_data = pd.read_excel(mapping, index_col=None)
-    csv_as_string = xlsx_data.to_csv(index=False)
-    # reader = csv.DictReader(csv_as_string.splitlines())
-    fl_reader = csv.DictReader(
-        filter(lambda row: row[0] != "#", csv_as_string.splitlines()),
-    )
-    for row in fl_reader:
-        # we want simple lookup table 'PrimerPairID'
-        tmp = dict(itertools.islice(row.items(), 2, None))
-        for i in to_bool:
-            tmp[i] = bool(tmp[i])
-        for i in to_int:
-            if tmp[i] == "":
-                tmp[i] = 0
-            tmp[i] = int(tmp[i])
-        fl_mapping[row["PrimerPairID"]] = tmp
+    fluidigm_data = pd.read_excel(mapping, index_col=1, sheet_name="PrimerDB")
 
-    return fl_mapping
+    print(fluidigm_data[0:3])
+    # csv_as_string = xlsx_data.to_csv(index=False)
+    # reader = csv.DictReader(csv_as_string.splitlines())
+    # fl_reader = csv.DictReader(
+    #     filter(lambda row: row[0] != "#", csv_as_string.splitlines()),
+    # )
+    # for row in fl_reader:
+    #     # we want simple lookup table 'PrimerPairID'
+    #     tmp = dict(itertools.islice(row.items(), 2, None))
+    #     for i in to_bool:
+    #         tmp[i] = bool(tmp[i])
+    #     for i in to_int:
+    #         if tmp[i] == "":
+    #             tmp[i] = 0
+    #         tmp[i] = int(tmp[i])
+    #     fl_mapping[row["PrimerPairID"]] = tmp
+    # return fl_mapping
 
 
 global dict_keys
