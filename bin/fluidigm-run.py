@@ -6,74 +6,205 @@ import argparse
 import traceback
 import re
 import yaml
-import pandas as pd
-from dataclasses import dataclass
+import pandas as pd, numpy as np
+from dataclasses import dataclass, field
+import csv
 
-# import csv
+mapping_types = {
+    "pairID": str,
+    "fwdprimer_name": str,
+    "fwdprimer": str,
+    "revprimer_name": str,
+    "revprimer": str,
+    "prior_size": "Int16",
+    "amp_length_primers": str,
+    "amplicon_length_total": str,
+    "max_length_total": "Int16",
+    "max_length_primers": "Int16",
+    "variable_length": str,
+    "trimFor": "Int16",
+    "trimRev": "Int16",
+    "truncFor": "Int16",
+    "truncRev": "Int16",
+    "maxLen": "Int16",
+    "minLen": "Int16",
+    "maxEEFor": "Int16",
+    "maxEERev": "Int16",
+    "minOverlap": "Int16",
+    "trimOverhang": str,
+    "justConcatenate": str,
+    "minMergedLength": "Int16",
+    "maxMergedLength": "Int16",
+    "reference": str,
+    "species": str,
+    "removeBimeraDenovoOptions": str,
+    "runTree": str,
+    "taxassignment": str,
+    "notes": str,
+}
 
-# import itertools
 
-
-# TODO: decide on best decorator for this
+# TODO: decide on best decorator for this, maybe @dataclass?
 @dataclass
 class AmpliconSet(object):
     """
     Simple data class to hold amplicon data along with
     associated functions for guessing settings given a
     specific read length.
-
-    General primer info:
-        paired_end=True,
-        forward_primer=None,
-        reverse_primer=None,
-        amplicon_length=None,
-        read_length=[0,0]
-    Trimming behavior:
-        trunc=[0,0],
-        maxEE=[2,2],
-    Filtering (trimming):
-        maxLength=0,
-        minLength=0,
-        minOverlap=0,
-        trimOverhang=False,
-        justConcatenate=False,
-        minMergedLength=50,
-        maxMergedLength=None
-
     """
 
-    paired_end: bool = True
-    forward_primer: str = None
-    reverse_primer: str = None
-    amplicon_length: int = None
+    pairID: str
+    forward_primer_name: str
+    reverse_primer_name: str
+    forward_primer: str
+    reverse_primer: str
+    max_length_primers: int = None
+    variable_length: bool = False
+    notes: str = None
 
 
 # TODO: set up a minimal parameters object for DADA2 runs
 # TODO: set global defaults for DADA2 in this
-class DadaParams(object):
-    """docstring for ClassName"""
+@dataclass
+class TADAParams(object):
+    """
+    TADA Params (in flux, beware!)
+    """
 
-    def __init__(self, arg):
-        super(ClassName, self).__init__()
-        self.arg = arg
+    _amplicon: AmpliconSet = None
+    _read_length: int = 250
+    _min_allowed_overlap: int = 10
+    _paired_end: bool = True  # at the moment this is all we support
+    _strategy: str = "paired"
+    project: str = None
+    trimFor: int = None
+    trimRev: int = None
+    pool: str = "pseudo"
+    email: str = None
+    truncFor: int = None
+    truncRev: int = None
+    input: str = None
+    skip_dadaQC: bool = False
+    skip_multiQC: bool = False
+    precheck: bool = True
+    outdir: str = None
+    maxEEFor: int = 2  # DADA2 default = Inf
+    maxEERev: int = 2  # DADA2 default = Inf
+    truncQ: int = 2  # DADA2 default = 2
+    maxLen: int = None
+    minLen: int = None
+    minOverlap: int = None
+    maxMismatch: int = None
+    trimOverhang: bool = None
+    justConcatenate: bool = False
+    removeBimeraDenovoOptions: str = None
+    minMergedLength: int = 50
+    maxMergedLength: int = None
+    reference: str = None
+    taxassignment: str = None
+    aligner: str = "DECIPHER"
+    runTree: str = None
+    species: str = None
+    toQIIME2: bool = True
+    idType: str = "md5"
+
+    def __post_init__(self):
+        """
+        This is kinda clunky, but the general idea is how
+        we handle certain settings not in the parameters
+        """
+        if pd.isna(self.trimFor) and pd.isna(self.trimRev):
+            self.set_trimming()
+        if pd.isna(self.truncFor) and pd.isna(self.truncRev):
+            self.guess_trunc()
+        if pd.isna(self.minOverlap):
+            self.guess_minOverlap()
+        self.check_overhang()
+        if pd.isna(self.outdir):
+            self.outdir = self._amplicon.pairID
+        if pd.isna(self.project):
+            self.project = self._amplicon.pairID
+
+    def set_trimming(self):
+        """
+        If this isn't set, default to the prie
+        """
+        self.trimFor = len(self._amplicon.forward_primer)
+        self.trimRev = len(self._amplicon.reverse_primer)
+
+    def guess_trunc(self):
+        """
+        Guess truncation parameters based on AmpliconSet
+        """
+        # =IF(M3<'PrimerDB Settings'!$B$1, M3, 0)
+        truncate = (
+            self._amplicon.max_length_primers
+            if (
+                self._amplicon.max_length_primers
+                and self._amplicon.max_length_primers < self._read_length
+            )
+            else 0
+        )
+        self.truncFor = truncate
+        if self._paired_end:
+            self.truncRev = truncate
+
+    def guess_minOverlap(self):
+        """
+        Guess overlap based on AmpliconSet
+        """
+        forlen = self.truncFor if self.truncFor > 0 else self._read_length
+        revlen = self.truncRev if self.truncRev > 0 else self._read_length
+        if self._amplicon.max_length_primers and self._amplicon.max_length_primers <= (
+            forlen + revlen
+        ):
+            # the fudge factor here is completely arbitrary, but it's to allow
+            # for some level of variance in the overlapped region
+            minovl = int(
+                (forlen + revlen)  # total of truncated or full-length reads
+                - self._amplicon.max_length_primers  # amplicon w/ primers
+                - (self._read_length * 0.1)  # fudge factor
+            )
+            if self._amplicon.variable_length == "True" and minovl < 50:
+                self._strategy = "variable"
+            # we don't want to go less than 5-10 if possible
+            # (this might become settable)
+            if minovl <= 10:
+                minovl = 10
+
+            self.minOverlap = minovl
+        else:
+            # no overlap detected but maybe the amplicon length isn't known
+            self._strategy = "single" if self._amplicon.max_length_primers else "check"
+
+    def check_overhang(self):
+        """
+        Check if there is a potential overhang. This pops up if we manually
+        set truncFor/Rev (it's defined in the sample sheet)
+        """
+        self.trimOverhang = (
+            self._amplicon.max_length_primers
+            and self._amplicon.max_length_primers <= (self.truncFor + self.truncRev)
+        )
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="""
     Simple script to take data from a primer-sorted Fluidigm run and generate:
-    1) formatted samplesheet with sample IDs and the full path to the FASTQ data
-    2) a general configuration file for all the runs (can be passed in from 
-       the command line)
 
-    and (optionally but recommended)
+    1) formatted samplesheet with sample IDs and the full path to the FASTQ
+       data
+    2) a general configuration file for all the runs (can be passed in from
+       the command line), and (optionally but recommended)
 
-    3) a parameters file using information from a spreadsheet of 
-    primer combinations
+    3) a parameters file using information from a spreadsheet of primer
+    combinations.
 
     This assumes the directory structure the '-s' option points to has a folder
-    with sequences split into subfolders by primer pair; this primer pair is used
-    for optionally identifying from the mapping file which parameters to use.
+    with sequences split into subfolders by primer pair; this primer pair is
+    used for optionally identifying from the mapping file which parameters to
+    use.
 
     Note that some will be predictive values if defaults are not present.
     """
@@ -120,33 +251,25 @@ def main():
         """,
     )
     parser.add_argument(
-        "-g",
-        "--guess",
-        required=False,
+        "--single_end",
+        action="store_true",
         help="""
-        If using parameter mapping and some fields are blank, 
-        guess settings (use with caution)
-        """,
-        default=None,
-    )
-    parser.add_argument(
-        "--paired",
-        default=True,
-        help="""
-        Paired reads (set to False if single-end
+        Common config file for runs (leave blank to use baseline config)
         """,
     )
+
     args = parser.parse_args()
 
-    # print("Step 1: get sequence files")
+    print("Step 1: get sequence files")
     seq_files = parse_seqdata(args.seqdata)
 
-    # print("Step 2: get primer pair data")
+    print("Step 2: get primer pair data")
     mapping_file = None
-    # if args.fluidigm:
-    #     mapping_file = parse_fluidigm_mapping(args.fluidigm)
 
-    # print("Step 3: set up workspace")
+    if args.fluidigm:
+        mapping_file = parse_fluidigm_mapping(mapping=args.fluidigm, email=args.email)
+
+    print("Step 3: set up workspace")
     setup_workspace(args, seq_files, mapping_file)
 
 
@@ -165,7 +288,7 @@ def parse_seqdata(dir):
         if pair_name not in seq_files:
             seq_files[pair_name] = {}
         sample_file = f.parts[-1]
-        read_match = re.match(f"{pair_name}-(\S+)_[ATGC]+_(R\d)", sample_file)
+        read_match = re.match(f"{pair_name}-(\\S+)_[ATGC]+_(R\\d)", sample_file)
         if read_match:
             sn = read_match.group(1)
             if sn not in seq_files[pair_name]:
@@ -177,43 +300,77 @@ def parse_seqdata(dir):
     return seq_files
 
 
-def parse_fluidigm_mapping(mapping):
+def row_to_TADAParams(row, email=None):
+    # scrub inputs to remove anything NA or None
+    amp_data = row[
+        [
+            "pairID",
+            "forward_primer",
+            "forward_primer_name",
+            "reverse_primer",
+            "reverse_primer_name",
+            "max_length_primers",
+            "variable_length",
+            "notes",
+        ]
+    ]
+
+    # empty cells clobber the instance defaults, so we scrub them
+    for k, v in list(amp_data.items()):
+        if v is None:
+            del amp_data[k]
+    ampset = AmpliconSet(**amp_data)
+
+    params_data = row[
+        [
+            "truncFor",
+            "truncRev",
+            "maxEEFor",
+            "maxEERev",
+            "maxLen",
+            "minLen",
+            "minOverlap",
+            "trimOverhang",
+            "justConcatenate",
+            "minMergedLength",
+            "maxMergedLength",
+            "reference",
+            "runTree",
+            "taxassignment",
+            "species",
+        ]
+    ]
+    # empty cells clobber the instance defaults, so we scrub them
+    for k, v in list(params_data.items()):
+        if v is None:
+            del params_data[k]
+    tada_params = TADAParams(_amplicon=ampset, email=email, **params_data)
+    return tada_params
+
+
+def parse_fluidigm_mapping(mapping=None, email=None):
     """
     Parsing the mapping files of attributes to primers;
     very little validation at the moment
     """
     fl_mapping = {}
-    # to_bool = ["justConcatenate", "trimOverhang", "variable"]
-    # to_int = [
-    #     "maxEEFor",
-    #     "maxEERev",
-    #     "minOverlap",
-    #     "truncFor",
-    #     "truncRev",
-    #     "trimFor",
-    #     "trimRev",
-    # ]
 
     # the current version of the 'database' is an Excel table
-    fluidigm_data = pd.read_excel(mapping, index_col=1, sheet_name="PrimerDB")
+    fluidigm_data = pd.read_excel(
+        mapping,
+        index_col=0,
+        dtype=mapping_types,
+        comment="#",
+        sheet_name="PrimerDB",
+    )
 
-    print(fluidigm_data[0:3])
-    # csv_as_string = xlsx_data.to_csv(index=False)
-    # reader = csv.DictReader(csv_as_string.splitlines())
-    # fl_reader = csv.DictReader(
-    #     filter(lambda row: row[0] != "#", csv_as_string.splitlines()),
-    # )
-    # for row in fl_reader:
-    #     # we want simple lookup table 'PrimerPairID'
-    #     tmp = dict(itertools.islice(row.items(), 2, None))
-    #     for i in to_bool:
-    #         tmp[i] = bool(tmp[i])
-    #     for i in to_int:
-    #         if tmp[i] == "":
-    #             tmp[i] = 0
-    #         tmp[i] = int(tmp[i])
-    #     fl_mapping[row["PrimerPairID"]] = tmp
-    # return fl_mapping
+    fluidigm_data = fluidigm_data.replace({np.nan: None})
+    # TODO: switch to vectorization (using this to debug)
+
+    for idx, row in fluidigm_data.iterrows():
+        tada_params = row_to_TADAParams(row, email=email)
+        fl_mapping[tada_params._amplicon.pairID] = tada_params
+    return fl_mapping
 
 
 global dict_keys
@@ -249,14 +406,15 @@ def setup_workspace(args, seq_files, mapping_file):
         "variable",
     ]
     for pair in seq_files.keys():
-        # if pair not in mapping_file:
-        #     print("Pair %s doesn't match anything in the database?" % pair)
-        #     continue
+        if pair not in mapping_file:
+            print("Pair %s doesn't match anything in the database?" % pair)
+            continue
         pairpath = workdir.joinpath(pair)
 
         # Generate primer pair workspace
         try:
-            pairpath.mkdir(parents=True)
+            # TODO: default to not overwriting, add bool flag
+            pairpath.mkdir(parents=True, exist_ok=True)
         except FileExistsError as e:
             raise e
         except FileNotFoundError as e:
@@ -264,7 +422,7 @@ def setup_workspace(args, seq_files, mapping_file):
 
         # set up sample sheet
         # TODO: support explicit or implicit single-end
-        samplesheet = pairpath.joinpath("samplesheet.%s.csv" % pair)
+        samplesheet = pairpath.joinpath("samplesheet.%s.pe.csv" % pair)
         with open(samplesheet, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(["sample", "fastq_1", "fastq_2"])
@@ -277,6 +435,21 @@ def setup_workspace(args, seq_files, mapping_file):
                     ]
                 )
 
+        if args.single_end:
+            print("Generating single-end sample sheet just in case...")
+            samplesheet_se = pairpath.joinpath("samplesheet.%s.se.csv" % pair)
+            with open(samplesheet_se, "w", newline="") as se_csvfile:
+                writer = csv.writer(se_csvfile)
+                writer.writerow(["sample", "fastq_1", "fastq_2"])
+                for sample in seq_files[pair].keys():
+                    writer.writerow(
+                        [
+                            sample,
+                            seq_files[pair][sample]["R1"],
+                            "",
+                        ]
+                    )
+
         # copy config file if available
         configpath = Path(args.config)
         if configpath.is_file():
@@ -288,37 +461,20 @@ def setup_workspace(args, seq_files, mapping_file):
         # parameters
         parampath = pairpath.joinpath("params.%s.yml" % pair)
         with open(parampath, "w") as param_yaml:
-            # if pair == "V4_515F_New_V4_806R_New":
-            #     # add project name, email, input (samplesheet), name,
-            #     # outdir, skip_dadaQC, interactiveMultiQC=FALSE, pool,
-            #     # aligner, runTree, toQIIME2, idType, qualityBinning
-            opts = {
-                "pool": True,
-                "project": pair,
-                "name": pair,
-                "outdir": pair,
-                "skip_dadaQC": True,
-                "skip_multiQC": True,
-                "interactiveMultiQC": False,
-                "pool": "pseudo",
-                "aligner": "DECIPHER",
-                "runTree": "fasttree",
-                "toQIIME2": True,
-                "idType": "md5",
-                "qualityBinning": True,
-                "email": args.email,
-                "input": str(samplesheet),
-            }
-
             mapping = {}
-            if mapping_file:
-                if pair in mapping_file:
-                    for p in params:
-                        mapping = {p: mapping_file[pair][p] for p in params}
-            else:
-                mapping = {p: None for p in params}
+            if mapping_file and pair in mapping_file:
+                mapping_file[pair].input = str(samplesheet)
+                # testing out filtering private and null/NA
+                mapping = mapping_file[pair].__dict__
+                for k, v in list(mapping.items()):
+                    if k.startswith("_") or v is None:
+                        del mapping[k]
 
-            mapping.update(opts)
+                # TODO: we can set up strategy-specific settings here
+                # if mapping_file[pair]._strategy != "paired":
+            else:
+                print(f"Pair {pair} not found, using stub")
+                mapping = {p: None for p in params}
 
             yaml.dump(mapping, param_yaml)
 
