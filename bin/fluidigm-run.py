@@ -79,6 +79,8 @@ class TADAParams(object):
     project: str = None
     trimFor: int = None
     trimRev: int = None
+    fwdprimer: str = None
+    revprimer: str = None
     pool: str = "pseudo"
     email: str = None
     truncFor: int = None
@@ -107,6 +109,7 @@ class TADAParams(object):
     species: str = None
     toQIIME2: bool = True
     idType: str = "md5"
+    interactiveMultiQC: bool = True
 
     def __post_init__(self):
         """
@@ -127,8 +130,10 @@ class TADAParams(object):
 
     def set_trimming(self):
         """
-        If this isn't set, default to the prie
+        If this isn't set, default to the instance
         """
+        self.fwdprimer = self._amplicon.forward_primer
+        self.revprimer = self._amplicon.reverse_primer
         self.trimFor = len(self._amplicon.forward_primer)
         self.trimRev = len(self._amplicon.reverse_primer)
 
@@ -167,10 +172,13 @@ class TADAParams(object):
             )
             if self._amplicon.variable_length == "True" and minovl < 50:
                 self._strategy = "variable"
-            # we don't want to go less than 5-10 if possible
-            # (this might become settable)
+            # we don't want to go less than 5-10 if possible, and no more than
+            # 150 (this may be something we parameterize)
             if minovl <= 10:
                 minovl = 10
+
+            if minovl >= 150:
+                minovl = 150
 
             self.minOverlap = minovl
         else:
