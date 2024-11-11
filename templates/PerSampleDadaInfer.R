@@ -7,6 +7,8 @@ getPriors <- function(x) {
   return(priors)
 }
 
+set.seed(100)
+
 dadaOpt <- ${dadaOpt}
 
 if (!is.na(dadaOpt)) {

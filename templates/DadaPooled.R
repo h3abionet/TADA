@@ -8,6 +8,8 @@ if (!is.na(dadaOpt)) {
   cat("dada Options:\\n",dadaOpt,"\\n")
 }
 
+set.seed(100)
+
 filts <- list.files('.', pattern="${readmode}.filtered.fastq.gz", full.names = TRUE)
 
 err <- readRDS("${err}")
