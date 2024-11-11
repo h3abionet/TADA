@@ -327,7 +327,7 @@ if (params.reads != false) {
     samplesheet
         .splitCsv(header:true, sep:',')
         .map{ row -> create_fastq_channel(row) } 
-        .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs; dada2ReadPairsToDada2QC }
+        .into { dada2ReadPairsToQual; dada2ReadPairsToDada2Qual; dada2ReadPairs; dada2ReadPairsToDada2QC; dada2ReadPairsToMerging }
 } else {
     exit 1, "Must set either --input, --reads, or --seqTables as input"
 }
@@ -339,6 +339,52 @@ if (params.reads != false) {
  */
 
 if (params.reads != false || params.input != false ) { // TODO maybe we should check the channel here
+
+    if (params.precheck && params.check_merging && params.platform != "pacbio") {
+        process MergeCheck_VSEARCH{
+            tag { "MergeCheck-${meta.id}" }
+            publishDir "${params.outdir}/MergeCheck/VSEARCH", mode: "copy", overwrite: true
+
+            input:
+            tuple val(meta), file(reads) from dada2ReadPairsToQual
+
+            output:
+            file "${meta.id}.log" into mergecheck_tables
+            file "${meta.id}.lengthstats.txt" into mergecheck_plot
+
+            script:
+            """
+            vsearch --fastq_mergepairs \\
+                "${reads[0]}" \\
+                --reverse "${reads[1]}" \\
+                --fastqout "${meta.id}.merged.fastq" \\
+                --threads $SLURM_NTASKS \\
+                --fastq_minovlen 5 \\
+                --fastq_allowmergestagger \\
+                --log "${meta.id}.log"
+
+            awk 'NR%4 == 2 {lengths[length(\$0)]++} END {for (l in lengths) {print l, "\\t", lengths[l]}}' \\
+                ${meta.id}.merged.fastq \\
+                > ${meta.id}.lengthstats.txt
+
+            rm ${meta.id}.merged.fastq
+            """            
+        }
+
+        process MergeCheck_Table {
+            tag { "MergeCheck-Consolidate" }
+            publishDir "${params.outdir}/MergeCheck", mode: "copy", overwrite: true
+            
+
+
+        }
+
+        process MergeCheck_HeatMap {
+
+
+        }
+
+    }
 
     process RunFastQC {
         tag { "FastQC-${meta.id}" }
