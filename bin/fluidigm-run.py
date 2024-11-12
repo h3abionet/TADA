@@ -427,7 +427,7 @@ def setup_workspace(args, seq_files, mapping_file):
         # TODO: support explicit or implicit single-end
         samplesheet = pairpath.joinpath("samplesheet.%s.pe.csv" % pair)
         with open(samplesheet, "w", newline="") as csvfile:
-            writer = csv.writer(csvfile)
+            writer = csv.writer(csvfile, lineterminator="\n")
             writer.writerow(["sample", "fastq_1", "fastq_2"])
             for sample in seq_files[pair].keys():
                 writer.writerow(
@@ -442,7 +442,7 @@ def setup_workspace(args, seq_files, mapping_file):
             print("Generating single-end sample sheet just in case...")
             samplesheet_se = pairpath.joinpath("samplesheet.%s.se.csv" % pair)
             with open(samplesheet_se, "w", newline="") as se_csvfile:
-                writer = csv.writer(se_csvfile)
+                writer = csv.writer(se_csvfile, lineterminator="\n")
                 writer.writerow(["sample", "fastq_1", "fastq_2"])
                 for sample in seq_files[pair].keys():
                     writer.writerow(
