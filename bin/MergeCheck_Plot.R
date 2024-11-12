@@ -6,16 +6,16 @@ suppressPackageStartupMessages(library(optparse))
 option_list = list(
     # make_option(c("--forward_clip"), type="character", default=NULL, help="Forward (5') trim"),
     # make_option(c("--reverse_cli["), type="character", default=NULL, help="Reverse (5') trim"),
-    make_option(c("--minMergedLen"), type="numeric", default=0, help="cpus"),
+    # make_option(c("--minMergedLen"), type="numeric", default=0, help="cpus"),
 )
 
-opt <- parse_args(OptionParser(option_list=option_list))minMergedLen
+opt <- parse_args(OptionParser(option_list=option_list))
 len_files <- list.files(".", 
                         pattern = "*.lengthstats.txt", 
                         full.names = TRUE)
 
 lens_tmp <- lapply(len_files,
-                   read_tsv, 
+                   read_tsv,
                    col_names = c("Length", "Count"), col_types = "ii")
 
 names(lens_tmp) <- gsub("\\S+/(\\S+).lengthstats.txt", "\\1", len_files)
@@ -59,5 +59,5 @@ gg <- lens_all |> ggplot(aes(x=Length, y=Sample, fill=ReadCountPerBin)) +
 #   gg <- gg+ geom_vline(xintercept=maxsizeprimers, color = "green", alpha = 0.5)
 # }
 
-ggsave(gg, "MergedCheck_heatmap.pdf")
+ggsave("MergedCheck_heatmap.pdf")
 saveRDS(gg, "MergedCheck_heatmap.RDS")
