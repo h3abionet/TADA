@@ -264,18 +264,27 @@ def main():
         "--single_end",
         action="store_true",
         help="""
-        Common config file for runs (leave blank to use baseline config)
+        If single-end samplesheet is needed
         """,
     )
 
     parser.add_argument(
+        "-q",
         "--quality_binning",
         action="store_true",
         help="""
-        Common config file for runs (leave blank to use baseline config)
+        If quality binning correction (NovaSeq, NextSeq, PacBio) is needed
         """,
     )
 
+    parser.add_argument(
+        "-m",
+        "--check_merging",
+        action="store_true",
+        help="""
+        Check whether reads overlap
+        """,
+    )
     args = parser.parse_args()
 
     print("Step 1: get sequence files")
@@ -286,7 +295,10 @@ def main():
 
     if args.fluidigm:
         mapping_file = parse_fluidigm_mapping(
-            mapping=args.fluidigm, email=args.email, binning=args.quality_binning
+            mapping=args.fluidigm,
+            email=args.email,
+            binning=args.quality_binning,
+            check_merging=args.check_merging,
         )
 
     print("Step 3: set up workspace")
@@ -368,7 +380,9 @@ def row_to_TADAParams(row, email=None):
     return tada_params
 
 
-def parse_fluidigm_mapping(mapping=None, email=None, binning=False):
+def parse_fluidigm_mapping(
+    mapping=None, email=None, binning=False, check_merging=False
+):
     """
     Parsing the mapping files of attributes to primers;
     very little validation at the moment
@@ -391,6 +405,8 @@ def parse_fluidigm_mapping(mapping=None, email=None, binning=False):
         tada_params = row_to_TADAParams(row, email=email)
         if binning:
             tada_params.qualityBinning = True
+        if check_merging:
+            tada_params.check_merging = True
         fl_mapping[tada_params._amplicon.pairID] = tada_params
     return fl_mapping
 
