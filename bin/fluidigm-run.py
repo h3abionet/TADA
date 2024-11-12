@@ -101,6 +101,7 @@ class TADAParams(object):
     trimOverhang: bool = None
     justConcatenate: bool = False
     removeBimeraDenovoOptions: str = None
+    qualityBinning: bool = True
     minMergedLength: int = 50
     maxMergedLength: int = None
     reference: str = None
