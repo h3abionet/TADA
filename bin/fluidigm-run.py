@@ -101,7 +101,7 @@ class TADAParams(object):
     trimOverhang: bool = None
     justConcatenate: bool = False
     removeBimeraDenovoOptions: str = None
-    qualityBinning: bool = True
+    qualityBinning: bool = False
     minMergedLength: int = 50
     maxMergedLength: int = None
     reference: str = None
@@ -268,6 +268,14 @@ def main():
         """,
     )
 
+    parser.add_argument(
+        "--quality_binning",
+        action="store_true",
+        help="""
+        Common config file for runs (leave blank to use baseline config)
+        """,
+    )
+
     args = parser.parse_args()
 
     print("Step 1: get sequence files")
@@ -277,7 +285,9 @@ def main():
     mapping_file = None
 
     if args.fluidigm:
-        mapping_file = parse_fluidigm_mapping(mapping=args.fluidigm, email=args.email)
+        mapping_file = parse_fluidigm_mapping(
+            mapping=args.fluidigm, email=args.email, binning=args.quality_binning
+        )
 
     print("Step 3: set up workspace")
     setup_workspace(args, seq_files, mapping_file)
@@ -358,7 +368,7 @@ def row_to_TADAParams(row, email=None):
     return tada_params
 
 
-def parse_fluidigm_mapping(mapping=None, email=None):
+def parse_fluidigm_mapping(mapping=None, email=None, binning=False):
     """
     Parsing the mapping files of attributes to primers;
     very little validation at the moment
@@ -379,6 +389,8 @@ def parse_fluidigm_mapping(mapping=None, email=None):
 
     for idx, row in fluidigm_data.iterrows():
         tada_params = row_to_TADAParams(row, email=email)
+        if binning:
+            tada_params.qualityBinning = True
         fl_mapping[tada_params._amplicon.pairID] = tada_params
     return fl_mapping
 
