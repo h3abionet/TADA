@@ -341,12 +341,13 @@ if (params.reads != false) {
 if (params.reads != false || params.input != false ) { // TODO maybe we should check the channel here
 
     if (params.precheck && params.check_merging && params.platform != "pacbio") {
+
         process MergeCheck_VSEARCH{
             tag { "MergeCheck-${meta.id}" }
             publishDir "${params.outdir}/MergeCheck/VSEARCH", mode: "copy", overwrite: true
 
             input:
-            tuple val(meta), file(reads) from dada2ReadPairsToQual
+            tuple val(meta), file(reads) from dada2ReadPairsToMerging
 
             output:
             file "${meta.id}.log" into mergecheck_tables
@@ -358,16 +359,16 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
                 "${reads[0]}" \\
                 --reverse "${reads[1]}" \\
                 --fastqout "${meta.id}.merged.fastq" \\
-                --threads $SLURM_NTASKS \\
+                --threads ${task.cpus} \\
                 --fastq_minovlen 5 \\
                 --fastq_allowmergestagger \\
                 --log "${meta.id}.log"
 
             awk 'NR%4 == 2 {lengths[length(\$0)]++} END {for (l in lengths) {print l, "\\t", lengths[l]}}' \\
-                ${meta.id}.merged.fastq \\
-                > ${meta.id}.lengthstats.txt
+                "${meta.id}.merged.fastq" \\
+                > "${meta.id}.lengthstats.txt"
 
-            rm ${meta.id}.merged.fastq
+            rm "${meta.id}.merged.fastq"
             """            
         }
 
@@ -375,15 +376,33 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             tag { "MergeCheck-Consolidate" }
             publishDir "${params.outdir}/MergeCheck", mode: "copy", overwrite: true
             
+            input:
+            file(mergestats) from mergecheck_tables.collect()
 
+            output:
+            file "all_mergedstats.tsv" 
 
+            script:
+            """
+            MergeCheck_Table.R
+            """
         }
 
         process MergeCheck_HeatMap {
+            tag { "MergeCheck-Plot" }
+            publishDir "${params.outdir}/MergeCheck", mode: "copy", overwrite: true
+            
+            input:
+            file(mergedlen) from mergecheck_plot.collect()
 
+            output:
+            file("MergedCheck_heatmap.{RDS,pdf}")
 
+            script:
+            """
+            MergeCheck_Plot.R
+            """
         }
-
     }
 
     process RunFastQC {
