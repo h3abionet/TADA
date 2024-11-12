@@ -89,6 +89,7 @@ class TADAParams(object):
     skip_dadaQC: bool = False
     skip_multiQC: bool = False
     precheck: bool = True
+    check_merging: bool = False
     outdir: str = None
     maxEEFor: int = 2  # DADA2 default = Inf
     maxEERev: int = 2  # DADA2 default = Inf
@@ -381,14 +382,8 @@ def parse_fluidigm_mapping(mapping=None, email=None):
     return fl_mapping
 
 
-global dict_keys
-
-
 def mk_double_quote(dumper, data):
     dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
-
-
-# def setup_workspace(args, seq_files, mapping_file):
 
 
 def setup_workspace(args, seq_files, mapping_file):
