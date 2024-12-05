@@ -17,11 +17,12 @@ option_list = list(
         action = "store_true", 
         help="Generate nf-core compliant YAML file w/ version information"
         ),
-    # make_option(c("--process"),
-    #     type="character",
-    #     default = "PLOT_QUALITY_PROFILE",
-    #     help="Process call"
-    #     ),
+    # TODO: add process option and use this in the block below
+    make_option(c("--process"),
+        type="character",
+        default = "PLOT_QUALITY_PROFILE",
+        help="Process call"
+        ),
     make_option(c("--yaml"),
         default = "versions.yml", 
         help="YAML file name (see --session)")
@@ -40,5 +41,7 @@ saveRDS(pl, paste0(opt$id,".qualities.RDS"))
 if (opt$session) {
     pv <- sapply(packages, function(x) { as.character(packageVersion(x)) }, simplify = FALSE)
     pv$R <- paste0(R.Version()[c("major", "minor")], collapse = ".")
-    write_yaml(list("PLOT_QUALITY_PROFILE"=pv), "versions.yml")
+    session_list <- list(pv)
+    names(session_list) <- opt$process
+    write_yaml(session_list, "versions.yml")
 }

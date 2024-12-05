@@ -13,7 +13,6 @@ process PLOT_QUALITY_PROFILE {
     tuple val(meta), path("*.pdf"), emit: pdf
     tuple val(meta), path("*.RDS"), emit: rds
 
-    // TODO nf-core: List additional required output channels/values here
     path "versions.yml"           , emit: versions
 
     when:

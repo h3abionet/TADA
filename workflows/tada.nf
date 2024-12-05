@@ -31,6 +31,8 @@ include { PLOT_ASV_DIST          } from '../modules/local/plotasvlen'
 include { BIOM                   } from '../modules/local/biom'
 include { SEQTABLE2TEXT          } from '../modules/local/seqtable2txt'
 include { TAXTABLE2TEXT          } from '../modules/local/taxtable2txt'
+
+// TODO: Move into subworkflow(s)
 include { QIIME2_FEATURETABLE    } from '../modules/local/qiime2featuretable'
 include { QIIME2_TAXTABLE        } from '../modules/local/qiime2taxtable'
 include { QIIME2_SEQUENCE        } from '../modules/local/qiime2seqs'
@@ -113,11 +115,15 @@ workflow TADA {
 
     ch_versions = ch_versions.mix(PLOT_QUALITY_PROFILE.out.versions.first())
 
-    VSEARCH_EESTATS (
-        ch_samplesheet
-    )
+    // TODO: this is a data dump at the moment and needs to be cleaned up
+    //       for plots, or maybe incorporation into MultiQC
+
+    // Commenting out until we decide what to do with this.
+    // VSEARCH_EESTATS (
+    //     ch_samplesheet
+    // )
     
-    ch_versions = ch_versions.mix(VSEARCH_EESTATS.out.versions.first())
+    // ch_versions = ch_versions.mix(VSEARCH_EESTATS.out.versions.first())
 
     // TODO: notice aggregation of data for multiqc and for version tracking, 
     // needs to be added throughout the workflow

@@ -16,7 +16,7 @@ process VSEARCH_EESTATS {
     path("${meta.id}.{R1,R2}.stats"), emit: stats
     path("${meta.id}.{R1,R2}.eestats"), emit: eestats
     path("${meta.id}.{R1,R2}.eestats2"), emit: eestats2
-    path("versions.yml")           , emit: versions
+    path("versions.yml"), emit: versions
 
     when:
     task.ext.when == null || task.ext.when

@@ -47,7 +47,7 @@ workflow DADA2_DENOISE {
     RENAME_ASVS(
         REMOVE_CHIMERAS.out.nonchim_seqtable,
         POOLED_SEQTABLE.out.filtered_seqtable
-    )    
+    )
 
     emit:
     nonchimeric_asvs = RENAME_ASVS.out.nonchimeric_asvs
