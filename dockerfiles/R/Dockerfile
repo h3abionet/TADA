@@ -1,4 +1,4 @@
-FROM rocker/verse:4.3.2
+FROM rocker/verse:4.4.2
 #Modified from here https://github.com/davismcc/r-tidybioc-img/blob/master/Dockerfile
 LABEL description="Docker image containing DADA2, DECIPHER, phangorn, and latest R with tidyverse and Bioconductor packages"
  
