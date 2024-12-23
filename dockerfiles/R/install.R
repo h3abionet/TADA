@@ -10,7 +10,7 @@ pkgs <- c(
   "pander",
   "phangorn",
   "dplyr",
-  # "dada2",
+  "dada2",
   "DECIPHER",
   "digest",
   "biomformat",
@@ -19,7 +19,8 @@ pkgs <- c(
 )
 
 # developer (Github) URLs; dev branch only for now
-dev <- c("benjjneb/dada2")
+# dev <- c("benjjneb/dada2")
+dev <- c()
 
 # check that desired packages are available
 ap.db <- available.packages(contrib.url(BiocManager::repositories()))
