@@ -6,8 +6,8 @@ name: nf-core CI
 #     branches:
 #       - dev
 #   pull_request:
-#   release:
-#     types: [published]
+  release:
+    types: [published]
 
 env:
   NXF_ANSI_LOG: false

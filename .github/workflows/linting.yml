@@ -3,13 +3,13 @@ name: nf-core linting
 # It runs the `nf-core lint` and markdown lint tests to ensure
 # that the code meets the nf-core guidelines.
 
-# on:
+on:
 #   push:
 #     branches:
 #       - dev
 #   pull_request:
-#   release:
-#     types: [published]
+  release:
+    types: [published]
 
 jobs:
   pre-commit:
