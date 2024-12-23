@@ -4,23 +4,18 @@ install.packages("BiocManager")
 BiocManager::install()
 
 pkgs <- c(
-  "devtools",
   "RCurl",
   "tidyverse",
   "pander",
   "phangorn",
   "dplyr",
+  "dada2",
   "DECIPHER",
   "digest",
   "biomformat",
   "optparse",
-  "yaml",
-  "dada2"
+  "yaml"
 )
-
-# developer (Github) URLs; dev branch only for now
-dev <- c("benjjneb/dada2")
-# dev <- c()
 
 # check that desired packages are available
 ap.db <- available.packages(contrib.url(BiocManager::repositories()))
@@ -33,8 +28,6 @@ ip <- rownames(ip.db)
 pkgs_to_install <- pkgs_to_install[!(pkgs_to_install %in% ip)]
 
 BiocManager::install(pkgs_to_install)
-
-if (length(dev) > 0) { lapply(dev, devtools::install_github, upgrade = "always") }
 
 ## just in case there were warnings, we want to see them
 ## without having to scroll up:
