@@ -10,12 +10,12 @@ pkgs <- c(
   "pander",
   "phangorn",
   "dplyr",
-  "dada2",
   "DECIPHER",
   "digest",
   "biomformat",
   "optparse",
-  "yaml"
+  "yaml",
+  "dada2"
 )
 
 # developer (Github) URLs; dev branch only for now
