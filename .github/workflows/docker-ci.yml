@@ -67,11 +67,3 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           annotations: ${{ steps.meta.outputs.annotations }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      # Clean untagged containers
-      - name: Delete untagged ghcr
-        uses: Chizkiyahu/delete-untagged-ghcr-action@v5
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-          untagged_only: true
-          except_untagged_multiplatform: true
