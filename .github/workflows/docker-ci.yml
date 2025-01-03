@@ -67,11 +67,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           annotations: ${{ steps.meta.outputs.annotations }}
           labels: ${{ steps.meta.outputs.labels }}
-      -name: Clean untagged Docker images
+      - name: Clean untagged Docker images
         uses: quartx-analytics/ghcr-cleaner@v1
         with:
-          owner-type: org
-          token: ${{ secrets.GITHUB_TOKEN }}
+          owner-type: org # or user
+          token: ${{ secrets.PAT_TOKEN }}
           repository_owner: ${{ github.repository_owner }}
           package-name: tada
           delete-untagged: true
