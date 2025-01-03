@@ -72,6 +72,6 @@ jobs:
         with:
           owner-type: org # or user
           token: ${{ secrets.PAT_TOKEN }}
-          repository_owner: ${{ github.repository_owner }}
+          repository_owner: ${{ github.repository-owner }}
           package-name: tada
           delete-untagged: true
