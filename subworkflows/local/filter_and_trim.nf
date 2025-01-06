@@ -1,5 +1,5 @@
 include { ILLUMINA_FILTER_AND_TRIM   } from '../../modules/local/filterandtrim'
-include { PACBIO_FILTER_AND_TRIM     } from '../../modules/local/filterandtrim'
+// include { PACBIO_FILTER_AND_TRIM     } from '../../modules/local/filterandtrim'
 include { MERGE_TRIM_TABLES          } from '../../modules/local/mergetrimtables'
 
 workflow FILTER_AND_TRIM {
