@@ -39,7 +39,7 @@ process ASSIGN_TAXA_SPECIES {
                         verbose = TRUE)
         boots <- tax\$boot
         if (${runSpecies}) {
-            tax <- addSpecies(tax, "${sp}",
+            tax <- addSpecies(tax\$tax, "${sp}",
                  tryRC = TRUE,
                  verbose = TRUE)
         } else {
