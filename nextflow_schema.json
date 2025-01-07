@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema",
+    "$schema": "https://json-schema.org/draft-07/schema",
     "$id": "https://raw.githubusercontent.com/h3abionet/TADA/master/nextflow_schema.json",
     "title": "h3abionet/TADA pipeline parameters",
     "description": "Targeted Amplicon Diversity Analysis",
@@ -299,56 +299,62 @@
     "properties": {
         "pacbio_strict_match": {
             "type": "boolean",
-            "default": true
-        },
-        "fwd_adapter": {
-            "type": "string"
-        },
-        "rev_adapter": {
-            "type": "string"
+            "default": true,
+            "description": "PacBio `cutadapt`.  Whether both primers need to be required ('True', default) or only one primer ('False')"
         },
         "trim_for": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "DADA2 `filterAndTrim`. Number of bases to hard-trim from 5' end of forward read"
         },
         "trim_rev": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "DADA2 `filterAndTrim`.  Number of bases to hard-trim from 5' end of reverse read"
         },
         "trunc_for": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "DADA2 `filterAndTrim`.  Truncate forward reads after truncLen bases. Reads shorter than this are discarded."
         },
         "trunc_rev": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "DADA2 `filterAndTrim`.  Truncate reverse reads after truncLen bases. Reads shorter than this are discarded."
         },
         "maxEE_for": {
             "type": "integer",
-            "default": 2
+            "default": 2,
+            "description": "DADA2 `filterAndTrim`.  After truncation, forward (R1) or single-end reads with higher than maxEE \"expected errors\" will be discarded. Expected errors are calculated from the nominal definition of the quality score"
         },
         "maxEE_rev": {
             "type": "integer",
-            "default": 2
+            "default": 2,
+            "description": "DADA2 `filterAndTrim`.  After truncation, reverse (R2) reads with higher than maxEE \"expected errors\" will be discarded. Expected errors are calculated from the nominal definition of the quality score"
         },
         "truncQ": {
             "type": "integer",
-            "default": 2
+            "default": 2,
+            "description": "DADA2 `filterAndTrim`.  After truncation, reads contain a quality score less than minQ will be discarded."
         },
         "maxN": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "DADA2 `filterAndTrim`.  After truncation, sequences with more than maxN Ns will be discarded. Note that dada does not allow Ns."
         },
         "max_read_len": {
             "type": "integer",
-            "default": 5000
+            "default": 5000,
+            "description": "DADA2 `filterAndTrim`. Remove reads with length greater than maxLen. maxLen is enforced before trimming and truncation."
         },
         "min_read_len": {
             "type": "integer",
-            "default": 50
+            "default": 50,
+            "description": "DADA2 `filterAndTrim`. Remove reads with length less than minLen. minLen is enforced after trimming and truncation."
         },
         "rmPhiX": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "DADA2 `filterAndTrim`. Whether to remove potential PhiX contamination."
         },
         "min_overlap": {
             "type": "integer",
@@ -451,6 +457,12 @@
         "amplicon_type": {
             "type": "string",
             "default": "overlapping"
+        },
+        "for_primer": {
+            "type": "string"
+        },
+        "rev_primer": {
+            "type": "string"
         }
     }
 }
