@@ -1,6 +1,7 @@
-include { ILLUMINA_FILTER_AND_TRIM   } from '../../modules/local/filterandtrim'
-// include { PACBIO_FILTER_AND_TRIM     } from '../../modules/local/filterandtrim'
-include { MERGE_TRIM_TABLES          } from '../../modules/local/mergetrimtables'
+include { ILLUMINA_DADA2_FILTER_AND_TRIM   } from '../../modules/local/illumina_filterandtrim'
+include { PACBIO_DADA2_FILTER_AND_TRIM     } from '../../modules/local/pacbio_filterandtrim'
+include { PACBIO_CUTADAPT                  } from '../../modules/local/pacbio_cutadapt'
+include { MERGE_TRIM_TABLES                } from '../../modules/local/mergetrimtables'
 
 workflow FILTER_AND_TRIM {
 
@@ -13,14 +14,40 @@ workflow FILTER_AND_TRIM {
     //       cutadapt-based (primers + Ns) + vsearch (EE) - NYI
     //       Hybrid (variable length) - NYI
     // Two options for PacBio:
-    //       cutadapt (trim) + DADA2 filtering (filter) - NYI
+    //       DADA2 filtering (filter) - NYI
     //       cutadapt (trim) + vsearch - NYI
 
-    ILLUMINA_FILTER_AND_TRIM(
-        input
-    )
+    ch_reports = Channel.empty()
+    ch_trimmed = Channel.empty()
+    ch_trimmed_R1 = Channel.empty()
+    ch_trimmed_R2 = Channel.empty()
 
-    ch_reports = ILLUMINA_FILTER_AND_TRIM.out.trimmed_report.collect()
+    if (params.platform == "pacbio") {
+
+        // TODO: this could be modified/split into a `cutadapt`-only step; there
+        // are additional filters for max EE and max N in cutadapt
+        PACBIO_CUTADAPT(
+            input
+        )
+
+        // TODO: should be summarized as well, go to MultiQC
+        // ch_reports = PACBIO_CUTADAPT_FILTER_AND_TRIM.out.cutadapt_report.collect()
+        
+        // TODO: this could be modified/split into a `DADA2`-only step
+        PACBIO_DADA2_FILTER_AND_TRIM(
+            PACBIO_CUTADAPT.out.cutadapt_trimmed
+        )
+        ch_trimmed = PACBIO_DADA2_FILTER_AND_TRIM.out.trimmed
+        ch_trimmed_R1 = PACBIO_DADA2_FILTER_AND_TRIM.out.trimmed
+        ch_reports = PACBIO_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
+    } else {
+        ILLUMINA_DADA2_FILTER_AND_TRIM(
+            input
+        )
+        ch_reports = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
+        ch_trimmed_R1 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R1
+        ch_trimmed_R2 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R2
+    }
 
     // TODO: add variable-length and PacBio
     MERGE_TRIM_TABLES(
@@ -44,11 +71,11 @@ workflow FILTER_AND_TRIM {
     //         .concat(FILTERANDTRIM.out.trimmed_R2.map {['R2', it[1]] } )
     //         .groupTuple(sort: true)
     emit:
-    trimmed = ILLUMINA_FILTER_AND_TRIM.out.trimmed
+    trimmed = ch_trimmed
     trimmed_report = MERGE_TRIM_TABLES.out.trimmed_report // channel: [ RDS ]
-    trimmed_infer = ILLUMINA_FILTER_AND_TRIM.out.trimmed_R1
+    trimmed_infer = ch_trimmed_R1
             .map { [ 'R1', it[1]] }
-            .concat(ILLUMINA_FILTER_AND_TRIM.out.trimmed_R2.map {['R2', it[1]] } )
+            .concat(ch_trimmed_R2.map {['R2', it[1]] } )
             .groupTuple(sort: true)
 }
 
