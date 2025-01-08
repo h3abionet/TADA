@@ -1,4 +1,4 @@
-process LEARN_ERRORS {
+process ILLUMINA_DADA2_LEARN_ERRORS {
     tag "$readmode"
     label 'process_medium'
 
@@ -9,7 +9,6 @@ process LEARN_ERRORS {
 
     output:
     tuple val(readmode), file("errors.${readmode}.RDS"), emit: error_models
-    // path("errors.R[12].RDS"), emit: errorModelsPerSample
     path("${readmode}.err.pdf"), emit: pdf
 
     when:
