@@ -41,9 +41,11 @@ workflow FILTER_AND_TRIM {
         ch_trimmed_R1 = PACBIO_DADA2_FILTER_AND_TRIM.out.trimmed
         ch_reports = PACBIO_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
     } else {
+        // this handles both paired and single-end data
         ILLUMINA_DADA2_FILTER_AND_TRIM(
             input
         )
+        ch_trimmed = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed
         ch_reports = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
         ch_trimmed_R1 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R1
         ch_trimmed_R2 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R2
@@ -54,6 +56,12 @@ workflow FILTER_AND_TRIM {
         ch_reports
     )
 
+    ch_trimmed_infer = ch_trimmed_R1
+            .map { [ 'R1', it[1]] }
+            .concat(ch_trimmed_R2.map {['R2', it[1]] } )
+            .groupTuple(sort: true)
+
+    // ch_trimmed_infer.dump(tag: "infer:", pretty: true)
     // Channel setup
 
     // We need to group data depending on which downstream steps are needed.  There
@@ -73,9 +81,5 @@ workflow FILTER_AND_TRIM {
     emit:
     trimmed = ch_trimmed
     trimmed_report = MERGE_TRIM_TABLES.out.trimmed_report // channel: [ RDS ]
-    trimmed_infer = ch_trimmed_R1
-            .map { [ 'R1', it[1]] }
-            .concat(ch_trimmed_R2.map {['R2', it[1]] } )
-            .groupTuple(sort: true)
+    trimmed_infer = ch_trimmed_infer
 }
-

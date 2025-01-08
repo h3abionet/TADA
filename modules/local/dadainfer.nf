@@ -15,6 +15,10 @@ process DADA_INFER {
 
     script:
     def args = task.ext.args ?: ''
+    // TODO: I'd like to pack the settings onto a stack of parameters for the scripts
+    //       BAND_SIZE can be set using setdadaOpt, but I think we need something 
+    //       structured that can be used. Maybe a YAML/JSON string?
+    def bandsize = params.platform == 'pacbio' ? ', BAND_SIZE=32' : ''
     def dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
     """
     #!/usr/bin/env Rscript
@@ -43,7 +47,7 @@ process DADA_INFER {
     dereps <- derepFastq(filts, n=100000, verbose=TRUE)
 
     cat(paste0("Denoising ${readmode} reads: pool:", pool, "\\n"))
-    dds <- dada(dereps, err=err, multithread=${task.cpus}, pool=pool)
+    dds <- dada(dereps, err=err, multithread=${task.cpus}, pool=pool ${bandsize})
 
     saveRDS(dds, "all.dd.${readmode}.RDS")
     """

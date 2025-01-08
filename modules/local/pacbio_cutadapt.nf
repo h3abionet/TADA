@@ -1,5 +1,8 @@
+// TODO: this is currently a local module; we should try to set this up
+// to use the standard nf-core module
 process PACBIO_CUTADAPT {
     tag "${meta.id}"
+
 
     container 'quay.io/biocontainers/cutadapt:4.1--py310h1425a21_1'
 

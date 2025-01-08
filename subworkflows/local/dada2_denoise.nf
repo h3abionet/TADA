@@ -1,27 +1,33 @@
 // TODO: move to a subworkflow and implement pooled vs per-sample + optional priors
-include { LEARN_ERRORS           } from '../../modules/local/learnerrors'
-include { DADA_INFER             } from '../../modules/local/dadainfer'
-include { POOLED_SEQTABLE        } from '../../modules/local/pooledseqtable'
-include { REMOVE_CHIMERAS        } from '../../modules/local/removechimeras'
-include { RENAME_ASVS            } from '../../modules/local/renameasvs'
+include { ILLUMINA_DADA2_LEARN_ERRORS           } from '../../modules/local/illumina_learnerrors'
+include { PACBIO_DADA2_LEARN_ERRORS             } from '../../modules/local/pacbio_learnerrors'
+include { DADA_INFER                            } from '../../modules/local/dadainfer'
+include { POOLED_SEQTABLE                       } from '../../modules/local/pooledseqtable'
+include { REMOVE_CHIMERAS                       } from '../../modules/local/removechimeras'
+include { RENAME_ASVS                           } from '../../modules/local/renameasvs'
 
 workflow DADA2_DENOISE {
 
     take:
-    // TODO nf-core: edit input (take) channels
-    ch_trimmed_infer // channel: [ val(meta), [ bam ] ]
+    ch_trimmed_infer 
 
     main:
 
     ch_versions = Channel.empty()
 
+    ch_infer = Channel.empty()
     // TODO nf-core: substitute modules here for the modules of your subworkflow
-
-    LEARN_ERRORS (
-        ch_trimmed_infer
-    )
-
-    ch_infer = LEARN_ERRORS.out.error_models.join(ch_trimmed_infer)
+    if (params.platform == 'pacbio') {
+        PACBIO_DADA2_LEARN_ERRORS (
+            ch_trimmed_infer
+        )
+        ch_infer = PACBIO_DADA2_LEARN_ERRORS.out.error_models.join(ch_trimmed_infer)
+    }  else if (params.platform == 'illumina') {
+        ILLUMINA_DADA2_LEARN_ERRORS (
+            ch_trimmed_infer
+        )
+        ch_infer = ILLUMINA_DADA2_LEARN_ERRORS.out.error_models.join(ch_trimmed_infer)
+    }
 
     // TODO: add single-sample ('big data') run
     // this is always in pooled mode at the moment, should be adjusted

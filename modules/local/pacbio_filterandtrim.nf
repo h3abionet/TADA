@@ -8,7 +8,7 @@ process PACBIO_DADA2_FILTER_AND_TRIM {
     tuple val(meta), path(reads)
 
     output:
-    tuple val(meta), path("${meta.id}.trimmed.fastq.gz"), optional: true, emit: trimmed
+    tuple val(meta), path("${meta.id}.R1.filtered.fastq.gz"), optional: true, emit: trimmed
     path("*.trimmed.txt"), emit: trimmed_report
 
     when:
