@@ -12,35 +12,33 @@ include { VSEARCH_EESTATS        } from '../modules/local/vsearch_eestats'
 include { FILTER_AND_TRIM        } from '../subworkflows/local/filter_and_trim'
 include { DADA2_DENOISE          } from '../subworkflows/local/dada2_denoise'
 
-// TODO: may want to move into a subworkflow since we will likely implement a 
-//       few additional methods (q2-feature-classifier, IDTAXA, etc)
+// include { TAXONOMIC_ASSIGNMENT   } from '../subworkflows/local/taxonomic_assignment'
 include { ASSIGN_TAXA_SPECIES    } from '../modules/local/assigntaxaspecies'
 
 // TODO: Move into phylogenetic subworkflow
+// include { PHYLOGENETICS          } from '../subworkflows/local/taxonomic_assignment'
 include { DECIPHER               } from '../modules/local/decipher'
 include { PHANGORN               } from '../modules/local/phangorn'
 include { FASTTREE               } from '../modules/local/fasttree'
 include { ROOT_TREE              } from '../modules/local/roottree'
 
 // TODO: Move into subworkflow(s)
+// include { QUALITY_CONTROL        } from '../subworkflows/local/taxonomic_assignment'
 include { READ_TRACKING          } from '../modules/local/readtracking'
 include { PLOT_MERGED_HEATMAP    } from '../modules/local/plotmerged'
 include { PLOT_ASV_DIST          } from '../modules/local/plotasvlen'
+include { SESSION_INFO           } from '../modules/local/rsessioninfo'
 
 // TODO: Move into subworkflow(s)
+// include { OUTPUT                 } from '../subworkflows/local/taxonomic_assignment'
 include { BIOM                   } from '../modules/local/biom'
 include { SEQTABLE2TEXT          } from '../modules/local/seqtable2txt'
 include { TAXTABLE2TEXT          } from '../modules/local/taxtable2txt'
-
-// TODO: Move into subworkflow(s)
 include { QIIME2_FEATURETABLE    } from '../modules/local/qiime2featuretable'
 include { QIIME2_TAXTABLE        } from '../modules/local/qiime2taxtable'
 include { QIIME2_SEQUENCE        } from '../modules/local/qiime2seqs'
 include { QIIME2_ALIGNMENT       } from '../modules/local/qiime2aln'
 include { QIIME2_TREE            } from '../modules/local/qiime2tree'
-
-// TODO: this can be captured in scripts and used in the versions.yml
-include { SESSION_INFO           } from '../modules/local/rsessioninfo'
 
 include { paramsSummaryMap       } from 'plugin/nf-validation'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
