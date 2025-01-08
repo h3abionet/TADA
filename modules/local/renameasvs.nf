@@ -50,6 +50,10 @@ process RENAME_ASVS {
     seqs.dna.raw <- ShortRead(sread = DNAStringSet(seqs.raw), id = BStringSet(ids_study.raw))
     writeFasta(seqs.dna.raw, file = 'asvs.${params.id_type}.raw.fna')
 
+    # replace rownames
+    rownames(st) <- gsub(".R1.filtered.fastq.gz", "", rownames(st))
+    rownames(st.raw) <- gsub(".R1.filtered.fastq.gz", "", rownames(st.raw))
+
     # Write modified data (note we only keep the no-chimera reads for the next stage)
     saveRDS(st, "seqtab_final.${params.id_type}.RDS")
     saveRDS(data.frame(id = ids_study, seq = seqs), "readmap.RDS")

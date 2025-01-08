@@ -217,7 +217,7 @@ workflow TADA {
     // Subworkflow - Outputs
 
     SEQTABLE2TEXT(
-        DADA2_DENOISE.out.filtered_seqtable
+        DADA2_DENOISE.out.seqtable_renamed
     )
 
     TAXTABLE2TEXT(
