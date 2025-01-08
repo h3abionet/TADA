@@ -59,10 +59,11 @@ workflow TADA {
     ch_samplesheet // channel: [val(meta), path(reads)]
 
     main:
-
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
+    ch_readtracking = Channel.empty()
 
+    // Make sure this is used throughout the workflow instead of params.platform
     def platform = params.platform.toLowerCase()
 
     if (!(["illumina","pacbio"].contains(platform))) {
@@ -141,6 +142,7 @@ workflow TADA {
         ch_samplesheet
     )
 
+    ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
     // Subworkflows-Denoising:
     //     DADA2 
     //          Pooled
@@ -153,6 +155,11 @@ workflow TADA {
     // denoising workflow used.  
     
     DADA2_DENOISE(FILTER_AND_TRIM.out.trimmed_infer)
+
+    // TODO: mix these in a specific order
+    ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.inferred.collect())
+    ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.seqtable_renamed)
+    ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.merged_seqs)
 
     // Subworkflows-Taxonomic assignment (optional)
     ch_taxtab = Channel.empty()
@@ -199,11 +206,9 @@ workflow TADA {
     )
 
     // QC
+
     READ_TRACKING(
-        FILTER_AND_TRIM.out.trimmed_report,
-        DADA2_DENOISE.out.seqtable_renamed,
-        DADA2_DENOISE.out.inferred.collect(),
-        DADA2_DENOISE.out.merged_seqs
+        ch_readtracking.collect()
     )
 
     PLOT_MERGED_HEATMAP(

@@ -60,8 +60,8 @@ workflow FILTER_AND_TRIM {
             .map { [ 'R1', it[1]] }
             .concat(ch_trimmed_R2.map {['R2', it[1]] } )
             .groupTuple(sort: true)
-
     // ch_trimmed_infer.dump(tag: "infer:", pretty: true)
+    
     // Channel setup
 
     // We need to group data depending on which downstream steps are needed.  There

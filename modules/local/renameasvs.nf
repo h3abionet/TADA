@@ -10,6 +10,7 @@ process RENAME_ASVS {
     output:
     path("seqtab_final.${params.id_type}.RDS"), emit: seqtable_renamed
     path("asvs.${params.id_type}.nochim.fna"), emit: nonchimeric_asvs
+    path("asvs.${params.id_type}.raw.fna"), emit: all_asvs
     path("readmap.RDS"), emit: readmap
 
     when:

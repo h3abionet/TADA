@@ -4,10 +4,7 @@ process READ_TRACKING {
     container "ghcr.io/h3abionet/tada:dev"
 
     input:
-    path(trimmed_table)
-    path(seqtab)
-    path(dds)
-    path(mergers)
+    path(tracking)
 
     output:
     path("readtracking.txt"), emit: read_tracking
@@ -24,7 +21,9 @@ process READ_TRACKING {
 
     getN <- function(x) sum(getUniques(x))
 
-    track <- read.csv("${trimmed_table}")
+    # this is the main DADA2 trimmed table 
+    # (consolidated from filterAndTrim)
+    track <- read.csv("all.trimmed.csv")
 
     # the gsub here might be a bit brittle...
     dadaFs <- as.data.frame(sapply(readRDS("all.dd.R1.RDS"), getN))
@@ -43,8 +42,8 @@ process READ_TRACKING {
     }
 
     # TODO: needs to be optional if no merged data (SE reads)
-    if (file.exists("${mergers}")) {
-        all.mergers <- readRDS("${mergers}")
+    if (file.exists("all.merged.RDS")) {
+        all.mergers <- readRDS("all.merged.RDS")
         mergers <- as.data.frame(sapply(all.mergers, function(x) sum(getUniques(x %>% filter(accept)))))
         rownames(mergers) <- gsub('.R1.filtered.fastq.gz', '',rownames(mergers))
         colnames(mergers) <- c("merged")
@@ -52,7 +51,7 @@ process READ_TRACKING {
         track <- merge(track, mergers, by = "SampleID",  all.x=TRUE)
     }
 
-    seqtab.nochim <- as.data.frame(rowSums(readRDS("${seqtab}")))
+    seqtab.nochim <- as.data.frame(rowSums(readRDS("seqtab_final.${params.id_type}.RDS")))
     rownames(seqtab.nochim) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.nochim))
     colnames(seqtab.nochim) <- c("seqtab.nochim")
     seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
@@ -63,7 +62,6 @@ process READ_TRACKING {
     track[is.na(track)] <- 0
 
     write.table(track, "readtracking.txt", sep = "\\t", row.names = FALSE)
-
     """
 
     stub:
