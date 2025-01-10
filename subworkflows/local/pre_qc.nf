@@ -14,35 +14,43 @@ workflow PRE_QC {
 
     take:
     ch_samplesheet
+    skip_ee
+    skip_merging
+    skip_dadaQC
 
     main:
     ch_versions = Channel.empty()
 
-    VSEARCH_OVERLAP(
-        ch_samplesheet
-    )
+    if (!skip_merging) {
+        VSEARCH_OVERLAP(
+            ch_samplesheet
+        )
 
-    ch_versions = ch_versions.mix(VSEARCH_OVERLAP.out.versions.first())
+        ch_versions = ch_versions.mix(VSEARCH_OVERLAP.out.versions.first())
+        MERGE_OVERLAP_CHECK(
+            VSEARCH_OVERLAP.out.merged_log.collect()
+        )
 
-    VSEARCH_EESTATS (
-        ch_samplesheet
-    )
+        OVERLAP_HEATMAP(
+            VSEARCH_OVERLAP.out.merged_stats.collect()
+        )        
+    }
 
-    ch_versions = ch_versions.mix(VSEARCH_EESTATS.out.versions.first())
+    if (!skip_ee) {
+        VSEARCH_EESTATS (
+            ch_samplesheet
+        )
 
-    MERGE_OVERLAP_CHECK(
-        VSEARCH_OVERLAP.out.merged_log.collect()
-    )
+        ch_versions = ch_versions.mix(VSEARCH_EESTATS.out.versions.first())
+    }
+    
+    if (!skip_dadaQC) {
+        PLOT_QUALITY_PROFILE (
+            ch_samplesheet
+        )
 
-    OVERLAP_HEATMAP(
-        VSEARCH_OVERLAP.out.merged_stats.collect()
-    )
-
-    PLOT_QUALITY_PROFILE (
-        ch_samplesheet
-    )
-
-    ch_versions = ch_versions.mix(PLOT_QUALITY_PROFILE.out.versions.first())
+        ch_versions = ch_versions.mix(PLOT_QUALITY_PROFILE.out.versions.first())
+    }
     
     emit:
     versions = ch_versions                     // channel: [ versions.yml ]

@@ -103,7 +103,10 @@ workflow TADA {
     ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
     PRE_QC(
-        ch_samplesheet
+        ch_samplesheet,
+        params.skip_ee,
+        params.skip_merging,
+        params.skip_dadaQC
     )
 
     ch_versions = ch_versions.mix(PRE_QC.out.versions)
@@ -167,12 +170,12 @@ workflow TADA {
     // would be useful for...
     // this needs to die with an error message if method is not defined, or
     // it needs to be caught above
-    if (params.run_tree == 'phangorn') {
+    if (params.phylo_tool == 'phangorn') {
         PHANGORN(
             DECIPHER.out.alignment
         )
         ch_tree = PHANGORN.out.treeGTR
-    } else if (params.run_tree == 'fasttree') {
+    } else if (params.phylo_tool == 'fasttree') {
         FASTTREE(
             DECIPHER.out.alignment
         )
@@ -181,7 +184,7 @@ workflow TADA {
 
     ROOT_TREE(
         ch_tree,
-        params.run_tree
+        params.phylo_tool
     )
 
     // QC
