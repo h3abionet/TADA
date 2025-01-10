@@ -14,7 +14,7 @@ process VSEARCH_EESTATS {
     path("versions.yml"), emit: versions
 
     when:
-    params.check_ee || task.ext.when == null || task.ext.when
+    params.skip_ee || task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
