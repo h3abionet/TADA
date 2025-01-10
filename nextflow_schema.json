@@ -358,91 +358,108 @@
         },
         "min_overlap": {
             "type": "integer",
-            "default": 20
+            "default": 20,
+            "description": "DADA2 `mergePairs`: minimum base overlap required for paired reads to be merged"
         },
         "max_mismatch": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "DADA2 `mergePairs`: max mismatch allowed for overlaps"
         },
         "trim_overhang": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "DADA2 `mergePairs`: trim any overhanging sequence"
         },
         "just_concatenate": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "DADA2 `mergePairs`: just concatentate reads"
         },
         "dadaOpt": {
             "type": "string",
-            "default": "[]"
+            "default": "[]",
+            "description": "YAML-based string for dadaOpts"
         },
         "max_asv_len": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "Maximum ASV length"
         },
         "min_asv_len": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "Minimum ASV length"
         },
         "chimera_detection": {
             "type": "boolean",
-            "default": true
+            "default": true,
+            "description": "Run chimera detection/removal"
         },
         "tax_assignment_method": {
             "type": "string",
-            "default": "rdp"
+            "default": "rdp",
+            "description": "Taxonomic method to use (default is RDP implementation in DADA2, `assignTaxonomy`)"
         },
         "reference": {
-            "type": "string"
+            "type": "string",
+            "description": "Taxonomic reference database. Must be formatted for the appropriate taxonomic method used"
         },
         "species": {
-            "type": "string"
+            "type": "string",
+            "description": "DADA2 `assignTaxonomy`: Species-formatted database for DADA2"
         },
         "min_boot": {
             "type": "integer",
-            "default": 50
+            "default": 50,
+            "description": "DADA2 `assignTaxonomy`: Min. bootstrap value for RDP classifier"
         },
         "tax_levels": {
-            "type": "string"
+            "type": "string",
+            "description": "DADA2 `assignTaxonomy`: alternative ranks for assignments"
         },
         "tax_batch": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "DADA2 `assignTaxonomy`: run this many ASVs at a time, then concatenate results; this can help reduce memory usage for very large (>50k) ASV data sets (default of 0 = no batching)"
         },
-        "alignment": {
+        "skip_alignment": {
             "type": "boolean",
-            "default": true
+            "description": "Run multiple sequence alignment"
         },
         "aligner": {
             "type": "string",
-            "default": "DECIPHER"
-        },
-        "run_tree": {
-            "type": "string",
-            "default": "phangorn"
+            "default": "DECIPHER",
+            "description": "Aligner to use.  Currently one option ('DECIPHER')"
         },
         "pool": {
             "type": "string",
-            "default": "pseudo"
+            "default": "pseudo",
+            "description": "DADA2 `dada`: pooling option (True, False, or 'pseudo')"
         },
         "to_BIOM": {
             "type": "boolean",
-            "default": true
+            "default": true,
+            "description": "Generate BIOM output"
         },
         "to_QIIME2": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Generate QIIME2 output"
         },
         "id_type": {
             "type": "string",
-            "default": "md5"
+            "default": "md5",
+            "description": "Options for renaming sequences from DADA2 to simpler IDs. Options are 'md5' and 'simple'"
         },
         "quality_binning": {
             "type": "boolean",
             "description": "Are the quality scores binned?  This can be used to adjust the error model for DADA2."
         },
         "rescue_unmerged": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "DADA2 `mergePairs`: Rescue unmerged reads by concatenation"
         },
         "removeBimeraDenovo_options": {
-            "type": "string"
+            "type": "string",
+            "description": "DADA2 `removeBimeraDenovo`: additional options for chimera detection and removal"
         },
         "amplicon": {
             "type": "string",
@@ -456,13 +473,49 @@
         },
         "amplicon_type": {
             "type": "string",
-            "default": "overlapping"
+            "default": "overlapping",
+            "description": "NYI. This will affect the methods for trimming and merging of read data and may change"
         },
         "for_primer": {
-            "type": "string"
+            "type": "string",
+            "description": "Forward primer sequence"
         },
         "rev_primer": {
-            "type": "string"
+            "type": "string",
+            "description": "Reverse primer sequence"
+        },
+        "quality_bins": {
+            "type": "string",
+            "description": "Comma-separated list of binned qualities (Phred scale). Requires 'quality_binning' to be set"
+        },
+        "skip_dadaQC": {
+            "type": "boolean",
+            "description": "Skip the DADA2 `plotQuality` step, which runs per sample and can take time for larger data sets and long read data"
+        },
+        "skip_FASTQC": {
+            "type": "boolean",
+            "description": "Skip FASTQC, which runs per sample and can take time for larger data sets and long read data"
+        },
+        "skip_multiQC": {
+            "type": "boolean",
+            "description": "Skip MultiQC, which runs per sample and can take time for larger data sets and long read data"
+        },
+        "skip_merging": {
+            "type": "boolean",
+            "description": "Skip read merge QC, which runs per sample and can take time for larger paired-read data sets"
+        },
+        "skip_ee": {
+            "type": "boolean",
+            "description": "Skip expected error QC, which runs per sample and can take time for larger data sets"
+        },
+        "skip_tree": {
+            "type": "boolean",
+            "description": "Skip phylogenetic tree generation, which can take time for larger ASV data sets"
+        },
+        "phylo_tool": {
+            "type": "string",
+            "default": "fasttree",
+            "description": "Tool to use for tree generation.  Options are 'fasttree' and 'phangorn'"
         }
     }
 }

@@ -6,9 +6,8 @@
 
 include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
-include { PLOT_QUALITY_PROFILE   } from '../modules/local/plotqualityprofile'
-include { VSEARCH_EESTATS        } from '../modules/local/vsearch_eestats'
 
+include { PRE_QC                 } from '../subworkflows/local/pre_qc'
 include { FILTER_AND_TRIM        } from '../subworkflows/local/filter_and_trim'
 include { DADA2_DENOISE          } from '../subworkflows/local/dada2_denoise'
 
@@ -68,7 +67,7 @@ workflow TADA {
         exit 1, "Only supported platforms (--platform argument) are currently 'pacbio' or 'illumina'"
     }
 
-    // TODO: implement seqtable input
+    // TODO: implement seqtable input?
     // // ${deity} there has to be a better way to check this!
     // if ( (params.seqTables && params.reads) || 
     //      (params.input  && params.reads) || 
@@ -96,9 +95,6 @@ workflow TADA {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
     }
 
-    //
-    // MODULE: Run FastQC
-    //
     FASTQC (
         ch_samplesheet
     )
@@ -106,28 +102,13 @@ workflow TADA {
     ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
     ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
-    // TODO: we may want to allow aggregation of the read files for larger projects;
-    // current version is per read per sample
-    PLOT_QUALITY_PROFILE (
+    PRE_QC(
         ch_samplesheet
     )
 
-    ch_versions = ch_versions.mix(PLOT_QUALITY_PROFILE.out.versions.first())
-
-    // TODO: this is a data dump at the moment and needs to be cleaned up
-    //       for plots, or maybe incorporation into MultiQC
-
-    // Commenting out until we decide what to do with this.
-    // VSEARCH_EESTATS (
-    //     ch_samplesheet
-    // )
+    ch_versions = ch_versions.mix(PRE_QC.out.versions)
     
-    // ch_versions = ch_versions.mix(VSEARCH_EESTATS.out.versions.first())
-
-    // TODO: notice aggregation of data for multiqc and for version tracking, 
-    // needs to be added throughout the workflow
     // ch_multiqc_files = ch_multiqc_files.mix(PLOTQUALITYPROFILE.out.zip.collect{it[1]})
-    // ch_versions = ch_versions.mix(PLOTQUALITYPROFILE.out.versions.first())
 
     // Subworkflows-Trimming and Filtering:
     //     cutadapt (overlapping paired: V4, COI)
