@@ -13,7 +13,7 @@ process VSEARCH_OVERLAP {
     path "versions.yml",                emit: versions
 
     when:
-    params.skip_merging == false || task.ext.when == null || task.ext.when
+    task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
