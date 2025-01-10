@@ -376,7 +376,6 @@
         },
         "dadaOpt": {
             "type": "string",
-            "default": "[]",
             "description": "YAML-based string for dadaOpts"
         },
         "max_asv_len": {
@@ -502,11 +501,13 @@
         },
         "skip_merging": {
             "type": "boolean",
-            "description": "Skip read merge QC, which runs per sample and can take time for larger paired-read data sets"
+            "description": "Skip read merge QC, which runs per sample and can take time for larger paired-read data sets",
+            "default": true
         },
         "skip_ee": {
             "type": "boolean",
-            "description": "Skip expected error QC, which runs per sample and can take time for larger data sets"
+            "description": "Skip expected error QC, which runs per sample and can take time for larger data sets",
+            "default": true
         },
         "skip_tree": {
             "type": "boolean",
