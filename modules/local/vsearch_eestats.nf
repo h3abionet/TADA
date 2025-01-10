@@ -1,8 +1,3 @@
-// TODO: at the moment I'm checking on the feasibility of using 
-//       these for additional QC plots, esp on cum expected errors;
-//       at the moment they are a bit of a data dump
-// TODO: not sure if this is a module or not already in place, need to check
-
 process VSEARCH_EESTATS {
     tag "$meta.id"
     label 'process_low'
@@ -19,7 +14,7 @@ process VSEARCH_EESTATS {
     path("versions.yml"), emit: versions
 
     when:
-    task.ext.when == null || task.ext.when
+    params.check_ee || task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
