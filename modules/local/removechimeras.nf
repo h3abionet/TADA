@@ -1,4 +1,4 @@
-process REMOVE_CHIMERAS {
+process DADA2_REMOVE_CHIMERAS {
     label 'process_medium'
 
     container "ghcr.io/h3abionet/tada:dev"

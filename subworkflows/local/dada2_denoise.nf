@@ -3,7 +3,7 @@ include { ILLUMINA_DADA2_LEARN_ERRORS           } from '../../modules/local/illu
 include { PACBIO_DADA2_LEARN_ERRORS             } from '../../modules/local/pacbio_learnerrors'
 include { DADA_INFER                            } from '../../modules/local/dadainfer'
 include { POOLED_SEQTABLE                       } from '../../modules/local/pooledseqtable'
-include { REMOVE_CHIMERAS                       } from '../../modules/local/removechimeras'
+include { DADA2_REMOVE_CHIMERAS                 } from '../../modules/local/removechimeras'
 include { RENAME_ASVS                           } from '../../modules/local/renameasvs'
 
 workflow DADA2_DENOISE {
@@ -46,12 +46,12 @@ workflow DADA2_DENOISE {
         ch_trimmed
         )
 
-    REMOVE_CHIMERAS(
+    DADA2_REMOVE_CHIMERAS(
         POOLED_SEQTABLE.out.filtered_seqtable
     )
 
     RENAME_ASVS(
-        REMOVE_CHIMERAS.out.nonchim_seqtable,
+        DADA2_REMOVE_CHIMERAS.out.nonchim_seqtable,
         POOLED_SEQTABLE.out.filtered_seqtable
     )
 
