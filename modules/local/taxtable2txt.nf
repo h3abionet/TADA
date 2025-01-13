@@ -1,16 +1,16 @@
-process TAXTABLE2TEXT {
+process DADA2_TAXTABLE2TEXT {
 
     container "ghcr.io/h3abionet/tada:dev"
 
     input:
-    path(tax)
-    path(bt)
+    path(taxtab_rds)
+    path(bootstrap_rds)
     path(map)
 
     output:
-    path("tax_final.RDS"), emit: taxtabRDS
-    path("tax_final.txt"), emit: taxtab2qiime
-    path("*.txt")
+    path("tax_final.RDS"), emit: taxtab_rds
+    path("tax_final.txt"), emit: taxtab
+    path("tax_final.bootstraps.txt"), emit: metrics
 
     when:
     task.ext.when == null || task.ext.when
@@ -23,7 +23,7 @@ process TAXTABLE2TEXT {
     suppressPackageStartupMessages(library(dada2))
     suppressPackageStartupMessages(library(ShortRead))
 
-    tax <- readRDS("${tax}")
+    tax <- readRDS("${taxtab_rds}")
     map <- readRDS("${map}")
 
     # Note that we use the old ASV ID for output here
@@ -43,10 +43,10 @@ process TAXTABLE2TEXT {
         row.names = FALSE,
         col.names=c('#OTU ID', colnames(tax)), sep = "\t")
 
-    if (file.exists('bootstrap_final.RDS')) {
-        boots <- readRDS("${bt}")
+    if (file.exists("${bootstrap_rds}")) {
+        boots <- readRDS("${bootstrap_rds}")
         write.table(data.frame('ASVID' = row.names(boots), boots),
-            file = 'tax_final.bootstraps.full.txt',
+            file = 'tax_final.bootstraps.txt',
             row.names = FALSE,
             col.names=c('#OTU ID', colnames(boots)), sep = "\t")
     }

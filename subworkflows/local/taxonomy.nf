@@ -1,36 +1,37 @@
-// TODO nf-core: If in doubt look at other nf-core/subworkflows to see how we are doing things! :)
-//               https://github.com/nf-core/modules/tree/master/subworkflows
-//               You can also ask for help via your pull request or on the #subworkflows channel on the nf-core Slack workspace:
-//               https://nf-co.re/join
-// TODO nf-core: A subworkflow SHOULD import at least two modules
-
-include { SAMTOOLS_SORT      } from '../../../modules/nf-core/samtools/sort/main'
-include { SAMTOOLS_INDEX     } from '../../../modules/nf-core/samtools/index/main'
+include { DADA2_ASSIGN_TAXA_SPECIES    } from '../../modules/local/assigntaxaspecies'
+include { DADA2_TAXTABLE2TEXT          } from '../../modules/local/taxtable2txt'
 
 workflow TAXONOMY {
 
     take:
-    // TODO nf-core: edit input (take) channels
-    ch_bam // channel: [ val(meta), [ bam ] ]
+    readmap      // TODO: this should be modified to a simple FASTA
+    ref_file     // General use
+    species_file // DADA2-specific
 
     main:
-
     ch_versions = Channel.empty()
+    ch_taxtab = Channel.empty()
+    ch_metrics =  Channel.empty()
 
-    // TODO nf-core: substitute modules here for the modules of your subworkflow
+    DADA2_ASSIGN_TAXA_SPECIES(
+        readmap,
+        ref_file,
+        species_file
+    )
 
-    SAMTOOLS_SORT ( ch_bam )
-    ch_versions = ch_versions.mix(SAMTOOLS_SORT.out.versions.first())
-
-    SAMTOOLS_INDEX ( SAMTOOLS_SORT.out.bam )
-    ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
+    // harmonize to TSV tax assn table + any metrics per ASV ID
+    DADA2_TAXTABLE2TEXT(
+        DADA2_ASSIGN_TAXA_SPECIES.out.taxtab_rds,
+        DADA2_ASSIGN_TAXA_SPECIES.out.metrics_rds,
+        readmap
+    )
 
     emit:
-    // TODO nf-core: edit emitted channels
-    bam      = SAMTOOLS_SORT.out.bam           // channel: [ val(meta), [ bam ] ]
-    bai      = SAMTOOLS_INDEX.out.bai          // channel: [ val(meta), [ bai ] ]
-    csi      = SAMTOOLS_INDEX.out.csi          // channel: [ val(meta), [ csi ] ]
+    // TODO: I'd like to make the data less dependent on R, so 
+    // move to passing standard formats (TSV, CSV, FASTA, etc)
+    ch_taxtab_rds = DADA2_ASSIGN_TAXA_SPECIES.out.taxtab_rds 
+    ch_taxtab = DADA2_TAXTABLE2TEXT.out.taxtab    // channel: [ TSV ]
+    ch_metrics = DADA2_TAXTABLE2TEXT.out.metrics  // channel: [ TSV ]
 
-    versions = ch_versions                     // channel: [ versions.yml ]
+    versions = ch_versions                        // channel: [ versions.yml ]
 }
-

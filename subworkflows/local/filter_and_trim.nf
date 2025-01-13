@@ -6,7 +6,8 @@ include { MERGE_TRIM_TABLES                } from '../../modules/local/mergetrim
 workflow FILTER_AND_TRIM {
 
     take:
-    input //channel: [val(meta), path(reads)]
+    input           //channel: [val(meta), path(reads)]
+    skip_filtering  
 
     main:
     // Three options for Illumina data:
@@ -56,12 +57,6 @@ workflow FILTER_AND_TRIM {
         ch_reports
     )
 
-    ch_trimmed_infer = ch_trimmed_R1
-            .map { [ 'R1', it[1]] }
-            .concat(ch_trimmed_R2.map {['R2', it[1]] } )
-            .groupTuple(sort: true)
-    // ch_trimmed_infer.dump(tag: "infer:", pretty: true)
-    
     // Channel setup
 
     // We need to group data depending on which downstream steps are needed.  There
@@ -74,10 +69,11 @@ workflow FILTER_AND_TRIM {
     // 2. LearnErrors and the pooled denoising branch requires all R1 and all R2, but 
     //    the two groups can be processed in parallel.  So we set up the channels with 
     //    this in mind. No sample ID info is really needed.
-    // ch_trimmed_infer = FILTERANDTRIM.out.trimmed_R1
-    //         .map { [ 'R1', it[1]] }
-    //         .concat(FILTERANDTRIM.out.trimmed_R2.map {['R2', it[1]] } )
-    //         .groupTuple(sort: true)
+    ch_trimmed_infer = ch_trimmed_R1
+            .map { [ 'R1', it[1]] }
+            .concat(ch_trimmed_R2.map {['R2', it[1]] } )
+            .groupTuple(sort: true)
+
     emit:
     trimmed = ch_trimmed
     trimmed_report = MERGE_TRIM_TABLES.out.trimmed_report // channel: [ RDS ]

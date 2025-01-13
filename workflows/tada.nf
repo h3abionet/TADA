@@ -10,9 +10,7 @@ include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { PRE_QC                 } from '../subworkflows/local/pre_qc'
 include { FILTER_AND_TRIM        } from '../subworkflows/local/filter_and_trim'
 include { DADA2_DENOISE          } from '../subworkflows/local/dada2_denoise'
-
-// include { TAXONOMIC_ASSIGNMENT   } from '../subworkflows/local/taxonomic_assignment'
-include { ASSIGN_TAXA_SPECIES    } from '../modules/local/assigntaxaspecies'
+include { TAXONOMY               } from '../subworkflows/local/taxonomy'
 
 // TODO: Move into phylogenetic subworkflow
 // include { PHYLOGENETICS          } from '../subworkflows/local/taxonomic_assignment'
@@ -30,9 +28,8 @@ include { SESSION_INFO           } from '../modules/local/rsessioninfo'
 
 // TODO: Move into subworkflow(s)
 // include { OUTPUT                 } from '../subworkflows/local/taxonomic_assignment'
+include { DADA2_SEQTABLE2TEXT       } from '../modules/local/seqtable2txt'
 include { BIOM                   } from '../modules/local/biom'
-include { SEQTABLE2TEXT          } from '../modules/local/seqtable2txt'
-include { TAXTABLE2TEXT          } from '../modules/local/taxtable2txt'
 include { QIIME2_FEATURETABLE    } from '../modules/local/qiime2featuretable'
 include { QIIME2_TAXTABLE        } from '../modules/local/qiime2taxtable'
 include { QIIME2_SEQUENCE        } from '../modules/local/qiime2seqs'
@@ -116,29 +113,31 @@ workflow TADA {
     // Subworkflows-Trimming and Filtering:
     //     cutadapt (overlapping paired: V4, COI)
     //     cutadapt (variable paired: ITS)
-    //     cutadapt (long reads: PacBio 16S)
+    //     cutadapt (full-length reads: PacBio 16S)
     //     DADA2 filterAndTrim
     //     Alternative est error filtering
 
     FILTER_AND_TRIM (
-        ch_samplesheet
+        ch_samplesheet,
+        params.skip_trimming
     )
 
     ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
-    // Subworkflows-Denoising:
-    //     DADA2 
-    //          Pooled
-    //          Per-sample
-    //     Denoising (proposed alts): VSEARCH/Deblur
-    //          Per-sample
 
     // TODO: Input for these should be the trimmed reads from above, but
     // they may need to be mixed in different ways depending on the 
-    // denoising workflow used.  
+    // denoising workflow used
     
-    DADA2_DENOISE(FILTER_AND_TRIM.out.trimmed_infer)
+    // TODO: harmonize output when possible (FASTA + TSV)
+    DADA2_DENOISE(
+        FILTER_AND_TRIM.out.trimmed_infer
+    )
 
-    // TODO: mix these in a specific order
+    // TODO: split out chimera removal into a separate step
+    // CHIMERA_REMOVAL()
+
+    // TODO: mix these in a specific order? This would help when merging
+    //       multiple tables from different sources
     ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.inferred.collect())
     ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.seqtable_renamed)
     ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.merged_seqs)
@@ -146,17 +145,21 @@ workflow TADA {
     // Subworkflows-Taxonomic assignment (optional)
     ch_taxtab = Channel.empty()
     ch_boots =  Channel.empty()
+
     if (params.reference) {
         ref_file = file(params.reference, checkIfExists: true)
         species_file = params.species ? file(params.species, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
 
-        ASSIGN_TAXA_SPECIES(
+        // TODO: add alternative callers:
+        //      DECIPHER, USEARCH/VSEARCH,q2, BLAST
+        // TODO: readmap -> FASTA?
+        TAXONOMY(
             DADA2_DENOISE.out.readmap,
             ref_file,
             species_file
         )
-        ch_taxtab = ASSIGN_TAXA_SPECIES.out.taxtab
-        ch_boots = ASSIGN_TAXA_SPECIES.out.bootstraps
+        ch_taxtab = TAXONOMY.out.ch_taxtab
+        ch_metrics = TAXONOMY.out.ch_metrics
     }
     
     // Subworkflows-Alignment + Phylogenetic Tree (optional)
@@ -166,10 +169,6 @@ workflow TADA {
 
     ch_tree = Channel.empty()
 
-    // this seems like the sort of thing a function map 
-    // would be useful for...
-    // this needs to die with an error message if method is not defined, or
-    // it needs to be caught above
     if (params.phylo_tool == 'phangorn') {
         PHANGORN(
             DECIPHER.out.alignment
@@ -180,15 +179,14 @@ workflow TADA {
             DECIPHER.out.alignment
         )
         ch_tree = FASTTREE.out.treeGTR
-    } 
+    }
 
     ROOT_TREE(
         ch_tree,
         params.phylo_tool
     )
 
-    // QC
-
+    // Post-QC
     READ_TRACKING(
         ch_readtracking.collect()
     )
@@ -203,24 +201,20 @@ workflow TADA {
 
     // Subworkflow - Outputs
 
-    SEQTABLE2TEXT(
+    // TODO: these could be moved into the 
+    DADA2_SEQTABLE2TEXT(
         DADA2_DENOISE.out.seqtable_renamed
     )
 
-    TAXTABLE2TEXT(
-        ch_taxtab,
-        ch_boots,
-        DADA2_DENOISE.out.readmap
-    )
-
+    // TODO: BIOM should read in TSV files, not RDS
     BIOM(
         DADA2_DENOISE.out.seqtable_renamed,
-        ch_taxtab
+        TAXONOMY.out.ch_taxtab_rds
     )
 
-    QIIME2_FEATURETABLE(SEQTABLE2TEXT.out.seqtab2qiime)
+    QIIME2_FEATURETABLE(DADA2_SEQTABLE2TEXT.out.seqtab2qiime)
 
-    QIIME2_TAXTABLE(TAXTABLE2TEXT.out.taxtab2qiime)
+    QIIME2_TAXTABLE(ch_taxtab)
 
     QIIME2_SEQUENCE(DADA2_DENOISE.out.nonchimeric_asvs)
 

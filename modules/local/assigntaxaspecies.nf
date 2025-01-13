@@ -1,4 +1,4 @@
-process ASSIGN_TAXA_SPECIES {
+process DADA2_ASSIGN_TAXA_SPECIES {
     label 'process_medium'
 
     container "ghcr.io/h3abionet/tada:dev"
@@ -9,8 +9,8 @@ process ASSIGN_TAXA_SPECIES {
     path(sp)
     
     output:
-    path("tax_final.RDS"), emit: taxtab
-    path("bootstrap_final.RDS"), emit: bootstraps
+    path("tax_final.RDS"), emit: taxtab_rds
+    path("bootstrap_final.RDS"), emit: metrics_rds
     
     when:
     task.ext.when == null || task.ext.when

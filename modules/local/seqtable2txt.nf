@@ -1,4 +1,4 @@
-process SEQTABLE2TEXT {
+process DADA2_SEQTABLE2TEXT {
 
     container "ghcr.io/h3abionet/tada:dev"
 
