@@ -12,7 +12,8 @@ workflow TAXONOMY {
     ch_versions = Channel.empty()
     ch_taxtab = Channel.empty()
     ch_metrics =  Channel.empty()
-
+    // TODO: eventually this will have multiple options for
+    //       taxonomic assignment
     DADA2_ASSIGN_TAXA_SPECIES(
         readmap,
         ref_file,

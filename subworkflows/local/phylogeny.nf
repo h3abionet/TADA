@@ -1,36 +1,49 @@
-// TODO nf-core: If in doubt look at other nf-core/subworkflows to see how we are doing things! :)
-//               https://github.com/nf-core/modules/tree/master/subworkflows
-//               You can also ask for help via your pull request or on the #subworkflows channel on the nf-core Slack workspace:
-//               https://nf-co.re/join
-// TODO nf-core: A subworkflow SHOULD import at least two modules
-
-include { SAMTOOLS_SORT      } from '../../../modules/nf-core/samtools/sort/main'
-include { SAMTOOLS_INDEX     } from '../../../modules/nf-core/samtools/index/main'
+include { DECIPHER               } from '../../modules/local/decipher'
+include { PHANGORN               } from '../../modules/local/phangorn'
+include { FASTTREE               } from '../../modules/local/fasttree'
+include { ROOT_TREE              } from '../../modules/local/roottree'
 
 workflow PHYLOGENY {
-
     take:
-    // TODO nf-core: edit input (take) channels
-    ch_bam // channel: [ val(meta), [ bam ] ]
+    asvs
 
     main:
 
+    ch_alignment = Channel.empty()
+    ch_unrooted_tree = Channel.empty()
+    ch_rooted_tree = Channel.empty()
     ch_versions = Channel.empty()
 
-    // TODO nf-core: substitute modules here for the modules of your subworkflow
+    if (!params.skip_alignment) {
+        DECIPHER(
+            asvs
+        )
+        ch_alignment = DECIPHER.out.alignment
+        if (!params.skip_tree) {
+            if (params.phylo_tool == 'phangorn') {
+                PHANGORN(
+                    ch_alignment
+                )
+                ch_unrooted_tree = PHANGORN.out.treeGTR
+            } else if (params.phylo_tool == 'fasttree') {
+                FASTTREE(
+                    ch_alignment
+                )
+                ch_unrooted_tree = FASTTREE.out.treeGTR
+            }
 
-    SAMTOOLS_SORT ( ch_bam )
-    ch_versions = ch_versions.mix(SAMTOOLS_SORT.out.versions.first())
-
-    SAMTOOLS_INDEX ( SAMTOOLS_SORT.out.bam )
-    ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
+            ROOT_TREE(
+                ch_unrooted_tree,
+                params.phylo_tool
+            )
+            ch_rooted_tree = ROOT_TREE.out.rooted_tree
+        }
+    }
 
     emit:
-    // TODO nf-core: edit emitted channels
-    bam      = SAMTOOLS_SORT.out.bam           // channel: [ val(meta), [ bam ] ]
-    bai      = SAMTOOLS_INDEX.out.bai          // channel: [ val(meta), [ bai ] ]
-    csi      = SAMTOOLS_INDEX.out.csi          // channel: [ val(meta), [ csi ] ]
-
-    versions = ch_versions                     // channel: [ versions.yml ]
+    ch_alignment
+    ch_unrooted_tree
+    ch_rooted_tree
+    versions = ch_versions // channel: [ versions.yml ]
 }
 

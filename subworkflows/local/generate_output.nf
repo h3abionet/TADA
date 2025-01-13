@@ -1,36 +1,66 @@
-// TODO nf-core: If in doubt look at other nf-core/subworkflows to see how we are doing things! :)
-//               https://github.com/nf-core/modules/tree/master/subworkflows
-//               You can also ask for help via your pull request or on the #subworkflows channel on the nf-core Slack workspace:
-//               https://nf-co.re/join
-// TODO nf-core: A subworkflow SHOULD import at least two modules
-
-include { SAMTOOLS_SORT      } from '../../../modules/nf-core/samtools/sort/main'
-include { SAMTOOLS_INDEX     } from '../../../modules/nf-core/samtools/index/main'
+include { BIOM                   } from '../../modules/local/biom'
+include { QIIME2_FEATURETABLE    } from '../../modules/local/qiime2featuretable'
+include { QIIME2_TAXTABLE        } from '../../modules/local/qiime2taxtable'
+include { QIIME2_SEQUENCE        } from '../../modules/local/qiime2seqs'
+include { QIIME2_ALIGNMENT       } from '../../modules/local/qiime2aln'
+include { QIIME2_TREE            } from '../../modules/local/qiime2tree'
+include { SESSION_INFO           } from '../../modules/local/rsessioninfo'
 
 workflow GENERATE_OUTPUT {
 
+    // TODO: I'd like to have this simply be TSV files (no RDS)
+    //       so we can generate from other subworkflows if needed
     take:
-    // TODO nf-core: edit input (take) channels
-    ch_bam // channel: [ val(meta), [ bam ] ]
+    seq_table_rds
+    seq_table_qiime
+    tax_table_rds
+    tax_table_tsv
+    asvs
+    alignment
+    unrooted_tree
+    rooted_tree
 
     main:
-
     ch_versions = Channel.empty()
 
-    // TODO nf-core: substitute modules here for the modules of your subworkflow
+    if (params.to_BIOM) {
+        BIOM(
+            seq_table_rds,
+            tax_table_rds
+        )
+    }
 
-    SAMTOOLS_SORT ( ch_bam )
-    ch_versions = ch_versions.mix(SAMTOOLS_SORT.out.versions.first())
+    if (params.to_QIIME2) {
+        QIIME2_FEATURETABLE(
+            seq_table_qiime
+        )
 
-    SAMTOOLS_INDEX ( SAMTOOLS_SORT.out.bam )
-    ch_versions = ch_versions.mix(SAMTOOLS_INDEX.out.versions.first())
+        QIIME2_TAXTABLE(
+            tax_table_tsv
+        )
+
+        QIIME2_SEQUENCE(
+            asvs
+        )
+
+        if (!params.skip_alignment) {
+            QIIME2_ALIGNMENT(
+                alignment
+            )
+        }
+
+        if (!params.skip_tree) {
+            QIIME2_TREE(
+                unrooted_tree,
+                rooted_tree
+            )
+        }
+    }
+
+    // TODO: May become redundant with versions
+    SESSION_INFO()
 
     emit:
-    // TODO nf-core: edit emitted channels
-    bam      = SAMTOOLS_SORT.out.bam           // channel: [ val(meta), [ bam ] ]
-    bai      = SAMTOOLS_INDEX.out.bai          // channel: [ val(meta), [ bai ] ]
-    csi      = SAMTOOLS_INDEX.out.csi          // channel: [ val(meta), [ csi ] ]
-
     versions = ch_versions                     // channel: [ versions.yml ]
 }
 

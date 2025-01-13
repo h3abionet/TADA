@@ -4,37 +4,15 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 
 include { PRE_QC                 } from '../subworkflows/local/pre_qc'
 include { FILTER_AND_TRIM        } from '../subworkflows/local/filter_and_trim'
 include { DADA2_DENOISE          } from '../subworkflows/local/dada2_denoise'
 include { TAXONOMY               } from '../subworkflows/local/taxonomy'
-
-// TODO: Move into phylogenetic subworkflow
-// include { PHYLOGENETICS          } from '../subworkflows/local/taxonomic_assignment'
-include { DECIPHER               } from '../modules/local/decipher'
-include { PHANGORN               } from '../modules/local/phangorn'
-include { FASTTREE               } from '../modules/local/fasttree'
-include { ROOT_TREE              } from '../modules/local/roottree'
-
-// TODO: Move into subworkflow(s)
-// include { QUALITY_CONTROL        } from '../subworkflows/local/taxonomic_assignment'
-include { READ_TRACKING          } from '../modules/local/readtracking'
-include { PLOT_MERGED_HEATMAP    } from '../modules/local/plotmerged'
-include { PLOT_ASV_DIST          } from '../modules/local/plotasvlen'
-include { SESSION_INFO           } from '../modules/local/rsessioninfo'
-
-// TODO: Move into subworkflow(s)
-// include { OUTPUT                 } from '../subworkflows/local/taxonomic_assignment'
-include { DADA2_SEQTABLE2TEXT       } from '../modules/local/seqtable2txt'
-include { BIOM                   } from '../modules/local/biom'
-include { QIIME2_FEATURETABLE    } from '../modules/local/qiime2featuretable'
-include { QIIME2_TAXTABLE        } from '../modules/local/qiime2taxtable'
-include { QIIME2_SEQUENCE        } from '../modules/local/qiime2seqs'
-include { QIIME2_ALIGNMENT       } from '../modules/local/qiime2aln'
-include { QIIME2_TREE            } from '../modules/local/qiime2tree'
+include { PHYLOGENY              } from '../subworkflows/local/phylogeny'
+include { QUALITY_CONTROL        } from '../subworkflows/local/qualitycontrol'
+include { GENERATE_OUTPUT        } from '../subworkflows/local/generate_output'
 
 include { paramsSummaryMap       } from 'plugin/nf-validation'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -92,13 +70,10 @@ workflow TADA {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
     }
 
-    FASTQC (
-        ch_samplesheet
-    )
+    // FASTQC (
+    //     ch_samplesheet
+    // )
     
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
-
     PRE_QC(
         ch_samplesheet,
         params.skip_ee,
@@ -106,6 +81,7 @@ workflow TADA {
         params.skip_dadaQC
     )
 
+    ch_multiqc_files = ch_multiqc_files.mix(PRE_QC.out.zip.collect{it[1]})
     ch_versions = ch_versions.mix(PRE_QC.out.versions)
     
     // ch_multiqc_files = ch_multiqc_files.mix(PLOTQUALITYPROFILE.out.zip.collect{it[1]})
@@ -162,70 +138,36 @@ workflow TADA {
         ch_metrics = TAXONOMY.out.ch_metrics
     }
     
-    // Subworkflows-Alignment + Phylogenetic Tree (optional)
-    DECIPHER(
-        DADA2_DENOISE.out.nonchimeric_asvs
-    )
-
-    ch_tree = Channel.empty()
-
-    if (params.phylo_tool == 'phangorn') {
-        PHANGORN(
-            DECIPHER.out.alignment
-        )
-        ch_tree = PHANGORN.out.treeGTR
-    } else if (params.phylo_tool == 'fasttree') {
-        FASTTREE(
-            DECIPHER.out.alignment
-        )
-        ch_tree = FASTTREE.out.treeGTR
-    }
-
-    ROOT_TREE(
-        ch_tree,
-        params.phylo_tool
-    )
+    PHYLOGENY(DADA2_DENOISE.out.nonchimeric_asvs)
 
     // Post-QC
-    READ_TRACKING(
-        ch_readtracking.collect()
-    )
-
-    PLOT_MERGED_HEATMAP(
-        DADA2_DENOISE.out.merged_seqs
-    )
-
-    PLOT_ASV_DIST(
+    QUALITY_CONTROL(
+        ch_readtracking,
+        DADA2_DENOISE.out.merged_seqs,
         DADA2_DENOISE.out.filtered_seqtable
     )
+    // READ_TRACKING(
+    //     ch_readtracking.collect()
+    // )
 
-    // Subworkflow - Outputs
+    // PLOT_MERGED_HEATMAP(
+    //     DADA2_DENOISE.out.merged_seqs
+    // )
 
-    // TODO: these could be moved into the 
-    DADA2_SEQTABLE2TEXT(
-        DADA2_DENOISE.out.seqtable_renamed
-    )
+    // PLOT_ASV_DIST(
+    //     DADA2_DENOISE.out.filtered_seqtable
+    // )
 
-    // TODO: BIOM should read in TSV files, not RDS
-    BIOM(
+    GENERATE_OUTPUT(
         DADA2_DENOISE.out.seqtable_renamed,
-        TAXONOMY.out.ch_taxtab_rds
+        DADA2_DENOISE.out.seqtab2qiime,
+        TAXONOMY.out.ch_taxtab_rds,
+        TAXONOMY.out.ch_taxtab,
+        DADA2_DENOISE.out.nonchimeric_asvs,
+        PHYLOGENY.out.ch_alignment,
+        PHYLOGENY.out.ch_unrooted_tree,
+        PHYLOGENY.out.ch_rooted_tree
     )
-
-    QIIME2_FEATURETABLE(DADA2_SEQTABLE2TEXT.out.seqtab2qiime)
-
-    QIIME2_TAXTABLE(ch_taxtab)
-
-    QIIME2_SEQUENCE(DADA2_DENOISE.out.nonchimeric_asvs)
-
-    QIIME2_ALIGNMENT(DECIPHER.out.alignment)
-
-    QIIME2_TREE(
-        ch_tree,
-        ROOT_TREE.out.rooted_tree
-    )
-
-    SESSION_INFO()
 
     //
     // Collate and save software versions

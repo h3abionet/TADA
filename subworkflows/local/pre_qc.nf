@@ -4,6 +4,7 @@
 //               https://nf-co.re/join
 // TODO nf-core: A subworkflow SHOULD import at least two modules
 
+include { FASTQC                 } from '../../modules/nf-core/fastqc/main'
 include { PLOT_QUALITY_PROFILE   } from '../../modules/local/plotqualityprofile'
 include { VSEARCH_EESTATS        } from '../../modules/local/vsearch_eestats'
 include { VSEARCH_OVERLAP        } from '../../modules/local/vsearchoverlap'
@@ -20,6 +21,14 @@ workflow PRE_QC {
 
     main:
     ch_versions = Channel.empty()
+    ch_multiqc_files = Channel.empty()
+
+    FASTQC (
+        ch_samplesheet
+    )
+    
+    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
+    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
     if (!skip_merging) {
         VSEARCH_OVERLAP(
@@ -27,6 +36,7 @@ workflow PRE_QC {
         )
 
         ch_versions = ch_versions.mix(VSEARCH_OVERLAP.out.versions.first())
+
         MERGE_OVERLAP_CHECK(
             VSEARCH_OVERLAP.out.merged_log.collect()
         )
@@ -54,4 +64,5 @@ workflow PRE_QC {
     
     emit:
     versions = ch_versions                     // channel: [ versions.yml ]
+    zip = FASTQC.out.zip
 }
