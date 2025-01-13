@@ -422,7 +422,7 @@
         },
         "skip_alignment": {
             "type": "boolean",
-            "description": "Run multiple sequence alignment"
+            "description": "Skip multiple sequence alignment (this also effectively skips downstream steps like phylogenetic tree generation and related outputs)"
         },
         "aligner": {
             "type": "string",
@@ -511,12 +511,16 @@
         },
         "skip_tree": {
             "type": "boolean",
-            "description": "Skip phylogenetic tree generation, which can take time for larger ASV data sets"
+            "description": "Skip phylogenetic tree generation, which can take time for larger ASV data sets.  May replace `skip_alignment`"
         },
         "phylo_tool": {
             "type": "string",
             "default": "fasttree",
             "description": "Tool to use for tree generation.  Options are 'fasttree' and 'phangorn'"
+        },
+        "skip_trimming": {
+            "type": "boolean",
+            "description": "Skip any trimming/filtering of raw reads.  Note this assumes read data have already trimmed, reoriented, and filtered for downstream analysis,"
         }
     }
 }
