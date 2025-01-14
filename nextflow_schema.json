@@ -521,6 +521,10 @@
         "skip_trimming": {
             "type": "boolean",
             "description": "Skip any trimming/filtering of raw reads.  Note this assumes read data have already trimmed, reoriented, and filtered for downstream analysis,"
+        },
+        "error_function": {
+            "type": "string",
+            "default": "loessErrfun"
         }
     }
 }
