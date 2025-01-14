@@ -23,6 +23,16 @@ workflow FILTER_AND_TRIM {
     ch_trimmed_R1 = Channel.empty()
     ch_trimmed_R2 = Channel.empty()
 
+    for_primer = params.for_primer
+    for_primer_rc = ""
+    rev_primer = params.rev_primer
+    rev_primer_rc = ""
+
+    if (for_primer && rev_primer) {
+        for_primer_rc = reverse_complement(for_primer)
+        rev_primer_rc = reverse_complement(rev_primer)
+    }
+
     if (params.platform == "pacbio") {
 
         // TODO: this could be modified/split into a `cutadapt`-only step; there
@@ -78,4 +88,30 @@ workflow FILTER_AND_TRIM {
     trimmed = ch_trimmed
     trimmed_report = MERGE_TRIM_TABLES.out.trimmed_report // channel: [ RDS ]
     trimmed_infer = ch_trimmed_infer
+}
+
+def reverse_complement(primer) {
+    // returns the revcomp, handles IUPAC ambig codes
+    // tr "[ATGCUNYRSWKMBDHV]" "[TACGANRYSWMKVHDB]"
+    return primer.reverse().collect { 
+        switch (it) {
+            case 'A': return 'T'
+            case 'T': return 'A'
+            case 'G': return 'C'
+            case 'C': return 'G'
+            case 'U': return 'A'
+            case 'N': return 'N'
+            case 'Y': return 'R'
+            case 'R': return 'Y'
+            case 'S': return 'S'
+            case 'W': return 'W'
+            case 'K': return 'M'
+            case 'M': return 'K'
+            case 'B': return 'V'
+            case 'D': return 'H'
+            case 'H': return 'D'
+            case 'V': return 'B'
+            default: return it // handle invalid characters if needed
+        }
+    }.join('')
 }
