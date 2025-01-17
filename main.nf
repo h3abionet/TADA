@@ -1232,7 +1232,7 @@ if (!params.precheck && params.runTree && params.amplicon != 'ITS') {
             output:
             file "phangorn.tree.${seqtype}.RDS" into treeRDS
             file "tree.${seqtype}.newick" into treeFile
-            file "tree.GTR.${seqtype}.newick" into treeGTRFile
+            file "tree.GTR.${seqtype}.newick" into treeGTRFile, treeToQIIME2
 
             script:
             template "PhangornML.R"
