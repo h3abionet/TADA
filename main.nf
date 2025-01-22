@@ -592,31 +592,75 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         }
     }
     /* 16S amplicon filtering */
-    else if (platform == 'illumina' && params.amplicon == '16S'){
-        process FilterAndTrim {
-            tag { "FilterAndTrim_${meta.id}" }
-            publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+    else if (platform == 'illumina' && params.amplicon == '16S') {
 
-            input:
-            tuple val(meta), file(reads) from dada2ReadPairs
+        // This will likely become the default trimming at some point
+        if (params.trimmer == "cutadapt") {
+            process IlluminaCutadapt {
+                tag { "cutadapt_${meta.id}" }
+                publishDir "${params.outdir}/dada2-Cutadapt", mode: "copy", overwrite: true
 
-            output:
-            // BIG TODO: this should be simplified into tuples with all information
-            tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1
-            tuple val(meta), file("${meta.id}.R2.filtered.fastq.gz") optional true into filteredReadsR2
-            tuple val(meta), file("${meta.id}.R[12].filtered.fastq.gz") optional true into readsToFastQC,readsToPerSample
-            // tuple val("R2"), file("${pairId}.R2.filtered.fastq.gz") optional true into revReadsLE
-            file "*.trimmed.txt" into trimTracking
+                input:
+                tuple val(meta), file(reads) from dada2ReadPairs
 
-            when:
-            !(params.precheck)
+                output:
+                tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1
+                tuple val(meta), file("${meta.id}.R2.filtered.fastq.gz") optional true into filteredReadsR2
+                tuple val(meta), file("${meta.id}.R[12].filtered.fastq.gz") optional true into readsToFastQC,readsToPerSample
+                file "${meta.id}.cutadapt.json" optional true into cutadaptToMultiQC
+                file "${meta.id}.cutadapt.out" optional true into trimTracking
 
-            script:
-            phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
+                when:
+                !(params.precheck)
 
-            template "FilterAndTrim.R"
+                script:
+                maxN = params.maxN >=0 ? "--max-n ${params.maxN}" : ""
+                // We use the maximum for these, you can only set it once for both reads with cutadapt
+                maxEE = [params.maxEEFor,params.maxEERev].max()
+                minlen = params.minLen ? "-m ${params.minLen}" : "-m 10" 
+                maxlen = params.maxLen != "Inf" ? "-M ${params.maxLen}" : ""
+                outr2 = meta.single_end ? '' : "-p ${meta.id}.R2.filtered.fastq.gz"
+                p2 = meta.single_end ? '' : "-G ${params.revprimer} -A \$revprimer_rc"
+                polyG = params.polyG ? "--nextseq-trim=2" : ""
+                """
+                fwdprimer_rc=\$( echo -n ${params.fwdprimer} | tr "[ATGCUNYRSWKMBDHV]" "[TACGANRYSWMKVHDB]" | rev )
+                revprimer_rc=\$( echo -n ${params.revprimer} | tr "[ATGCUNYRSWKMBDHV]" "[TACGANRYSWMKVHDB]" | rev )
+                
+                cutadapt --report=minimal \\
+                    --json=${meta.id}.cutadapt.json \\
+                    -g ${params.fwdprimer} -a \$fwdprimer_rc ${p2} \\
+                    --cores ${task.cpus} -n 2 \\
+                    --max-ee ${maxEE} ${polyG} ${minlen} ${maxlen} ${maxN} \\
+                    -o ${meta.id}.R1.filtered.fastq.gz ${outr2} \\
+                    ${reads} > ${meta.id}.cutadapt.out
+                """
+            }
+        } else {
+            process FilterAndTrim {
+                tag { "FilterAndTrim_${meta.id}" }
+                publishDir "${params.outdir}/dada2-FilterAndTrim", mode: "copy", overwrite: true
+
+                input:
+                tuple val(meta), file(reads) from dada2ReadPairs
+
+                output:
+                // BIG TODO: this should be simplified into tuples with all information
+                tuple val(meta), file("${meta.id}.R1.filtered.fastq.gz") optional true into filteredReadsR1
+                tuple val(meta), file("${meta.id}.R2.filtered.fastq.gz") optional true into filteredReadsR2
+                tuple val(meta), file("${meta.id}.R[12].filtered.fastq.gz") optional true into readsToFastQC,readsToPerSample
+                // tuple val("R2"), file("${pairId}.R2.filtered.fastq.gz") optional true into revReadsLE
+                file "*.trimmed.txt" into trimTracking
+
+                when:
+                !(params.precheck)
+
+                script:
+                phix = params.rmPhiX ? '--rmPhiX TRUE' : '--rmPhiX FALSE'
+
+                template "FilterAndTrim.R"
+            }
+            cutadaptToMultiQC = Channel.empty()
         }
-        cutadaptToMultiQC = Channel.empty()
     } else {
         // We need to shut this down!
         Channel.empty().into {cutadaptToMultiQC;filteredReads;filteredReadsforQC}
@@ -696,8 +740,17 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
         output:
         file "all.trimmed.csv" into trimmedReadTracking
 
+        // TODO: complete hack to get these through; this should
+        //       be better addressed on the 'dev' DSL2 branch. Note
+        //       this doesn't catch ITS effectively
         script:
-        template "MergeTrimTable.R"
+        if (platform == "pacbio" || platform == "pacbio-kinnex") {
+            template "MergeCutadaptTrimTable.R"
+        } else if (platform == 'illumina' && params.amplicon == '16S' && params.trimmer == "cutadapt") {
+            template "MergeCutadaptTrimTable.R"
+        } else {
+            template "MergeTrimTable.R"            
+        }
     }
 
     /*
