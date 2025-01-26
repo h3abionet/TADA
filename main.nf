@@ -9,6 +9,8 @@
 ----------------------------------------------------------------------------------------
 */
 
+import groovy.json.JsonSlurper
+
 repository = workflow.repository ? workflow.repository : 'TADA'
 
 def helpMessage() {
@@ -137,6 +139,11 @@ def helpMessage() {
       --help                        Will print out summary above when executing nextflow run uct-cbio/16S-rDNA-dada2-pipeline
 
     """.stripIndent()
+}
+
+def getCutadaptReadsAfterFiltering(json_file) {
+    def Map json = (Map) new JsonSlurper().parseText(json_file.text).get('read_counts')
+    return json['output'].toInteger()
 }
 
 // Show help message
@@ -352,7 +359,7 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
             output:
             file "${meta.id}.log" into mergecheck_tables
             file "${meta.id}.lengthstats.txt" into mergecheck_plot
-
+            file "*.fastq"
             script:
             """
             vsearch --fastq_mergepairs \\
@@ -558,12 +565,12 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
 
             script:
             outr2 = meta.single_end ? '' : "-p ${meta.id}.R2.cutadapt.fastq.gz"
-            p2 = meta.single_end ? '' : "-G ${params.revprimer} -A \$REV_PRIMER"
+            p2 = meta.single_end ? '' : "-G ${params.revprimer} -A \$FWD_PRIMER"
             """
             FWD_PRIMER=\$(<forward_rc)
             REV_PRIMER=\$(<reverse_rc)
             
-            cutadapt -g ${params.fwdprimer} -a \$FWD_PRIMER ${p2} \\
+            cutadapt -g ${params.fwdprimer} -a \$REV_PRIMER ${p2} \\
                 --cores ${task.cpus} \\
                 -n 2 \\
                 -o ${meta.id}.R1.cutadapt.fastq.gz ${outr2} \\
@@ -617,10 +624,10 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
                 maxN = params.maxN >=0 ? "--max-n ${params.maxN}" : ""
                 // We use the maximum for these, you can only set it once for both reads with cutadapt
                 maxEE = [params.maxEEFor,params.maxEERev].max()
-                minlen = params.minLen ? "-m ${params.minLen}" : "-m 10" 
+                minlen = params.minLen ? "-m ${params.minLen}" : "-m 50" 
                 maxlen = params.maxLen != "Inf" ? "-M ${params.maxLen}" : ""
                 outr2 = meta.single_end ? '' : "-p ${meta.id}.R2.filtered.fastq.gz"
-                p2 = meta.single_end ? '' : "-G ${params.revprimer} -A \$revprimer_rc"
+                p2 = meta.single_end ? '' : "-G ${params.revprimer} -A \$fwdprimer_rc"
                 polyG = params.polyG ? "--nextseq-trim=2" : ""
                 """
                 fwdprimer_rc=\$( echo -n ${params.fwdprimer} | tr "[ATGCUNYRSWKMBDHV]" "[TACGANRYSWMKVHDB]" | rev )
@@ -628,11 +635,18 @@ if (params.reads != false || params.input != false ) { // TODO maybe we should c
                 
                 cutadapt --report=minimal \\
                     --json=${meta.id}.cutadapt.json \\
-                    -g ${params.fwdprimer} -a \$fwdprimer_rc ${p2} \\
+                    -g ${params.fwdprimer} -a \$revprimer_rc ${p2} \\
                     --cores ${task.cpus} -n 2 \\
                     --max-ee ${maxEE} ${polyG} ${minlen} ${maxlen} ${maxN} \\
                     -o ${meta.id}.R1.filtered.fastq.gz ${outr2} \\
                     ${reads} > ${meta.id}.cutadapt.out
+
+                # is the FASTQ file empty?
+                if [ -n "\$(gunzip <${meta.id}.R1.filtered.fastq.gz | head -c 1 | tr '\\0\\n' __)" ]; then
+                    echo "Sequences present"
+                else
+                    rm ${meta.id}.R[12].filtered.fastq.gz
+                fi
                 """
             }
         } else {
