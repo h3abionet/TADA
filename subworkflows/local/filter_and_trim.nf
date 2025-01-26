@@ -23,6 +23,11 @@ workflow FILTER_AND_TRIM {
     ch_trimmed_R1 = Channel.empty()
     ch_trimmed_R2 = Channel.empty()
 
+    // TODO: we're probably going to move to requiring the primer sequences to
+    //       make the workflow more flexible re: trimming options, esp. since
+    //       the current version assumes the presence of primer sequences and
+    //       does a hard trim. This also allows for passing in cutadapt anchors 
+    //       and primer options (would need to parse these out)
     for_primer = params.for_primer
     for_primer_rc = ""
     rev_primer = params.rev_primer
@@ -89,6 +94,12 @@ workflow FILTER_AND_TRIM {
     trimmed_report = MERGE_TRIM_TABLES.out.trimmed_report // channel: [ RDS ]
     trimmed_infer = ch_trimmed_infer
 }
+
+// def clean_primers(primer) {
+//     // returns a clean primer string, IUPAC codes 
+//     // w/o any metadata or anchors. Assumes cutadapt 
+//     // filtering
+// }
 
 def reverse_complement(primer) {
     // returns the revcomp, handles IUPAC ambig codes

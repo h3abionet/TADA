@@ -3,7 +3,6 @@
 process PACBIO_CUTADAPT {
     tag "${meta.id}"
 
-
     container 'quay.io/biocontainers/cutadapt:4.1--py310h1425a21_1'
 
     input:
