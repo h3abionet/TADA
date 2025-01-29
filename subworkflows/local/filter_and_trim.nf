@@ -1,5 +1,6 @@
 include { ILLUMINA_DADA2_FILTER_AND_TRIM   } from '../../modules/local/illumina_filterandtrim'
 include { PACBIO_DADA2_FILTER_AND_TRIM     } from '../../modules/local/pacbio_filterandtrim'
+include { ILLUMINA_CUTADAPT                } from '../../modules/local/illumina_cutadapt'
 include { PACBIO_CUTADAPT                  } from '../../modules/local/pacbio_cutadapt'
 include { MERGE_TRIM_TABLES                } from '../../modules/local/mergetrimtables'
 
@@ -7,67 +8,67 @@ workflow FILTER_AND_TRIM {
 
     take:
     input           //channel: [val(meta), path(reads)]
-    skip_filtering  
+    skip_filtering
 
     main:
-    // Three options for Illumina data:
-    //       DADA2 trimming and filtering (PE and SE currently) - implemented
-    //       cutadapt-based (primers + Ns) + vsearch (EE) - NYI
-    //       Hybrid (variable length) - NYI
-    // Two options for PacBio:
-    //       DADA2 filtering (filter) - NYI
-    //       cutadapt (trim) + vsearch - NYI
-
     ch_reports = Channel.empty()
     ch_trimmed = Channel.empty()
     ch_trimmed_R1 = Channel.empty()
     ch_trimmed_R2 = Channel.empty()
+    ch_multiqc_files = Channel.empty()
 
-    // TODO: we're probably going to move to requiring the primer sequences to
-    //       make the workflow more flexible re: trimming options, esp. since
-    //       the current version assumes the presence of primer sequences and
-    //       does a hard trim. This also allows for passing in cutadapt anchors 
-    //       and primer options (would need to parse these out)
-    for_primer = params.for_primer
-    for_primer_rc = ""
-    rev_primer = params.rev_primer
-    rev_primer_rc = ""
+    for_primer_rc = params.for_primer ? reverse_complement(params.for_primer) : ""
+    rev_primer_rc = params.rev_primer ? reverse_complement(params.rev_primer) : ""
 
-    if (for_primer && rev_primer) {
-        for_primer_rc = reverse_complement(for_primer)
-        rev_primer_rc = reverse_complement(rev_primer)
-    }
+    // Two modules/subworkflows for Illumina data:
+    //       DADA2 trimming and filtering (PE and SE currently) - implemented
+    //       cutadapt-based (primers + Ns) + vsearch (EE) - implemented
+    // Two modules/subworkflows for PacBio:
+    //       DADA2 filtering (filter) - NYI
+    //       cutadapt (trim) - implemented
 
     if (params.platform == "pacbio") {
 
-        // TODO: this could be modified/split into a `cutadapt`-only step; there
-        // are additional filters for max EE and max N in cutadapt
         PACBIO_CUTADAPT(
             input
+            params.for_primer
+            rev_primer_rc
         )
 
-        // TODO: should be summarized as well, go to MultiQC
-        // ch_reports = PACBIO_CUTADAPT_FILTER_AND_TRIM.out.cutadapt_report.collect()
-        
         // TODO: this could be modified/split into a `DADA2`-only step
-        PACBIO_DADA2_FILTER_AND_TRIM(
-            PACBIO_CUTADAPT.out.cutadapt_trimmed
-        )
-        ch_trimmed = PACBIO_DADA2_FILTER_AND_TRIM.out.trimmed
-        ch_trimmed_R1 = PACBIO_DADA2_FILTER_AND_TRIM.out.trimmed
-        ch_reports = PACBIO_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
+        // PACBIO_DADA2_FILTER_AND_TRIM(
+        //     PACBIO_CUTADAPT.out.cutadapt_trimmed
+        // )
+        ch_trimmed = PACBIO_CUTADAPT.out.trimmed
+        ch_trimmed_R1 = PACBIO_CUTADAPT.out.trimmed
+        ch_reports = PACBIO_CUTADAPT.out.cutadapt_report.collect()
+        ch_multiqc_files = ch_multiqc_files.mix(ILLUMINA_CUTADAPT.out.cutadapt_json)
     } else {
         // this handles both paired and single-end data
-        ILLUMINA_DADA2_FILTER_AND_TRIM(
-            input
-        )
-        ch_trimmed = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed
-        ch_reports = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
-        ch_trimmed_R1 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R1
-        ch_trimmed_R2 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R2
+        if (params.trimmer == "dada2") {
+            ILLUMINA_DADA2_FILTER_AND_TRIM(
+                input 
+            )
+            ch_trimmed = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed
+            ch_reports = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
+            ch_trimmed_R1 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R1
+            ch_trimmed_R2 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R2
+        } else if (params.trimmer == "cutadapt") {
+            ILLUMINA_CUTADAPT(
+                input,
+                params.for_primer,
+                params.rev_primer,
+                for_primer_rc,
+                rev_primer_rc
+            )
+            ch_trimmed = ILLUMINA_CUTADAPT.out.trimmed
+            ch_reports = ILLUMINA_CUTADAPT.out.trimmed_report.collect()
+            ch_trimmed_R1 = ILLUMINA_CUTADAPT.out.trimmed_R1
+            ch_trimmed_R2 = ILLUMINA_CUTADAPT.out.trimmed_R2
+            ch_multiqc_files = ch_multiqc_files.mix(ILLUMINA_CUTADAPT.out.cutadapt_json)
+        }
     }
 
-    // TODO: add variable-length and PacBio
     MERGE_TRIM_TABLES(
         ch_reports
     )
@@ -93,13 +94,8 @@ workflow FILTER_AND_TRIM {
     trimmed = ch_trimmed
     trimmed_report = MERGE_TRIM_TABLES.out.trimmed_report // channel: [ RDS ]
     trimmed_infer = ch_trimmed_infer
+    ch_multiqc_files
 }
-
-// def clean_primers(primer) {
-//     // returns a clean primer string, IUPAC codes 
-//     // w/o any metadata or anchors. Assumes cutadapt 
-//     // filtering
-// }
 
 def reverse_complement(primer) {
     // returns the revcomp, handles IUPAC ambig codes
@@ -126,3 +122,10 @@ def reverse_complement(primer) {
         }
     }.join('')
 }
+
+// def clean_primers(primer) {
+//     // returns a clean primer string, IUPAC codes 
+//     // w/o any metadata or anchors. Assumes cutadapt 
+//     // filtering
+// }
+

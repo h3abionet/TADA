@@ -526,6 +526,19 @@
             "type": "boolean",
             "default": true,
             "description": "Skip expected error checking in pre-QC step, hich runs per sample and can take time for larger paired-read data sets and long reads."
+        },
+        "trimmer": {
+            "type": "string",
+            "default": "dada2",
+            "description": "Trimming tool to use.",
+            "enum": [
+                "dada2",
+                "cutadapt"
+            ]
+        },
+        "illumina_twocolor": {
+            "type": "boolean",
+            "description": "Set for Illumina two-color trimming."
         }
     }
 }

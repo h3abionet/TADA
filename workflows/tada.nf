@@ -70,10 +70,6 @@ workflow TADA {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
     }
 
-    // FASTQC (
-    //     ch_samplesheet
-    // )
-    
     PRE_QC(
         ch_samplesheet,
         params.skip_FASTQC,
@@ -87,18 +83,11 @@ workflow TADA {
     
     // ch_multiqc_files = ch_multiqc_files.mix(PLOTQUALITYPROFILE.out.zip.collect{it[1]})
 
-    // Subworkflows-Trimming and Filtering:
-    //     cutadapt (overlapping paired: V4, COI)
-    //     cutadapt (variable paired: ITS)
-    //     cutadapt (full-length reads: PacBio 16S)
-    //     DADA2 filterAndTrim
-    //     Alternative est error filtering
-
     FILTER_AND_TRIM (
         ch_samplesheet,
         params.skip_trimming
     )
-
+    ch_multiqc_files = ch_multiqc_files.mix(FILTER_AND_TRIM.out.ch_multiqc_files)
     ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
 
     // TODO: Input for these should be the trimmed reads from above, but
