@@ -1,7 +1,7 @@
 include { FASTQC                 } from '../../modules/nf-core/fastqc/main'
 include { PLOT_QUALITY_PROFILE   } from '../../modules/local/plotqualityprofile'
 include { VSEARCH_EESTATS        } from '../../modules/local/vsearch_eestats'
-include { VSEARCH_OVERLAP        } from '../../modules/local/vsearchoverlap'
+include { VSEARCH_OVERLAP        } from '../../modules/local/vsearch_overlap'
 include { MERGE_OVERLAP_CHECK    } from '../../modules/local/mergeoverlapcheck'
 include { OVERLAP_HEATMAP        } from '../../modules/local/overlapheatmap'
 
