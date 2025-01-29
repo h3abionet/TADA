@@ -76,9 +76,10 @@ workflow TADA {
     
     PRE_QC(
         ch_samplesheet,
-        params.skip_ee,
-        params.skip_merging,
-        params.skip_dadaQC
+        params.skip_FASTQC,
+        params.skip_dadaQC,
+        params.skip_merging_check,
+        params.skip_ee_check
     )
 
     ch_multiqc_files = ch_multiqc_files.mix(PRE_QC.out.zip.collect{it[1]})

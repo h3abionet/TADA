@@ -411,9 +411,9 @@
             "default": 50,
             "description": "DADA2 `assignTaxonomy`: Min. bootstrap value for RDP classifier"
         },
-        "tax_levels": {
+        "tax_ranks": {
             "type": "string",
-            "description": "DADA2 `assignTaxonomy`: alternative ranks for assignments"
+            "description": "DADA2 `assignTaxonomy`: alternative ranks for assignments. Comma-delimited."
         },
         "tax_batch": {
             "type": "integer",
@@ -485,7 +485,7 @@
         },
         "quality_bins": {
             "type": "string",
-            "description": "Comma-separated list of binned qualities (Phred scale). Requires 'quality_binning' to be set"
+            "description": "DADA2 `learnErrors.`  Comma-separated list of binned qualities (Phred scale). Requires 'quality_binning' to be set."
         },
         "skip_dadaQC": {
             "type": "boolean",
@@ -495,18 +495,13 @@
             "type": "boolean",
             "description": "Skip FASTQC, which runs per sample and can take time for larger data sets and long read data"
         },
-        "skip_multiQC": {
+        "skip_MultiQC": {
             "type": "boolean",
             "description": "Skip MultiQC, which runs per sample and can take time for larger data sets and long read data"
         },
-        "skip_merging": {
+        "skip_merging_check": {
             "type": "boolean",
             "description": "Skip read merge QC, which runs per sample and can take time for larger paired-read data sets",
-            "default": true
-        },
-        "skip_ee": {
-            "type": "boolean",
-            "description": "Skip expected error QC, which runs per sample and can take time for larger data sets",
             "default": true
         },
         "skip_tree": {
@@ -524,7 +519,13 @@
         },
         "error_function": {
             "type": "string",
-            "default": "loessErrfun"
+            "default": "loessErrfun",
+            "description": "DADA2 `learnErrors`. NYI. Name of specific error function to use."
+        },
+        "skip_ee_check": {
+            "type": "boolean",
+            "default": true,
+            "description": "Skip expected error checking in pre-QC step, hich runs per sample and can take time for larger paired-read data sets and long reads."
         }
     }
 }

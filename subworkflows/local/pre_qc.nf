@@ -9,22 +9,28 @@ workflow PRE_QC {
 
     take:
     ch_samplesheet
-    skip_ee
-    skip_merging
+    skip_FASTQC
     skip_dadaQC
+    skip_merging_check
+    skip_ee_check
 
     main:
     ch_versions = Channel.empty()
-    ch_multiqc_files = Channel.empty()
 
-    FASTQC (
-        ch_samplesheet
-    )
+    // TODO: this may need to be reimplemented if we add
+    //       other outputs to MultiQC (e.g. custom ones)
+    // ch_multiqc_files = Channel.empty()
+
+    if (!skip_FASTQC) {
+        FASTQC (
+            ch_samplesheet
+        )
+        ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    }
     
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
-
-    if (!skip_merging) {
+    // TODO: this might be a step we run optionally after trimming (maybe a subworkflow?).
+    //       This also doesn't need all data, maybe a random sampling would be best
+    if (!skip_merging_check) {
         VSEARCH_OVERLAP(
             ch_samplesheet
         )
@@ -40,7 +46,7 @@ workflow PRE_QC {
         )        
     }
 
-    if (!skip_ee) {
+    if (!skip_ee_check) {
         VSEARCH_EESTATS (
             ch_samplesheet
         )
