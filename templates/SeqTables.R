@@ -143,6 +143,7 @@ if (file.exists("all.dd.R2.RDS")) {
        maxMismatch = ${params.maxMismatch},
        trimOverhang = as.logical("${params.trimOverhang}"),
        justConcatenate = as.logical("${params.justConcatenate}"),
+       propagateCol=TRUE,
        rescueUnmerged=rescuePairs,
        verbose = TRUE
        ) 
@@ -153,6 +154,7 @@ if (file.exists("all.dd.R2.RDS")) {
        maxMismatch = ${params.maxMismatch},
        trimOverhang = as.logical("${params.trimOverhang}"),
        justConcatenate = as.logical("${params.justConcatenate}"),
+       propagateCol=TRUE,
        verbose = TRUE
        )
       }
