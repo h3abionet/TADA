@@ -7,6 +7,10 @@ seqtab <- seqs\$seq
 # Assign taxonomy
 tax <- NULL
 boots <- NULL
+levels = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+if ("${params.taxLevels}") {
+    levels = str_split_1("${params.taxLevels}", ",")
+}
 
 if ( ${params.taxBatch} == 0 | length(seqtab) < ${params.taxBatch} ) { # no batch, run normally
     cat("Running all samples\\n")
@@ -15,6 +19,7 @@ if ( ${params.taxBatch} == 0 | length(seqtab) < ${params.taxBatch} ) { # no batc
                     tryRC = TRUE,
                     outputBootstraps = TRUE,
                     minBoot = ${params.minBoot},
+                    taxLevels = levels,
                     verbose = TRUE)
 
     boots <- tax\$boot
@@ -36,6 +41,7 @@ if ( ${params.taxBatch} == 0 | length(seqtab) < ${params.taxBatch} ) { # no batc
                 tryRC = TRUE,
                 outputBootstraps = TRUE,
                 minBoot = ${params.minBoot},
+                taxLevels = levels,
                 verbose = TRUE)
 
         if (is.null(boots)) {

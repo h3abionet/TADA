@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(dada2))
+suppressPackageStartupMessages(library(stringr))
 
 seqs <- readRDS("${st}")
 seqtab <- seqs\$seq
@@ -7,11 +8,16 @@ seqtab <- seqs\$seq
 # Assign taxonomy
 tax <- NULL
 boots <- NULL
+levels = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+if ("${params.taxLevels}" != "") {
+    levels = str_split_1("${params.taxLevels}", ",")
+}
 
 if ( ${params.taxBatch} == 0 | length(seqtab) < ${params.taxBatch} ) { # no batch, run normally
     cat("Running all samples\\n")
     tax <- assignTaxonomy(seqtab, "${ref}",
                     multithread=${task.cpus},
+                    taxLevels = levels,
                     tryRC = TRUE,
                     outputBootstraps = TRUE,
                     minBoot = ${params.minBoot},
@@ -29,6 +35,7 @@ if ( ${params.taxBatch} == 0 | length(seqtab) < ${params.taxBatch} ) { # no batc
         seqtab2 <- seqtab[to_split[i]:to_split2[i]]
         tax2 <- assignTaxonomy(seqtab2, "${ref}",
                 multithread=${task.cpus},
+                taxLevels = levels,
                 tryRC = TRUE,
                 outputBootstraps = TRUE,
                 minBoot = ${params.minBoot},
