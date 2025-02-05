@@ -176,6 +176,7 @@ The following have contributed to the development, testing, and deployment of th
 * [Gloria Rendon](https://github.com/grendon)
 * [Lindsay Clark](https://github.com/lvclark)
 * [Wojtek Bażant](https://github.com/wbazant)
+* [Negin Valizadegan](https://github.com/neginvalizadegan)
 
 ## License
 
