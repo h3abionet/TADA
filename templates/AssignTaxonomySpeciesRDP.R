@@ -8,7 +8,7 @@ seqtab <- seqs\$seq
 tax <- NULL
 boots <- NULL
 levels = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
-if ("${params.taxLevels}") {
+if ("${params.taxLevels}" != "") {
     levels = str_split_1("${params.taxLevels}", ",")
 }
 
