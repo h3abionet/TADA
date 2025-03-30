@@ -125,7 +125,6 @@ def reverse_complement(primer) {
 
 // def clean_primers(primer) {
 //     // returns a clean primer string, IUPAC codes 
-//     // w/o any metadata or anchors. Assumes cutadapt 
-//     // filtering
+//     // w/o any metadata or anchors (e.g. cutadapt)
 // }
 
