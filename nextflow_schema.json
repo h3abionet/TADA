@@ -538,6 +538,10 @@
         },
         "skip_chimera_detection": {
             "type": "boolean"
+        },
+        "foo": {
+            "type": "string",
+            "default": "bar"
         }
     }
 }
