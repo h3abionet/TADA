@@ -70,6 +70,10 @@ workflow TADA {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
     }
 
+    if (!(['none', 'mmseqs_aa_profile'].contains(params.filter))) {
+        exit 1, "--filter can be 'none', 'mmseqs_aa_profile', got ${params.id_type}"
+    }
+
     PRE_QC(
         ch_samplesheet,
         params.skip_FASTQC,
@@ -108,8 +112,18 @@ workflow TADA {
     ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.seqtable_renamed)
     ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.merged_seqs)
 
+    ch_filtered = Channel.empty()
+
+    // if (params.filter != "none") {
+    //     // Currently implementing only MMSeqs profile filtering
+    //     ch_filtered = 
+    // } else {
+
+    // }
+
     // Subworkflows-Taxonomic assignment (optional)
     ch_taxtab = Channel.empty()
+    ch_taxtab_rds = Channel.empty()
     ch_boots =  Channel.empty()
 
     if (params.reference) {
@@ -126,6 +140,7 @@ workflow TADA {
         )
         ch_taxtab = TAXONOMY.out.ch_taxtab
         ch_metrics = TAXONOMY.out.ch_metrics
+        ch_taxtab_rds = TAXONOMY.out.ch_taxtab_rds
     }
     
     PHYLOGENY(DADA2_DENOISE.out.nonchimeric_asvs)
@@ -136,23 +151,12 @@ workflow TADA {
         DADA2_DENOISE.out.merged_seqs,
         DADA2_DENOISE.out.filtered_seqtable
     )
-    // READ_TRACKING(
-    //     ch_readtracking.collect()
-    // )
-
-    // PLOT_MERGED_HEATMAP(
-    //     DADA2_DENOISE.out.merged_seqs
-    // )
-
-    // PLOT_ASV_DIST(
-    //     DADA2_DENOISE.out.filtered_seqtable
-    // )
 
     GENERATE_OUTPUT(
         DADA2_DENOISE.out.seqtable_renamed,
         DADA2_DENOISE.out.seqtab2qiime,
-        TAXONOMY.out.ch_taxtab_rds,
-        TAXONOMY.out.ch_taxtab,
+        ch_taxtab_rds,
+        ch_taxtab,
         DADA2_DENOISE.out.nonchimeric_asvs,
         PHYLOGENY.out.ch_alignment,
         PHYLOGENY.out.ch_unrooted_tree,

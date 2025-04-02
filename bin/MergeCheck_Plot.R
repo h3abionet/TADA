@@ -5,7 +5,7 @@ suppressPackageStartupMessages(library(optparse))
 # A very simple plot script for generating a 'heatmap' checking overlaps. 
 option_list = list(
     # make_option(c("--forward_clip"), type="character", default=NULL, help="Forward (5') trim"),
-    # make_option(c("--reverse_cli["), type="character", default=NULL, help="Reverse (5') trim"),
+    # make_option(c("--reverse_clip"), type="character", default=NULL, help="Reverse (5') trim"),
     # make_option(c("--minMergedLen"), type="numeric", default=0, help="cpus"),
 )
 
