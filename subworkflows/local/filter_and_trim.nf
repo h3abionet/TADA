@@ -8,7 +8,7 @@ workflow FILTER_AND_TRIM {
 
     take:
     input           //channel: [val(meta), path(reads)]
-    skip_filtering
+    skip_trimming
 
     main:
     ch_reports = Channel.empty()
@@ -123,6 +123,7 @@ def reverse_complement(primer) {
     }.join('')
 }
 
+// NYI; meant to deal with cutadapt-like primer settings
 // def clean_primers(primer) {
 //     // returns a clean primer string, IUPAC codes 
 //     // w/o any metadata or anchors (e.g. cutadapt)

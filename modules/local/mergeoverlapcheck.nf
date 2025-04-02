@@ -12,7 +12,7 @@ process MERGE_OVERLAP_CHECK {
     // path "versions.yml"           , emit: versions
 
     when:
-    !params.skip_merging || task.ext.when == null || task.ext.when
+    !params.skip_merging_check || task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''

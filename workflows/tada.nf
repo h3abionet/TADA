@@ -87,20 +87,25 @@ workflow TADA {
     
     // ch_multiqc_files = ch_multiqc_files.mix(PLOTQUALITYPROFILE.out.zip.collect{it[1]})
 
-    FILTER_AND_TRIM (
-        ch_samplesheet,
-        params.skip_trimming
-    )
-    ch_multiqc_files = ch_multiqc_files.mix(FILTER_AND_TRIM.out.ch_multiqc_files)
-    ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
-
+    ch_trimmed = Channel.empty()
+    
+    if (!params.preqc_only) {
+        FILTER_AND_TRIM (
+            ch_samplesheet,
+            params.skip_trimming
+        )
+        ch_multiqc_files = ch_multiqc_files.mix(FILTER_AND_TRIM.out.ch_multiqc_files)
+        ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
+        ch_trimmed = FILTER_AND_TRIM.out.trimmed_infer
+    }
+    
     // TODO: Input for these should be the trimmed reads from above, but
     // they may need to be mixed in different ways depending on the 
     // denoising workflow used
     
     // TODO: harmonize output when possible (FASTA + TSV)
     DADA2_DENOISE(
-        FILTER_AND_TRIM.out.trimmed_infer
+        ch_trimmed
     )
 
     // TODO: split out chimera removal into a separate step
