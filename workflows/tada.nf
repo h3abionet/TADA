@@ -13,6 +13,7 @@ include { TAXONOMY               } from '../subworkflows/local/taxonomy'
 include { PHYLOGENY              } from '../subworkflows/local/phylogeny'
 include { QUALITY_CONTROL        } from '../subworkflows/local/qualitycontrol'
 include { GENERATE_OUTPUT        } from '../subworkflows/local/generate_output'
+include { MMSEQS_FILTER          } from '../subworkflows/local/mmseqs_profile_filter'
 
 include { paramsSummaryMap       } from 'plugin/nf-validation'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -70,9 +71,17 @@ workflow TADA {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
     }
 
-    if (!(['none', 'mmseqs_aa_profile'].contains(params.filter))) {
-        exit 1, "--filter can be 'none', 'mmseqs_aa_profile', got ${params.id_type}"
+    if (!(['none', 'mmseqs_aa_profile', 'mmseqs_aa_database'].contains(params.filter))) {
+        exit 1, "--filter can be 'none', 'mmseqs_aa_profile', 'mmseqs_aa_database'\nGot ${params.filter}"
     }
+
+    // if (params.filter == 'mmseqs_aa_profile' and !params.mmseqs_profile) {
+    //     exit 1, "--filter ${params.filter} requires --mmseqs_profile to be set (Stockholm format file)"
+    // }
+
+    // if (params.filter == 'mmseqs_aa_database' and !params.mmseqs_database) {
+    //     exit 1, "--filter ${params.filter} requires --mmseqs_database to be set (FASTA format file)"
+    // }
 
     PRE_QC(
         ch_samplesheet,
@@ -113,18 +122,29 @@ workflow TADA {
 
     // TODO: mix these in a specific order? This would help when merging
     //       multiple tables from different sources
+    // TODO: see if these can be combined
     ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.inferred.collect())
     ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.seqtable_renamed)
     ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.merged_seqs)
 
-    ch_filtered = Channel.empty()
-
-    // if (params.filter != "none") {
-    //     // Currently implementing only MMSeqs profile filtering
-    //     ch_filtered = 
-    // } else {
-
-    // }
+    // TODO: make a tuple?
+    ch_filtered_asvs = DADA2_DENOISE.out.nonchimeric_asvs
+    ch_filtered_seqtab = DADA2_DENOISE.out.seqtable_renamed
+    ch_filtered_readmap = DADA2_DENOISE.out.readmap
+    // Currently implementing only MMSeqs profile filtering
+    if (params.filter != "none") {
+        // TODO: needs a sanity check
+        // TODO: this should also be a general filter subworkflow 
+        // (not just mmseqs)
+        MMSEQS_FILTER(
+            DADA2_DENOISE.out.seqtable_renamed,
+            DADA2_DENOISE.out.nonchimeric_asvs,
+            DADA2_DENOISE.out.readmap
+        )
+        ch_filtered_asvs    = MMSEQS_FILTER.out.ch_filtered_asvs
+        ch_filtered_seqtab  = MMSEQS_FILTER.out.ch_filtered_seqtab
+        ch_filtered_readmap = MMSEQS_FILTER.out.ch_filtered_readmap
+    }
 
     // Subworkflows-Taxonomic assignment (optional)
     ch_taxtab = Channel.empty()
@@ -139,7 +159,7 @@ workflow TADA {
         //      DECIPHER, USEARCH/VSEARCH,q2, BLAST
         // TODO: readmap -> FASTA?
         TAXONOMY(
-            DADA2_DENOISE.out.readmap,
+            ch_filtered_readmap,
             ref_file,
             species_file
         )
@@ -148,7 +168,7 @@ workflow TADA {
         ch_taxtab_rds = TAXONOMY.out.ch_taxtab_rds
     }
     
-    PHYLOGENY(DADA2_DENOISE.out.nonchimeric_asvs)
+    PHYLOGENY(ch_filtered_asvs)
 
     // Post-QC
     QUALITY_CONTROL(
@@ -158,11 +178,11 @@ workflow TADA {
     )
 
     GENERATE_OUTPUT(
-        DADA2_DENOISE.out.seqtable_renamed,
-        DADA2_DENOISE.out.seqtab2qiime,
+        ch_filtered_seqtab,
+        // DADA2_DENOISE.out.seqtab2qiime,
         ch_taxtab_rds,
         ch_taxtab,
-        DADA2_DENOISE.out.nonchimeric_asvs,
+        ch_filtered_asvs,
         PHYLOGENY.out.ch_alignment,
         PHYLOGENY.out.ch_unrooted_tree,
         PHYLOGENY.out.ch_rooted_tree

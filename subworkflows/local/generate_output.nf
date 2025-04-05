@@ -1,4 +1,5 @@
 include { BIOM                   } from '../../modules/local/biom'
+include { DADA2_SEQTABLE2TEXT    } from '../../modules/local/seqtable2txt'
 include { QIIME2_FEATURETABLE    } from '../../modules/local/qiime2featuretable'
 include { QIIME2_TAXTABLE        } from '../../modules/local/qiime2taxtable'
 include { QIIME2_SEQUENCE        } from '../../modules/local/qiime2seqs'
@@ -12,7 +13,7 @@ workflow GENERATE_OUTPUT {
     //       so we can generate from other subworkflows if needed
     take:
     seq_table_rds
-    seq_table_qiime
+    // seq_table_qiime
     tax_table_rds
     tax_table_tsv
     asvs
@@ -31,8 +32,13 @@ workflow GENERATE_OUTPUT {
     }
 
     if (params.to_QIIME2) {
+
+        DADA2_SEQTABLE2TEXT(
+            seq_table_rds
+        )
+
         QIIME2_FEATURETABLE(
-            seq_table_qiime
+            DADA2_SEQTABLE2TEXT.out.seqtab2qiime
         )
 
         QIIME2_TAXTABLE(

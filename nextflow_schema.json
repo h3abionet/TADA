@@ -552,6 +552,11 @@
         },
         "preqc_only": {
             "type": "boolean"
+        },
+        "filter_dryrun": {
+            "type": "boolean",
+            "description": "Perform a filtering run (generate results and outputs) but don't actually screen the ASV data and sequence table. This is useful if you want to test how well filtering works on your data. Default: true",
+            "default": true
         }
     }
 }
