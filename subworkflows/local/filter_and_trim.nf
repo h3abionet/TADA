@@ -7,8 +7,7 @@ include { MERGE_TRIM_TABLES                } from '../../modules/local/mergetrim
 workflow FILTER_AND_TRIM {
 
     take:
-    input           //channel: [val(meta), path(reads)]
-    skip_trimming
+    ch_input
 
     main:
     ch_reports = Channel.empty()
@@ -27,11 +26,14 @@ workflow FILTER_AND_TRIM {
     //       DADA2 filtering (filter) - NYI
     //       cutadapt (trim) - implemented
 
+    // TODO: we don't have both trimmers implemented for platforms, so
+    // we force any pacbio runs to be cutadapt for now
+    def trimmer = params.platform == "pacbio" ? "cutadapt" : params.trimmer
     if (params.platform == "pacbio") {
 
         PACBIO_CUTADAPT(
-            input
-            params.for_primer
+            ch_input,
+            params.for_primer,
             rev_primer_rc
         )
 
@@ -41,21 +43,21 @@ workflow FILTER_AND_TRIM {
         // )
         ch_trimmed = PACBIO_CUTADAPT.out.trimmed
         ch_trimmed_R1 = PACBIO_CUTADAPT.out.trimmed
-        ch_reports = PACBIO_CUTADAPT.out.cutadapt_report.collect()
-        ch_multiqc_files = ch_multiqc_files.mix(ILLUMINA_CUTADAPT.out.cutadapt_json)
+        ch_reports = PACBIO_CUTADAPT.out.trimmed_report.collect()
+        ch_multiqc_files = ch_multiqc_files.mix(PACBIO_CUTADAPT.out.cutadapt_json)
     } else {
         // this handles both paired and single-end data
-        if (params.trimmer == "dada2") {
+        if (trimmer == "dada2") {
             ILLUMINA_DADA2_FILTER_AND_TRIM(
-                input 
+                ch_input 
             )
             ch_trimmed = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed
             ch_reports = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
             ch_trimmed_R1 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R1
             ch_trimmed_R2 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R2
-        } else if (params.trimmer == "cutadapt") {
+        } else if (trimmer == "cutadapt") {
             ILLUMINA_CUTADAPT(
-                input,
+                ch_input,
                 params.for_primer,
                 params.rev_primer,
                 for_primer_rc,
@@ -70,7 +72,8 @@ workflow FILTER_AND_TRIM {
     }
 
     MERGE_TRIM_TABLES(
-        ch_reports
+        ch_reports,
+        trimmer
     )
 
     // Channel setup

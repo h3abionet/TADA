@@ -94,17 +94,17 @@ workflow TADA {
     ch_multiqc_files = ch_multiqc_files.mix(PRE_QC.out.zip.collect{it[1]})
     ch_versions = ch_versions.mix(PRE_QC.out.versions)
     
-    // ch_multiqc_files = ch_multiqc_files.mix(PLOTQUALITYPROFILE.out.zip.collect{it[1]})
-
     ch_trimmed = Channel.empty()
     
-    if (!params.preqc_only) {
+    if (params.preqc_only) {
+        ch_trimmed = ch_samplesheet
+    } else {
         FILTER_AND_TRIM (
-            ch_samplesheet,
-            params.skip_trimming
+            ch_samplesheet
         )
         ch_multiqc_files = ch_multiqc_files.mix(FILTER_AND_TRIM.out.ch_multiqc_files)
         ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
+
         ch_trimmed = FILTER_AND_TRIM.out.trimmed_infer
     }
     
@@ -112,6 +112,7 @@ workflow TADA {
     // they may need to be mixed in different ways depending on the 
     // denoising workflow used
     
+
     // TODO: harmonize output when possible (FASTA + TSV)
     DADA2_DENOISE(
         ch_trimmed
@@ -132,19 +133,19 @@ workflow TADA {
     ch_filtered_seqtab = DADA2_DENOISE.out.seqtable_renamed
     ch_filtered_readmap = DADA2_DENOISE.out.readmap
     // Currently implementing only MMSeqs profile filtering
-    if (params.filter != "none") {
-        // TODO: needs a sanity check
-        // TODO: this should also be a general filter subworkflow 
-        // (not just mmseqs)
-        MMSEQS_FILTER(
-            DADA2_DENOISE.out.seqtable_renamed,
-            DADA2_DENOISE.out.nonchimeric_asvs,
-            DADA2_DENOISE.out.readmap
-        )
-        ch_filtered_asvs    = MMSEQS_FILTER.out.ch_filtered_asvs
-        ch_filtered_seqtab  = MMSEQS_FILTER.out.ch_filtered_seqtab
-        ch_filtered_readmap = MMSEQS_FILTER.out.ch_filtered_readmap
-    }
+    // if (params.filter != "none") {
+    //     // TODO: needs a sanity check
+    //     // TODO: this should also be a general filter subworkflow 
+    //     // (not just mmseqs)
+    //     MMSEQS_FILTER(
+    //         DADA2_DENOISE.out.seqtable_renamed,
+    //         DADA2_DENOISE.out.nonchimeric_asvs,
+    //         DADA2_DENOISE.out.readmap
+    //     )
+    //     ch_filtered_asvs    = MMSEQS_FILTER.out.ch_filtered_asvs
+    //     ch_filtered_seqtab  = MMSEQS_FILTER.out.ch_filtered_seqtab
+    //     ch_filtered_readmap = MMSEQS_FILTER.out.ch_filtered_readmap
+    // }
 
     // Subworkflows-Taxonomic assignment (optional)
     ch_taxtab = Channel.empty()
@@ -177,16 +178,15 @@ workflow TADA {
         DADA2_DENOISE.out.filtered_seqtable
     )
 
-    GENERATE_OUTPUT(
-        ch_filtered_seqtab,
-        // DADA2_DENOISE.out.seqtab2qiime,
-        ch_taxtab_rds,
-        ch_taxtab,
-        ch_filtered_asvs,
-        PHYLOGENY.out.ch_alignment,
-        PHYLOGENY.out.ch_unrooted_tree,
-        PHYLOGENY.out.ch_rooted_tree
-    )
+    // GENERATE_OUTPUT(
+    //     ch_filtered_seqtab,
+    //     ch_taxtab_rds,
+    //     ch_taxtab,
+    //     ch_filtered_asvs,
+    //     PHYLOGENY.out.ch_alignment,
+    //     PHYLOGENY.out.ch_unrooted_tree,
+    //     PHYLOGENY.out.ch_rooted_tree
+    // )
 
     //
     // Collate and save software versions
@@ -213,7 +213,9 @@ workflow TADA {
         ch_multiqc_files.collect(),
         ch_multiqc_config.toList(),
         ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList()
+        ch_multiqc_logo.toList(),
+        [],
+        []
     )
 
     emit:

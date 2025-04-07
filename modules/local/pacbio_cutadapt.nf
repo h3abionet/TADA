@@ -9,35 +9,34 @@ process PACBIO_CUTADAPT {
     val(rev_primer_rc)
 
     output:
-    tuple val(meta), file("${meta.id}.filtered.fastq.gz"), optional: true, emit: cutadapt_trimmed
-    file("${meta.id}.cutadapt.out"), emit: trimmed_report // to merging data
-    file("${meta.id}.untrimmed.fastq.gz"), emit: cutadapt_untrimmed
-    file("${meta.id}.cutadapt.json"), emit: cutadapt_json  // to MultiQC
+    tuple val(meta), path("${meta.id}.R1.filtered.fastq.gz"), optional: true, emit: trimmed
+    path("${meta.id}.cutadapt.out"), emit: trimmed_report // to merging data
+    path("${meta.id}.untrimmed.fastq.gz"), emit: cutadapt_untrimmed
+    path("${meta.id}.cutadapt.json"), emit: cutadapt_json  // to MultiQC
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
+    maxN = params.maxN >=0 ? "--max-n ${params.maxN}" : ""
+    maxEE = "--max-ee ${[params.maxEE_for,params.maxEE_rev].max()}"
     strictness = params.pacbio_strict_match ? '-g' : '-a'
-    maxN = params.maxN >=0 ? "--max-n ${params.maxN} " : ""
-    maxEE = [params.max_ee_for,params.max_ee_rev].max() == 0 ? "--max-ee ${[params.max_ee_for,params.max_ee_rev].max()}" : ""
     min_len = params.min_read_len ? "-m ${params.min_read_len}" : "-m 50" 
     max_len = params.max_read_len != "Inf" ? "-M ${params.max_read_len}" : ""
     """
     cutadapt --rc \\
         --report=minimal \\
-        ${strictness} "${for_primer}...${rev_primer_rc}" \\
-        -j ${task.cpus} ${min_len} ${max_len} ${maxEE} ${max_N} \\
-        --untrimmed-output "${meta.id}.untrimmed.fastq.gz" \\
         --json=${meta.id}.cutadapt.json \\
-        -o "${meta.id}.filtered.fastq.gz" \\
+        ${strictness} "${for_primer}...${rev_primer_rc}" \\
+        -j ${task.cpus} ${min_len} ${max_len} ${maxEE} ${maxN} \\
+        --untrimmed-output "${meta.id}.untrimmed.fastq.gz" \\
+        -o "${meta.id}.R1.filtered.fastq.gz" \\
         ${reads} > "${meta.id}.cutadapt.out"
 
-    # is the FASTQ file empty?
-    if [ -n "\$(gunzip <${meta.id}.filtered.fastq.gz | head -c 1 | tr '\\0\\n' __)" ]; then
+    if [ -n "\$(gunzip <${meta.id}.R1.filtered.fastq.gz | head -c 1 | tr '\\0\\n' __)" ]; then
         echo "Sequences present"
     else
-        rm ${meta.id}.filtered.fastq.gz
+        rm ${meta.id}.R1.filtered.fastq.gz
     fi
     """
 }

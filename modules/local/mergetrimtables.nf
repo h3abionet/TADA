@@ -5,6 +5,7 @@ process MERGE_TRIM_TABLES {
 
     input:
     path(trimData)
+    val(trimmer)
 
     output:
     path("all.trimmed.csv"), emit: trimmed_report
@@ -15,7 +16,7 @@ process MERGE_TRIM_TABLES {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix
-    if (params.trimmer == "dada2") {
+    if (trimmer == "dada2") {
         """
         #!/usr/bin/env Rscript
 
@@ -50,7 +51,10 @@ process MERGE_TRIM_TABLES {
 
         # only keep some data
         to_keep <- c("SampleID", "status", "in_reads",  "too_short", 
-            "too_long", "too_many_n", "out_reads", "w/adapters", "w/adapters2")
+            "too_long", "too_many_n", "out_reads", "w/adapters")
+        if ("w/adapters2" %in% colnames(cutadapt_sample_data[[1]])) {
+            to_keep <- c(to_keep, "w/adapters2")
+        }
         final_cutadapt <- bind_rows(cutadapt_sample_data, .id="SampleID") %>% 
             select(all_of(to_keep))
         # keep sampleID intact, but prepend 'cutadapt' to other columns

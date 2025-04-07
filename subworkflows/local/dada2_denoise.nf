@@ -5,12 +5,11 @@ include { DADA_INFER                            } from '../../modules/local/dada
 include { POOLED_SEQTABLE                       } from '../../modules/local/pooledseqtable'
 include { DADA2_REMOVE_CHIMERAS                 } from '../../modules/local/removechimeras'
 include { RENAME_ASVS                           } from '../../modules/local/renameasvs'
-include { DADA2_SEQTABLE2TEXT                   } from '../../modules/local/seqtable2txt'
 
 workflow DADA2_DENOISE {
 
     take:
-    ch_trimmed_infer 
+    ch_trimmed_infer
 
     main:
 
@@ -56,12 +55,7 @@ workflow DADA2_DENOISE {
         POOLED_SEQTABLE.out.filtered_seqtable
     )
 
-    DADA2_SEQTABLE2TEXT(
-        RENAME_ASVS.out.seqtable_renamed
-    )
-
     emit:
-    seqtab2qiime = DADA2_SEQTABLE2TEXT.out.seqtab2qiime
     nonchimeric_asvs = RENAME_ASVS.out.nonchimeric_asvs
     seqtable_renamed = RENAME_ASVS.out.seqtable_renamed
     readmap = RENAME_ASVS.out.readmap
