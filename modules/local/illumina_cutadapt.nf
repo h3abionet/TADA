@@ -33,7 +33,8 @@ process ILLUMINA_CUTADAPT {
     polyG = params.illumina_twocolor ? "--nextseq-trim=2" : ""
 
     """
-    cutadapt --report=minimal \\
+    cutadapt \\
+        --report=minimal \\
         --json=${meta.id}.cutadapt.json \\
         -g ${for_primer} -a ${rev_primer_rc} ${p2} \\
         --cores ${task.cpus} \\
