@@ -5,7 +5,6 @@ process DADA2_TAXTABLE2TEXT {
     input:
     path(taxtab_rds)
     path(bootstrap_rds)
-    path(map)
 
     output:
     path("tax_final.RDS"), emit: taxtab_rds
@@ -24,7 +23,6 @@ process DADA2_TAXTABLE2TEXT {
     suppressPackageStartupMessages(library(ShortRead))
 
     tax <- readRDS("${taxtab_rds}")
-    map <- readRDS("${map}")
 
     # Note that we use the old ASV ID for output here
     write.table(data.frame('ASVID' = row.names(tax), tax),
