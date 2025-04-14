@@ -71,15 +71,15 @@ workflow TADA {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
     }
 
-    if (!(['none', 'mmseqs_aa_profile', 'mmseqs_aa_database'].contains(params.filter))) {
-        exit 1, "--filter can be 'none', 'mmseqs_aa_profile', 'mmseqs_aa_database'\nGot ${params.filter}"
-    }
-
-    // if (params.filter == 'mmseqs_aa_profile' and !params.mmseqs_profile) {
-    //     exit 1, "--filter ${params.filter} requires --mmseqs_profile to be set (Stockholm format file)"
+    // if (!(['none', 'mmseqs_search'].contains(params.sequence_filter))) {
+    //     exit 1, "--filter can be 'none', 'mmseqs_search'\nGot ${params.filter}"
     // }
 
-    // if (params.filter == 'mmseqs_aa_database' and !params.mmseqs_database) {
+    // if (params.filter == 'mmseqs_search' && (!params.mmseqs_database || !params.mmseqs_fasta) {
+    //     exit 1, "--filter ${params.filter} requires either --mmseqs_database or --mmseqs_fasta to be set"
+    // }
+
+    // if (params.filter == 'mmseqs_aa_database' && !params.mmseqs_database) {
     //     exit 1, "--filter ${params.filter} requires --mmseqs_database to be set (FASTA format file)"
     // }
 
@@ -104,7 +104,6 @@ workflow TADA {
         )
         ch_multiqc_files = ch_multiqc_files.mix(FILTER_AND_TRIM.out.ch_multiqc_files)
         ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
-
         ch_trimmed = FILTER_AND_TRIM.out.trimmed_infer
     }
     
@@ -118,7 +117,7 @@ workflow TADA {
         ch_trimmed
     )
 
-    // TODO: split out chimera removal into a separate step
+    // TODO: split out chimera removal from denoise into a separate step
     // CHIMERA_REMOVAL()
 
     // TODO: mix these in a specific order? This would help when merging
@@ -133,19 +132,19 @@ workflow TADA {
     ch_filtered_seqtab = DADA2_DENOISE.out.seqtable_renamed
     ch_filtered_readmap = DADA2_DENOISE.out.readmap
     // Currently implementing only MMSeqs profile filtering
-    // if (params.filter != "none") {
-    //     // TODO: needs a sanity check
-    //     // TODO: this should also be a general filter subworkflow 
-    //     // (not just mmseqs)
-    //     MMSEQS_FILTER(
-    //         DADA2_DENOISE.out.seqtable_renamed,
-    //         DADA2_DENOISE.out.nonchimeric_asvs,
-    //         DADA2_DENOISE.out.readmap
-    //     )
-    //     ch_filtered_asvs    = MMSEQS_FILTER.out.ch_filtered_asvs
-    //     ch_filtered_seqtab  = MMSEQS_FILTER.out.ch_filtered_seqtab
-    //     ch_filtered_readmap = MMSEQS_FILTER.out.ch_filtered_readmap
-    // }
+    if (params.search_filter != "none") {
+        // TODO: needs a sanity check
+        // TODO: this should also be a general filter subworkflow 
+        // (not just mmseqs)
+        MMSEQS_FILTER(
+            DADA2_DENOISE.out.seqtable_renamed,
+            DADA2_DENOISE.out.nonchimeric_asvs,
+            ch_filtered_readmap // TODO: get rid of the readmap, it's redundant
+        )
+        ch_filtered_asvs    = MMSEQS_FILTER.out.ch_filtered_asvs
+        ch_filtered_seqtab  = MMSEQS_FILTER.out.ch_filtered_seqtab
+        ch_filtered_readmap = MMSEQS_FILTER.out.ch_filtered_readmap
+    }
 
     // Subworkflows-Taxonomic assignment (optional)
     ch_taxtab = Channel.empty()
@@ -163,10 +162,12 @@ workflow TADA {
             ch_filtered_readmap,
             ref_file,
             species_file
+            // ,ch_filtered_seqtab
         )
         ch_taxtab = TAXONOMY.out.ch_taxtab
-        ch_metrics = TAXONOMY.out.ch_metrics
+        ch_boots = TAXONOMY.out.ch_metrics
         ch_taxtab_rds = TAXONOMY.out.ch_taxtab_rds
+        //ch_filtered_seqtab = TAXONOMY.out.ch_seqtab_rds
     }
     
     PHYLOGENY(ch_filtered_asvs)
@@ -178,15 +179,15 @@ workflow TADA {
         DADA2_DENOISE.out.filtered_seqtable
     )
 
-    // GENERATE_OUTPUT(
-    //     ch_filtered_seqtab,
-    //     ch_taxtab_rds,
-    //     ch_taxtab,
-    //     ch_filtered_asvs,
-    //     PHYLOGENY.out.ch_alignment,
-    //     PHYLOGENY.out.ch_unrooted_tree,
-    //     PHYLOGENY.out.ch_rooted_tree
-    // )
+    GENERATE_OUTPUT(
+        ch_filtered_seqtab,
+        ch_taxtab_rds,
+        ch_taxtab,
+        ch_filtered_asvs,
+        PHYLOGENY.out.ch_alignment,
+        PHYLOGENY.out.ch_unrooted_tree,
+        PHYLOGENY.out.ch_rooted_tree
+    )
 
     //
     // Collate and save software versions
