@@ -335,7 +335,7 @@
         },
         "max_read_len": {
             "type": "integer",
-            "default": 5000,
+            "default": 10000,
             "description": "DADA2 `filterAndTrim`. Remove reads with length greater than maxLen. maxLen is enforced before trimming and truncation."
         },
         "min_read_len": {
@@ -524,38 +524,63 @@
             "description": "Set for Illumina two-color trimming."
         },
         "skip_chimera_detection": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Don't run chimera removal (not recommended)"
         },
         "amplicon_name": {
-            "type": "string"
+            "type": "string",
+            "description": "NYI; short name for amplicon data"
         },
         "min_predicted_length": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "NYI; minimum predicted amplicon length"
         },
         "max_predicted_length": {
             "type": "integer",
-            "default": 0
+            "default": 0,
+            "description": "NYI; maximum predicted amplicon length"
         },
-        "filter": {
+        "mmseqs_database": {
+            "type": "string",
+            "description": "Path MMseqs2-formatted database"
+        },
+        "preqc_only": {
+            "type": "boolean",
+            "description": "Only run pre-QC stage"
+        },
+        "priors": {
+            "type": "string",
+            "description": "FASTA sequences for priors to use in denoising"
+        },
+        "mmseqs_method": {
+            "type": "string",
+            "default": "search",
+            "description": "Type of search to perform. Currently only \"search\" is supported"
+        },
+        "mmseqs_fasta": {
+            "type": "string",
+            "description": "FASTA to index using the provided `mmseqs_method`."
+        },
+        "infernal_model": {
+            "type": "string",
+            "description": "NYI. Covariance model used for Infernal `cmsearch` filtering (e.g. rRNA)"
+        },
+        "tax_filter": {
+            "type": "boolean",
+            "description": "Filter ASVs based on taxonomic classification"
+        },
+        "tax_filter_rank": {
+            "type": "string",
+            "default": "Phylum",
+            "description": "Rank to use for filtering taxonomic results"
+        },
+        "search_filter": {
             "type": "string",
             "default": "none"
         },
-        "mmseqs_profile": {
-            "type": "string"
-        },
-        "mmseqs_database": {
-            "type": "string"
-        },
-        "infernal_cm": {
-            "type": "string"
-        },
-        "preqc_only": {
-            "type": "boolean"
-        },
-        "filter_dryrun": {
+        "search_filter_dryrun": {
             "type": "boolean",
-            "description": "Perform a filtering run (generate results and outputs) but don't actually screen the ASV data and sequence table. This is useful if you want to test how well filtering works on your data. Default: true",
             "default": true
         }
     }
