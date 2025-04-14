@@ -14,8 +14,8 @@ workflow DADA2_DENOISE {
     main:
 
     ch_versions = Channel.empty()
-
     ch_infer = Channel.empty()
+    ch_merged = Channel.empty()
     // TODO nf-core: substitute modules here for the modules of your subworkflow
     if (params.platform == 'pacbio') {
         PACBIO_DADA2_LEARN_ERRORS (
