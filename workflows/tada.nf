@@ -132,7 +132,7 @@ workflow TADA {
     ch_filtered_seqtab = DADA2_DENOISE.out.seqtable_renamed
     ch_filtered_readmap = DADA2_DENOISE.out.readmap
     // Currently implementing only MMSeqs profile filtering
-    if (params.search_filter != "none") {
+    if (params.filter == "mmseqs") {
         // TODO: needs a sanity check
         // TODO: this should also be a general filter subworkflow 
         // (not just mmseqs)

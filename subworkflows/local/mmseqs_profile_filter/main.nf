@@ -2,99 +2,98 @@
 // include { MMSEQS_CONVERTMSA  } from '../../../modules/local/mmseqs/convertmsa'
 // include { MMSEQS_MSA2PROFILE } from '../../../modules/local/mmseqs/msa2profile'
 // include { MMSEQS_SEARCH      } from '../../../modules/nf-core/mmseqs/search'
-// include { MMSEQS_CREATEDB    as MMSEQS_CREATEDB_PROFILE } from '../../../modules/nf-core/mmseqs/createdb'
-// include { MMSEQS_CREATEDB    as MMSEQS_CREATEDB_QUERY   } from '../../../modules/nf-core/mmseqs/createdb'
 // include { MMSEQS_FILTER_DATA }
+include { MMSEQS_CREATEDB       } from '../../../modules/nf-core/mmseqs/createdb'
+// include { MMSEQS_CREATEINDEX   } from '../../../modules/nf-core/mmseqs/createindex'
 
-// TODO: split up and move into modules 
-process MMSEQS_PROFILE_FULL {
-    tag "${profile.getSimpleName()}"
-    label 'process_low'
+// process MMSEQS_PROFILE_FULL {
+//     tag "${profile.getSimpleName()}"
+//     label 'process_low'
 
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/mmseqs2:17.b804f--hd6d6fdc_1':
-        'biocontainers/mmseqs2:17.b804f--hd6d6fdc_1' }"
+//     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+//         'https://depot.galaxyproject.org/singularity/mmseqs2:17.b804f--hd6d6fdc_1':
+//         'biocontainers/mmseqs2:17.b804f--hd6d6fdc_1' }"
 
-    input:
-    // tuple val(meta), path("${prefix}/"), emit: db_search
-    path(profile)
-    path(asvs)
-    path(readmap)
+//     input:
+//     // tuple val(meta), path("${prefix}/"), emit: db_search
+//     path(profile)
+//     path(asvs)
+//     path(readmap)
 
-    output:
-    path("asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8"), emit: db_search
-    path("asv_vs_${profile.getSimpleName()}_filtering_results.profile.ids"), emit: db_ids
-    path "versions.yml"           , emit: versions
+//     output:
+//     path("asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8"), emit: db_search
+//     path("asv_vs_${profile.getSimpleName()}_filtering_results.profile.ids"), emit: db_ids
+//     path "versions.yml"           , emit: versions
 
-    when:
-    task.ext.when == null || task.ext.when
+//     when:
+//     task.ext.when == null || task.ext.when
 
-    script:
-    def args = task.ext.args ?: ''
+//     script:
+//     def args = task.ext.args ?: ''
     
-    """
-    ## TODO: split into separate steps!!!
-    mmseqs convertmsa ${profile} \\
-        ${profile.getSimpleName()}.msa_db
+//     """
+//     ## TODO: split into separate steps!!!
+//     mmseqs convertmsa ${profile} \\
+//         ${profile.getSimpleName()}.msa_db
     
-    mmseqs msa2profile \\
-        ${profile.getSimpleName()}.msa_db \\
-        ${profile.getSimpleName()}.profile \\
-        --match-mode 1 --threads ${task.cpus}
+//     mmseqs msa2profile \\
+//         ${profile.getSimpleName()}.msa_db \\
+//         ${profile.getSimpleName()}.profile \\
+//         --match-mode 1 --threads ${task.cpus}
 
-    mmseqs createindex \\
-        ${profile.getSimpleName()}.profile \\
-        tmp \\
-        --threads ${task.cpus} \\        
-        -k 6 -s 7
+//     mmseqs createindex \\
+//         ${profile.getSimpleName()}.profile \\
+//         tmp \\
+//         --threads ${task.cpus} \\        
+//         -k 6 -s 7
 
-    mmseqs createdb \\
-        ${asvs} \\
-        asvs \\
-        --dbtype 2
+//     mmseqs createdb \\
+//         ${asvs} \\
+//         asvs \\
+//         --dbtype 2
 
-    mkdir ${profile.getSimpleName()}
+//     mkdir ${profile.getSimpleName()}
 
-    # most sensitive setting for matches
-    mmseqs search \\
-        asvs \\
-        ${profile.getSimpleName()}.profile \\
-        ${profile.getSimpleName()}/asvs.results  \\
-        tmp \\
-        --threads ${task.cpus} \\
-        -k 6 -s 7 
+//     # most sensitive setting for matches
+//     mmseqs search \\
+//         asvs \\
+//         ${profile.getSimpleName()}.profile \\
+//         ${profile.getSimpleName()}/asvs.results  \\
+//         tmp \\
+//         --threads ${task.cpus} \\
+//         -k 6 -s 7 
 
-    mmseqs convertalis \\
-        asvs \\
-        ${profile.getSimpleName()}.profile \\
-        asvs.results asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8
+//     mmseqs convertalis \\
+//         asvs \\
+//         ${profile.getSimpleName()}.profile \\
+//         asvs.results asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8
 
-    cut -f1 asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8 | \\
-        sort | \\
-        uniq > \\
-        asv_vs_${profile.getSimpleName()}_filtering_results.profile.ids
+//     cut -f1 asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8 | \\
+//         sort | \\
+//         uniq > \\
+//         asv_vs_${profile.getSimpleName()}_filtering_results.profile.ids
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        mmseqs: \$(mmseqs | grep 'Version' | sed 's/MMseqs2 Version: //')
-    END_VERSIONS
-    """
+//     cat <<-END_VERSIONS > versions.yml
+//     "${task.process}":
+//         mmseqs: \$(mmseqs | grep 'Version' | sed 's/MMseqs2 Version: //')
+//     END_VERSIONS
+//     """
 
-    stub:
-    def args = task.ext.args ?: ''
+//     stub:
+//     def args = task.ext.args ?: ''
     
-    """
-    touch ${prefix}.bam
+//     """
+//     touch ${prefix}.bam
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        mmseqs: \$(samtools --version |& sed '1!d ; s/samtools //')
-    END_VERSIONS
-    """
-}
+//     cat <<-END_VERSIONS > versions.yml
+//     "${task.process}":
+//         mmseqs: \$(samtools --version |& sed '1!d ; s/samtools //')
+//     END_VERSIONS
+//     """
+// }
 
 process MMSEQS_DATABASE_FULL {
-    tag "${database.getSimpleName()}"
+    tag "${meta.id}"
     label 'process_low'
 
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -103,12 +102,12 @@ process MMSEQS_DATABASE_FULL {
 
     input:
     // tuple val(meta), path("${prefix}/"), emit: db_search
-    path(database)
+    tuple val(meta), path(mmseqs_database)
     path(asvs)
 
     output:
-    path("${asvs.getSimpleName()}_vs_${database.getSimpleName()}.database.m8"), emit: db_search
-    path("${asvs.getSimpleName()}_vs_${database.getSimpleName()}.database.ids"), emit: db_ids
+    path("asvs_vs_${meta.id}.database.m8"), emit: db_search
+    path("asvs_vs_${meta.id}.database.ids"), emit: db_ids
     path "versions.yml"           , emit: versions
 
     when:
@@ -120,15 +119,15 @@ process MMSEQS_DATABASE_FULL {
     """
     # most sensitive setting for matches
     mmseqs easy-search ${asvs} \\
-        ${database} \\
-        ${asvs.getSimpleName()}_vs_${database.getSimpleName()}.database.m8 \\
+        ${mmseqs_database}/${meta.id} \\
+        asvs_vs_${meta.id}.database.m8 \\
         tmp \\
         -s 7.5 \\
         --threads ${task.cpus}
     
-    cut -f1 ${asvs.getSimpleName()}_vs_${database.getSimpleName()}.database.m8 | \\
+    cut -f1 asvs_vs_${meta.id}.database.m8 | \\
         sort | uniq > \\
-        ${asvs.getSimpleName()}_vs_${database.getSimpleName()}.database.ids
+        asvs_vs_${meta.id}.database.ids
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -205,22 +204,44 @@ workflow MMSEQS_FILTER {
     ch_versions = Channel.empty()
     ch_filtered_ids = Channel.empty()
 
-    if (params.filter == "mmseqs_aa_profile") {
+    // if (params.mmseqs_method == "profile") {
 
-        // TODO: these need to be sanity checked early on
-        ch_profile = file(params.mmseqs_profile, checkIfExists: true)
+    //     // TODO: these need to be sanity checked early on
+    //     ch_profile = file(params.mmseqs_fasta, checkIfExists: true)
 
-        // TODO: we need to allow more parameters through
-        MMSEQS_PROFILE_FULL(
-            ch_profile,
-            ch_asvs
-        )
-        ch_versions = ch_versions.mix(MMSEQS_PROFILE_FULL.out.versions)
-        ch_filtered_ids = MMSEQS_PROFILE_FULL.out.db_ids
-    } else if (params.filter == "mmseqs_aa_database") {
+    //     // TODO: we need to allow more parameters through
+    //     MMSEQS_PROFILE_FULL(
+    //         ch_profile,
+    //         ch_asvs
+    //     )
+    //     ch_versions = ch_versions.mix(MMSEQS_PROFILE_FULL.out.versions)
+    //     ch_filtered_ids = MMSEQS_PROFILE_FULL.out.db_ids
+    // } 
 
-        // TODO: these need to be sanity checked early on
-        ch_database = file(params.mmseqs_database, checkIfExists: true)
+    // TODO: sanity check this
+    if (params.mmseqs_method == "search") {
+
+        ch_database = Channel.empty()
+
+        
+        if (params.mmseqs_fasta) {
+            // Create a meta file on the fly
+            ch_mmseqs_fasta = Channel
+                .fromPath(params.mmseqs_fasta, checkIfExists: true)
+                .map { it -> tuple( [id: it.getSimpleName()], it) }
+                .first()
+
+            MMSEQS_CREATEDB(
+                ch_mmseqs_fasta
+            )
+
+            ch_database = MMSEQS_CREATEDB.out.db
+            ch_versions = ch_versions.mix(MMSEQS_CREATEDB.out.versions)
+        } else {
+            ch_database = Channel
+                .fromPath(params.mmseqs_database, checkIfExists: true)
+                .first()
+        }
 
         // TODO: we need to allow more parameters through   
         MMSEQS_DATABASE_FULL(
@@ -230,7 +251,7 @@ workflow MMSEQS_FILTER {
 
         ch_versions = ch_versions.mix(MMSEQS_DATABASE_FULL.out.versions)
         ch_filtered_ids = MMSEQS_DATABASE_FULL.out.db_ids
-    }
+    } 
 
     FILTER_TADA_DATA(
         ch_seqtab,
