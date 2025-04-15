@@ -7,7 +7,7 @@ process FASTTREE {
     path(aln)
 
     output:
-    path("fasttree.newick"), emit: treeGTR
+    path("unrooted.fasttree.newick"), emit: treeGTR
 
     when:
     task.ext.when == null || task.ext.when
@@ -18,7 +18,7 @@ process FASTTREE {
     """
     OMP_NUM_THREADS=${task.cpus} FastTree -nt \\
         -gtr -gamma -spr 4 -mlacc 2 -slownni \\
-        -out fasttree.newick \\
+        -out unrooted.fasttree.newick \\
         ${aln}
     """
 

@@ -6,7 +6,7 @@ process QIIME2_SEQUENCE {
     path(seqs)
 
     output:
-    path("sequences.qza")
+    path("asv_sequences.qza")
 
     when:
     task.ext.when == null || task.ext.when 
@@ -16,7 +16,7 @@ process QIIME2_SEQUENCE {
     """
     qiime tools import \
         --input-path ${seqs} \
-        --output-path sequences.qza \
+        --output-path asv_sequences.qza \
         --type 'FeatureData[Sequence]'
     """
 

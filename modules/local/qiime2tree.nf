@@ -7,8 +7,8 @@ process QIIME2_TREE {
     path(rooted)
 
     output:
-    path("unrooted-tree.qza")
-    path("rooted-tree.qza")
+    path("unrooted_tree.qza")
+    path("rooted_tree.qza")
 
     when:
     task.ext.when == null || task.ext.when 
@@ -18,12 +18,12 @@ process QIIME2_TREE {
     """
     qiime tools import \
         --input-path ${unrooted} \
-        --output-path unrooted-tree.qza \
+        --output-path unrooted_tree.qza \
         --type 'Phylogeny[Unrooted]'
 
     qiime tools import \
         --input-path ${rooted} \
-        --output-path rooted-tree.qza \
+        --output-path rooted_tree.qza \
         --type 'Phylogeny[Rooted]'
     """
 
