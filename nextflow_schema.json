@@ -577,11 +577,17 @@
         },
         "search_filter": {
             "type": "string",
-            "default": "none"
+            "default": "none",
+            "description": "Use a sequence-based search filter to screen ASVs. Only \"mmseqs\" is currently supported"
         },
         "search_filter_dryrun": {
             "type": "boolean",
-            "default": true
+            "default": true,
+            "description": "If `search_filter` is set, perform the search and generate outputs, but do not filter the ASVs or sequence table."
+        },
+        "mmseqs_args": {
+            "type": "string",
+            "description": "Additional arguments for mmseqs analyses"
         }
     }
 }

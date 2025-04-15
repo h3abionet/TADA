@@ -4,6 +4,7 @@
 // include { MMSEQS_SEARCH      } from '../../../modules/nf-core/mmseqs/search'
 // include { MMSEQS_FILTER_DATA }
 include { MMSEQS_CREATEDB       } from '../../../modules/nf-core/mmseqs/createdb'
+include { MMSEQS_EASYSEARCH     } from '../../../modules/nf-core/mmseqs/easysearch/main'
 // include { MMSEQS_CREATEINDEX   } from '../../../modules/nf-core/mmseqs/createindex'
 
 // process MMSEQS_PROFILE_FULL {
@@ -92,8 +93,9 @@ include { MMSEQS_CREATEDB       } from '../../../modules/nf-core/mmseqs/createdb
 //     """
 // }
 
-process MMSEQS_DATABASE_FULL {
-    tag "${meta.id}"
+// TODO: this can be merged in the R-based FILTER_TADA_DATA step
+process MMSEQS_DATABASE_FILTER {
+    tag "${prefix}"
     label 'process_low'
 
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -101,50 +103,30 @@ process MMSEQS_DATABASE_FULL {
         'biocontainers/mmseqs2:17.b804f--hd6d6fdc_1' }"
 
     input:
-    // tuple val(meta), path("${prefix}/"), emit: db_search
-    tuple val(meta), path(mmseqs_database)
-    path(asvs)
+    tuple val(meta), path(tsv)
 
     output:
-    path("asvs_vs_${meta.id}.database.m8"), emit: db_search
     path("asvs_vs_${meta.id}.database.ids"), emit: db_ids
-    path "versions.yml"           , emit: versions
+    // path "versions.yml"           , emit: versions
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
     def args = task.ext.args ?: ''
+    def prefix = task.ext.prefix ?: "${meta.id}"
     
-    """
-    # most sensitive setting for matches
-    mmseqs easy-search ${asvs} \\
-        ${mmseqs_database}/${meta.id} \\
-        asvs_vs_${meta.id}.database.m8 \\
-        tmp \\
-        -s 7.5 \\
-        --threads ${task.cpus}
-    
-    cut -f1 asvs_vs_${meta.id}.database.m8 | \\
+    """    
+    cut -f1 ${tsv} | \\
         sort | uniq > \\
-        asvs_vs_${meta.id}.database.ids
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        mmseqs: \$(mmseqs | grep 'Version' | sed 's/MMseqs2 Version: //')
-    END_VERSIONS
+        asvs_vs_${prefix}.database.ids
     """
 
     stub:
     def args = task.ext.args ?: ''
     
     """
-    touch ${prefix}.
-
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        mmseqs: \$(samtools --version |& sed '1!d ; s/samtools //')
-    END_VERSIONS
+    touch asvs_vs_${prefix}.database.ids
     """
 }
 
@@ -204,25 +186,14 @@ workflow MMSEQS_FILTER {
     ch_versions = Channel.empty()
     ch_filtered_ids = Channel.empty()
 
-    // if (params.mmseqs_method == "profile") {
-
-    //     // TODO: these need to be sanity checked early on
-    //     ch_profile = file(params.mmseqs_fasta, checkIfExists: true)
-
-    //     // TODO: we need to allow more parameters through
-    //     MMSEQS_PROFILE_FULL(
-    //         ch_profile,
-    //         ch_asvs
-    //     )
-    //     ch_versions = ch_versions.mix(MMSEQS_PROFILE_FULL.out.versions)
-    //     ch_filtered_ids = MMSEQS_PROFILE_FULL.out.db_ids
-    // } 
+    // there is no meta here, so we create one
+    ch_asvs_meta = ch_asvs
+        .map { it -> tuple([id: "asvs"], it)}
 
     // TODO: sanity check this
     if (params.mmseqs_method == "search") {
 
         ch_database = Channel.empty()
-
         
         if (params.mmseqs_fasta) {
             // Create a meta file on the fly
@@ -240,17 +211,22 @@ workflow MMSEQS_FILTER {
         } else {
             ch_database = Channel
                 .fromPath(params.mmseqs_database, checkIfExists: true)
+                .map { it -> tuple( [id: it.getSimpleName()], it) }
                 .first()
-        }
+        }       
+
+        MMSEQS_EASYSEARCH(
+            ch_asvs_meta,
+            ch_database
+        )
+        ch_versions = ch_versions.mix(MMSEQS_EASYSEARCH.out.versions)
 
         // TODO: we need to allow more parameters through   
-        MMSEQS_DATABASE_FULL(
-            ch_database,
-            ch_asvs
+        MMSEQS_DATABASE_FILTER(
+            MMSEQS_EASYSEARCH.out.tsv
         )
 
-        ch_versions = ch_versions.mix(MMSEQS_DATABASE_FULL.out.versions)
-        ch_filtered_ids = MMSEQS_DATABASE_FULL.out.db_ids
+        ch_filtered_ids = MMSEQS_DATABASE_FILTER.out.db_ids
     } 
 
     FILTER_TADA_DATA(
@@ -261,13 +237,13 @@ workflow MMSEQS_FILTER {
     )
 
     emit:
-    ch_filtered_seqtab = params.filter_dryrun ? 
+    ch_filtered_seqtab = params.search_filter_dryrun ? 
         ch_seqtab :
         FILTER_TADA_DATA.out.filtered_seqtab
-    ch_filtered_asvs = params.filter_dryrun ? 
+    ch_filtered_asvs = params.search_filter_dryrun ? 
         ch_asvs :
         FILTER_TADA_DATA.out.filtered_asvs
-    ch_filtered_readmap = params.filter_dryrun ? 
+    ch_filtered_readmap = params.search_filter_dryrun ? 
         ch_readmap :
         FILTER_TADA_DATA.out.filtered_readmap
     versions = ch_versions // channel: [ versions.yml ]
