@@ -143,7 +143,7 @@ workflow TADA {
         )
         ch_filtered_asvs = MMSEQS_FILTER.out.ch_filtered_asvs
         ch_filtered_seqtab_rds  = MMSEQS_FILTER.out.ch_filtered_seqtab
-        ch_filtered_readmap = MMSEQS_FILTER.out.ch_filtered_readmap
+        ch_filtered_readmap_rds = MMSEQS_FILTER.out.ch_filtered_readmap
         ch_readtracking = ch_readtracking.mix(ch_filtered_seqtab_rds)
     }
 
