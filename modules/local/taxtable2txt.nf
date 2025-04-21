@@ -23,7 +23,7 @@ process DADA2_TAXTABLE2TEXT {
     suppressPackageStartupMessages(library(dada2))
     suppressPackageStartupMessages(library(tidyverse))
 
-    tax <- readRDS("${taxtab_rds}") %>% column_to_rownames(var="TaxID") %>% as.data.frame()
+    tax <- readRDS("${taxtab_rds}")
 
     # Generate table output
     # Note that we use the old ASV ID for output here

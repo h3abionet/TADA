@@ -23,15 +23,15 @@ workflow TAXONOMY {
         species_file
     )
 
-    ch_taxtab = DADA2_ASSIGN_TAXA_SPECIES.out.taxtab_rds
-    ch_metrics =  DADA2_ASSIGN_TAXA_SPECIES.out.metrics_rds
+    ch_taxtab_rds = DADA2_ASSIGN_TAXA_SPECIES.out.taxtab_rds
+    ch_taxmetrics_rds =  DADA2_ASSIGN_TAXA_SPECIES.out.metrics_rds
 
     if (params.tax_filter) {
         DADA2_TAXFILTER(
             ch_readmap_rds,
             ch_seqtab_rds,
-            ch_taxtab,
-            ch_metrics
+            ch_taxtab_rds,
+            ch_taxmetrics_rds
         )
         ch_readmap_rds = DADA2_TAXFILTER.out.readmap_tax_filtered_rds
         ch_seqtab_rds = DADA2_TAXFILTER.out.seqtab_tax_filtered_rds
