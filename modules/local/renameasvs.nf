@@ -8,7 +8,7 @@ process RENAME_ASVS {
     path(rawst)
 
     output:
-    path("seqtab_final.${params.id_type}.RDS"), emit: seqtable_renamed
+    path("seqtab.${params.id_type}.RDS"), emit: seqtable_renamed
     path("asvs.${params.id_type}.nochim.fna"), emit: nonchimeric_asvs
     path("asvs.${params.id_type}.raw.fna"), emit: all_asvs
     path("readmap.RDS"), emit: readmap
@@ -56,7 +56,7 @@ process RENAME_ASVS {
     rownames(st.raw) <- gsub(".R1.filtered.fastq.gz", "", rownames(st.raw))
 
     # Write modified data (note we only keep the no-chimera reads for the next stage)
-    saveRDS(st, "seqtab_final.${params.id_type}.RDS")
+    saveRDS(st, "seqtab.${params.id_type}.RDS")
     saveRDS(data.frame(id = ids_study, seq = seqs), "readmap.RDS")
     """
 

@@ -5,6 +5,7 @@
 */
 
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
+include { DADA2_READMAP2ASV      } from '../modules/local/readmap2asv'
 
 include { PRE_QC                 } from '../subworkflows/local/pre_qc'
 include { FILTER_AND_TRIM        } from '../subworkflows/local/filter_and_trim'
@@ -110,8 +111,6 @@ workflow TADA {
     // TODO: Input for these should be the trimmed reads from above, but
     // they may need to be mixed in different ways depending on the 
     // denoising workflow used
-    
-
     // TODO: harmonize output when possible (FASTA + TSV)
     DADA2_DENOISE(
         ch_trimmed
@@ -122,32 +121,34 @@ workflow TADA {
 
     // TODO: mix these in a specific order? This would help when merging
     //       multiple tables from different sources
-    // TODO: see if these can be combined
-    ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.inferred.collect())
-    ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.seqtable_renamed)
-    ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.merged_seqs)
+    ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.inferred.collect()
+            ,DADA2_DENOISE.out.seqtable_renamed
+            ,DADA2_DENOISE.out.merged_seqs)
 
     // TODO: make a tuple?
     ch_filtered_asvs = DADA2_DENOISE.out.nonchimeric_asvs
-    ch_filtered_seqtab = DADA2_DENOISE.out.seqtable_renamed
+    ch_filtered_seqtab_rds = DADA2_DENOISE.out.seqtable_renamed
     ch_filtered_readmap = DADA2_DENOISE.out.readmap
+
     // Currently implementing only MMSeqs search filtering
     if (params.search_filter == "mmseqs") {
         // TODO: needs a sanity check
         // TODO: this should also be a general filter subworkflow 
         // (not just mmseqs)
+        // TODO: note that readmap + ASVs are redundant here
         MMSEQS_FILTER(
-            DADA2_DENOISE.out.seqtable_renamed,
-            DADA2_DENOISE.out.nonchimeric_asvs,
-            ch_filtered_readmap // TODO: get rid of the readmap, it's redundant
+            ch_filtered_seqtab_rds,
+            ch_filtered_asvs,
+            ch_filtered_readmap
         )
-        ch_filtered_asvs    = MMSEQS_FILTER.out.ch_filtered_asvs
-        ch_filtered_seqtab  = MMSEQS_FILTER.out.ch_filtered_seqtab
+        ch_filtered_asvs = MMSEQS_FILTER.out.ch_filtered_asvs
+        ch_filtered_seqtab_rds  = MMSEQS_FILTER.out.ch_filtered_seqtab
         ch_filtered_readmap = MMSEQS_FILTER.out.ch_filtered_readmap
+        ch_readtracking = ch_readtracking.mix(ch_filtered_seqtab_rds)
     }
 
     // Subworkflows-Taxonomic assignment (optional)
-    ch_taxtab = Channel.empty()
+    // ch_taxtab = Channel.empty()
     ch_taxtab_rds = Channel.empty()
     ch_boots =  Channel.empty()
 
@@ -161,18 +162,28 @@ workflow TADA {
         TAXONOMY(
             ch_filtered_readmap,
             ref_file,
-            species_file
-            // ,ch_filtered_seqtab
+            species_file,
+            ch_filtered_seqtab_rds
         )
-        ch_taxtab = TAXONOMY.out.ch_taxtab
-        ch_boots = TAXONOMY.out.ch_metrics
         ch_taxtab_rds = TAXONOMY.out.ch_taxtab_rds
-        //ch_filtered_seqtab = TAXONOMY.out.ch_seqtab_rds
+        ch_metrics_rds = TAXONOMY.out.ch_taxmetrics_rds
+        ch_filtered_seqtab_rds = TAXONOMY.out.ch_seqtab_rds
+        ch_readmap_rds = TAXONOMY.out.ch_readmap_rds
+        ch_readtracking = ch_readtracking.mix(ch_filtered_seqtab_rds)
     }
     
+    // For now, we need to convert the readmap back to ASVs
+    // here. But we could use the readmap in the subworkflows
+    // where an ASV FASTA input is needed. May defer this when
+    // we introduce an alternative denoising workflow 
+    // (USEARCH/VSEARCH)
+    
+    DADA2_READMAP2ASV(ch_readmap_rds)
+    ch_filtered_asvs = DADA2_READMAP2ASV.out.asvs
+
     PHYLOGENY(ch_filtered_asvs)
 
-    // Post-QC
+    // Post-QC, TODO needs some checking 
     QUALITY_CONTROL(
         ch_readtracking,
         DADA2_DENOISE.out.merged_seqs,
@@ -180,9 +191,9 @@ workflow TADA {
     )
 
     GENERATE_OUTPUT(
-        ch_filtered_seqtab,
+        ch_filtered_seqtab_rds,
         ch_taxtab_rds,
-        ch_taxtab,
+        ch_metrics_rds,
         ch_filtered_asvs,
         PHYLOGENY.out.ch_alignment,
         PHYLOGENY.out.ch_unrooted_tree,

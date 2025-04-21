@@ -10,6 +10,7 @@ process ROOT_TREE {
     output:
     path("rooted.${tree_tool}.newick"), emit: rooted_tree
     path("rooted.${tree_tool}.RDS"), emit: rooted_tree_RDS
+    path("unrooted.${tree_tool}.RDS"), emit: unrooted_tree_RDS
 
     when:
     task.ext.when == null || task.ext.when
@@ -28,7 +29,7 @@ process ROOT_TREE {
 
     write.tree(midtree, file = "rooted.${tree_tool}.newick")
     saveRDS(midtree, "rooted.${tree_tool}.RDS")
-
+    saveRDS(tree, "unrooted.${tree_tool}.RDS")
     """
 
     stub:

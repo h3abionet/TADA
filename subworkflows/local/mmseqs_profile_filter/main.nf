@@ -1,11 +1,5 @@
-// include { MMSEQS_CONVERTALIS } from '../../../modules/local/mmseqs/convertalis'
-// include { MMSEQS_CONVERTMSA  } from '../../../modules/local/mmseqs/convertmsa'
-// include { MMSEQS_MSA2PROFILE } from '../../../modules/local/mmseqs/msa2profile'
-// include { MMSEQS_SEARCH      } from '../../../modules/nf-core/mmseqs/search'
-// include { MMSEQS_FILTER_DATA }
 include { MMSEQS_CREATEDB       } from '../../../modules/nf-core/mmseqs/createdb'
 include { MMSEQS_EASYSEARCH     } from '../../../modules/nf-core/mmseqs/easysearch/main'
-// include { MMSEQS_CREATEINDEX   } from '../../../modules/nf-core/mmseqs/createindex'
 
 // process MMSEQS_PROFILE_FULL {
 //     tag "${profile.getSimpleName()}"
@@ -95,7 +89,7 @@ include { MMSEQS_EASYSEARCH     } from '../../../modules/nf-core/mmseqs/easysear
 
 // TODO: this can be merged in the R-based FILTER_TADA_DATA step
 process MMSEQS_DATABASE_FILTER {
-    tag "${prefix}"
+    tag "${meta2.id}"
     label 'process_low'
 
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -104,9 +98,10 @@ process MMSEQS_DATABASE_FILTER {
 
     input:
     tuple val(meta), path(tsv)
+    tuple val(meta2), path(db)
 
     output:
-    path("asvs_vs_${meta.id}.database.ids"), emit: db_ids
+    path("asvs_vs_${meta2.id}.database.ids"), emit: db_ids
     // path "versions.yml"           , emit: versions
 
     when:
@@ -114,12 +109,11 @@ process MMSEQS_DATABASE_FILTER {
 
     script:
     def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
     
     """    
     cut -f1 ${tsv} | \\
         sort | uniq > \\
-        asvs_vs_${prefix}.database.ids
+        asvs_vs_${meta2.id}.database.ids
     """
 
     stub:
@@ -143,9 +137,9 @@ process FILTER_TADA_DATA {
     file(ids)
 
     output:
-    path("asvs.${params.id_type}.nochim.filtered.fna"), emit: filtered_asvs
-    path("seqtab_final.${params.id_type}.filtered.RDS"), emit: filtered_seqtab
-    path("readmap.${params.id_type}.filtered.RDS"), emit: filtered_readmap
+    path("asvs.${params.id_type}.search_filtered.fna"), emit: filtered_asvs
+    path("seqtab.${params.id_type}.search_filtered.RDS"), emit: filtered_seqtab
+    path("readmap.${params.id_type}.search_filtered.RDS"), emit: filtered_readmap
 
     when:
     task.ext.when == null || task.ext.when
@@ -159,13 +153,19 @@ process FILTER_TADA_DATA {
     # TODO: clean me up!
     suppressPackageStartupMessages(library(dada2))
     suppressPackageStartupMessages(library(Biostrings))
+    suppressPackageStartupMessages(library(tidyverse))
+    #mmseqs_results <- read_tsv("", 
+    #    col_names=c(
+    #    "query", "target", "pident", "alnlen", "mismatch", "gapopen",
+    #    "qstart", "qend", "tstart", "tend", "evalue", "bits"))
+
     seqtab <- readRDS("${seqtab}")
     readmap <- readRDS("${readmap}")
     asvs <- readDNAStringSet("${asvs}", format="fasta")
     ids <- readLines("${ids}")
-    writeXStringSet(asvs[ids], "asvs.${params.id_type}.nochim.filtered.fna")
-    saveRDS(seqtab[,ids], "seqtab_final.${params.id_type}.filtered.RDS")
-    saveRDS(readmap[readmap\$ids %in% ids,], "readmap.${params.id_type}.filtered.RDS")
+    writeXStringSet(asvs[ids], "asvs.${params.id_type}.search_filtered.fna")
+    saveRDS(seqtab[,ids], "seqtab.${params.id_type}.search_filtered.RDS")
+    saveRDS(readmap[readmap\$id %in% ids,], "readmap.${params.id_type}.search_filtered.RDS")
     """
     stub:
     def args = task.ext.args ?: ''
@@ -223,7 +223,8 @@ workflow MMSEQS_FILTER {
 
         // TODO: we need to allow more parameters through   
         MMSEQS_DATABASE_FILTER(
-            MMSEQS_EASYSEARCH.out.tsv
+            MMSEQS_EASYSEARCH.out.tsv,
+            ch_database
         )
 
         ch_filtered_ids = MMSEQS_DATABASE_FILTER.out.db_ids

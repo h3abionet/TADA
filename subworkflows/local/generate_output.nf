@@ -1,5 +1,6 @@
 include { BIOM                   } from '../../modules/local/biom'
 include { DADA2_SEQTABLE2TEXT    } from '../../modules/local/seqtable2txt'
+include { DADA2_TAXTABLE2TEXT    } from '../../modules/local/taxtable2txt'
 include { QIIME2_FEATURETABLE    } from '../../modules/local/qiime2featuretable'
 include { QIIME2_TAXTABLE        } from '../../modules/local/qiime2taxtable'
 include { QIIME2_SEQUENCE        } from '../../modules/local/qiime2seqs'
@@ -12,10 +13,10 @@ workflow GENERATE_OUTPUT {
     // TODO: I'd like to have this simply be TSV files (no RDS)
     //       so we can generate from other subworkflows if needed
     take:
-    seq_table_rds
+    seqtable_rds
     // seq_table_qiime
-    tax_table_rds
-    tax_table_tsv
+    taxtable_rds
+    metrics_rds
     asvs
     alignment
     unrooted_tree
@@ -23,26 +24,34 @@ workflow GENERATE_OUTPUT {
 
     main:
     ch_versions = Channel.empty()
+    ch_taxtable_tsv = Channel.empty()
+
+    DADA2_SEQTABLE2TEXT(
+        seqtable_rds
+    )
+
+    if (params.reference) {
+        DADA2_TAXTABLE2TEXT(
+            taxtable_rds, metrics_rds
+        )
+        ch_taxtable_tsv = DADA2_TAXTABLE2TEXT.out.taxtab
+    }
 
     if (params.to_BIOM) {
         BIOM(
-            seq_table_rds,
-            tax_table_rds
+            seqtable_rds,
+            taxtable_rds
         )
     }
 
     if (params.to_QIIME2) {
-
-        DADA2_SEQTABLE2TEXT(
-            seq_table_rds
-        )
 
         QIIME2_FEATURETABLE(
             DADA2_SEQTABLE2TEXT.out.seqtab2qiime
         )
 
         QIIME2_TAXTABLE(
-            tax_table_tsv
+            ch_taxtable_tsv
         )
 
         QIIME2_SEQUENCE(

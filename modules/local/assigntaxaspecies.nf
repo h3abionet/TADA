@@ -9,8 +9,8 @@ process DADA2_ASSIGN_TAXA_SPECIES {
     path(sp)
     
     output:
-    path("tax_final.RDS"), emit: taxtab_rds
-    path("bootstrap_final.RDS"), emit: metrics_rds
+    path("taxtab.original.RDS"), emit: taxtab_rds
+    path("bootstraps.original.RDS"), emit: metrics_rds
     
     when:
     task.ext.when == null || task.ext.when
@@ -88,14 +88,13 @@ process DADA2_ASSIGN_TAXA_SPECIES {
     rownames(boots) <- seqs[rownames(boots),]\$id
 
     # Write original data
-    saveRDS(tax, "tax_final.RDS")
-    saveRDS(boots, "bootstrap_final.RDS")
+    saveRDS(tax, "taxtab.original.RDS")
+    saveRDS(boots, "bootstraps.original.RDS")
     """
 
     stub:
     def args = task.ext.args ?: ''
     
     """
-    
     """
 }

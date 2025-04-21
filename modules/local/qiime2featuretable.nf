@@ -6,7 +6,7 @@ process QIIME2_FEATURETABLE {
     path(seqtab)
 
     output:
-    path("seqtab_final.qza")
+    path("seqtab.qza")
 
     when:
     task.ext.when == null || task.ext.when 
@@ -22,7 +22,7 @@ process QIIME2_FEATURETABLE {
     qiime tools import \
         --input-path seqtab-biom-table.biom \
         --input-format BIOMV210Format \
-        --output-path seqtab_final.qza \
+        --output-path seqtab.qza \
         --type 'FeatureTable[Frequency]'
     """
 

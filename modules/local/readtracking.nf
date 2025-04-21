@@ -51,11 +51,28 @@ process READ_TRACKING {
         track <- merge(track, mergers, by = "SampleID",  all.x=TRUE)
     }
 
-    seqtab.nochim <- as.data.frame(rowSums(readRDS("seqtab_final.${params.id_type}.RDS")))
+    seqtab.nochim <- as.data.frame(rowSums(readRDS("seqtab.${params.id_type}.RDS")))
     rownames(seqtab.nochim) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.nochim))
     colnames(seqtab.nochim) <- c("seqtab.nochim")
     seqtab.nochim\$SampleID <- rownames(seqtab.nochim)
     track <- merge(track, seqtab.nochim, by = "SampleID",  all.x=TRUE)
+
+    # TODO: the below are repetitive with the above, should make this a function
+    if (file.exists("seqtab.${params.id_type}.search_filtered.RDS")) {
+        seqtab.sf <- as.data.frame(rowSums(readRDS("seqtab.${params.id_type}.search_filtered.RDS")))
+        rownames(seqtab.sf) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.sf))
+        colnames(seqtab.sf) <- c("seqtab.searchfilter")
+        seqtab.sf\$SampleID <- rownames(seqtab.sf)
+        track <- merge(track, seqtab.sf, by = "SampleID",  all.x=TRUE)
+    }
+
+    if (file.exists("seqtab.tax_filtered.RDS")) {
+        seqtab.tf <- as.data.frame(rowSums(readRDS("seqtab.tax_filtered.RDS")))
+        rownames(seqtab.tf) <- gsub('.R1.filtered.fastq.gz', '',rownames(seqtab.tf))
+        colnames(seqtab.tf) <- c("seqtab.taxfilter")
+        seqtab.tf\$SampleID <- rownames(seqtab.tf)
+        track <- merge(track, seqtab.tf, by = "SampleID",  all.x=TRUE)
+    }
 
     # dropped data in later steps gets converted to NA on the join
     # these are effectively 0

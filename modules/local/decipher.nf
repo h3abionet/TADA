@@ -7,7 +7,7 @@ process DECIPHER {
     path(seqs)
 
     output:
-    path("asvs_final.aligned.fna"), optional: true, emit: alignment
+    path("asvs.aligned.fna"), optional: true, emit: alignment
 
     when:
     task.ext.when == null || task.ext.when
@@ -24,7 +24,7 @@ process DECIPHER {
     alignment <- AlignSeqs(seqs,
                anchor=NA,
                processors = ${task.cpus})
-    writeXStringSet(alignment, "asvs_final.aligned.fna")
+    writeXStringSet(alignment, "asvs.aligned.fna")
     """
 
     stub:

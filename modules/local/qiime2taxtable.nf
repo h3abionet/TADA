@@ -6,7 +6,7 @@ process QIIME2_TAXTABLE {
     path(taxtab)
 
     output:
-    path("taxtab_final.qza")
+    path("taxtab.qza")
 
     when:
     task.ext.when == null || task.ext.when 
@@ -18,7 +18,7 @@ process QIIME2_TAXTABLE {
     qiime tools import \
         --input-path headerless.txt \
         --input-format HeaderlessTSVTaxonomyFormat \
-        --output-path taxtab_final.qza \
+        --output-path taxtab.qza \
         --type 'FeatureData[Taxonomy]'
     """
 

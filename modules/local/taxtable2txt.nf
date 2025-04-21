@@ -4,12 +4,13 @@ process DADA2_TAXTABLE2TEXT {
 
     input:
     path(taxtab_rds)
-    path(bootstrap_rds)
+    path(metrics_rds)
 
     output:
-    path("tax_final.RDS"), emit: taxtab_rds
-    path("tax_final.txt"), emit: taxtab
-    path("tax_final.bootstraps.txt"), emit: metrics
+    path("taxtab.txt"), emit: taxtab
+    path("metrics.txt"), emit: metrics
+    path("taxtab.RDS"), emit: taxtab_final_rds
+    path("taxmetrics.RDS"), emit: taxmetrics_final_rds
 
     when:
     task.ext.when == null || task.ext.when
@@ -20,15 +21,17 @@ process DADA2_TAXTABLE2TEXT {
     """
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))
-    suppressPackageStartupMessages(library(ShortRead))
+    suppressPackageStartupMessages(library(tidyverse))
 
-    tax <- readRDS("${taxtab_rds}")
+    tax <- readRDS("${taxtab_rds}") %>% column_to_rownames(var="TaxID") %>% as.data.frame()
 
+    # Generate table output
     # Note that we use the old ASV ID for output here
+
     write.table(data.frame('ASVID' = row.names(tax), tax),
-        file = 'tax_final.txt',
+        file = 'taxtab.txt',
         row.names = FALSE,
-        col.names=c('#OTU ID', colnames(tax)), sep = "\t")
+        col.names=c('#OTU ID', colnames(tax)), sep = "\\t")
 
     tax[is.na(tax)] <- "Unclassified"
 
@@ -37,20 +40,21 @@ process DADA2_TAXTABLE2TEXT {
     colnames(taxa_out) <- c("#OTU ID", "taxonomy")
 
     write.table(data.frame('ASVID' = row.names(tax), tax),
-        file = 'tax_final.full.txt',
+        file = 'taxtab.full.txt',
         row.names = FALSE,
-        col.names=c('#OTU ID', colnames(tax)), sep = "\t")
+        col.names=c('#OTU ID', colnames(tax)), sep = "\\t")
 
-    if (file.exists("${bootstrap_rds}")) {
-        boots <- readRDS("${bootstrap_rds}")
+    if (file.exists("${metrics_rds}")) {
+        boots <- readRDS("${metrics_rds}")
         write.table(data.frame('ASVID' = row.names(boots), boots),
-            file = 'tax_final.bootstraps.txt',
+            file = 'metrics.txt',
             row.names = FALSE,
-            col.names=c('#OTU ID', colnames(boots)), sep = "\t")
+            col.names=c('#OTU ID', colnames(boots)), sep = "\\t")
     }
 
     # Write modified data
-    saveRDS(tax, "tax_final.RDS")
+    saveRDS(tax, "taxtab.RDS")
+    saveRDS(boots, "taxmetrics.RDS")
     """
 
     stub:
