@@ -150,7 +150,7 @@ workflow TADA {
     // Subworkflows-Taxonomic assignment (optional)
     // ch_taxtab = Channel.empty()
     ch_taxtab_rds = Channel.empty()
-    ch_boots =  Channel.empty()
+    ch_metrics_rds =  Channel.empty()
 
     if (params.reference) {
         ref_file = file(params.reference, checkIfExists: true)
