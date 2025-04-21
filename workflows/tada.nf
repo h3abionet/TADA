@@ -160,7 +160,7 @@ workflow TADA {
         //      DECIPHER, USEARCH/VSEARCH,q2, BLAST
         // TODO: readmap -> FASTA?
         TAXONOMY(
-            ch_filtered_readmap,
+            ch_filtered_readmap_rds,
             ref_file,
             species_file,
             ch_filtered_seqtab_rds
