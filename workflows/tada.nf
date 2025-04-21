@@ -128,7 +128,7 @@ workflow TADA {
     // TODO: make a tuple?
     ch_filtered_asvs = DADA2_DENOISE.out.nonchimeric_asvs
     ch_filtered_seqtab_rds = DADA2_DENOISE.out.seqtable_renamed
-    ch_filtered_readmap = DADA2_DENOISE.out.readmap
+    ch_filtered_readmap_rds = DADA2_DENOISE.out.readmap
 
     // Currently implementing only MMSeqs search filtering
     if (params.search_filter == "mmseqs") {
@@ -139,7 +139,7 @@ workflow TADA {
         MMSEQS_FILTER(
             ch_filtered_seqtab_rds,
             ch_filtered_asvs,
-            ch_filtered_readmap
+            ch_filtered_readmap_rds
         )
         ch_filtered_asvs = MMSEQS_FILTER.out.ch_filtered_asvs
         ch_filtered_seqtab_rds  = MMSEQS_FILTER.out.ch_filtered_seqtab
@@ -168,7 +168,7 @@ workflow TADA {
         ch_taxtab_rds = TAXONOMY.out.ch_taxtab_rds
         ch_metrics_rds = TAXONOMY.out.ch_taxmetrics_rds
         ch_filtered_seqtab_rds = TAXONOMY.out.ch_seqtab_rds
-        ch_readmap_rds = TAXONOMY.out.ch_readmap_rds
+        ch_filtered_readmap_rds = TAXONOMY.out.ch_readmap_rds
         if (params.tax_filter) {
             ch_readtracking = ch_readtracking.mix(ch_filtered_seqtab_rds)
         }
@@ -180,7 +180,7 @@ workflow TADA {
     // we introduce an alternative denoising workflow 
     // (USEARCH/VSEARCH)
     
-    DADA2_READMAP2ASV(ch_readmap_rds)
+    DADA2_READMAP2ASV(ch_filtered_readmap_rds)
     ch_filtered_asvs = DADA2_READMAP2ASV.out.asvs
 
     PHYLOGENY(ch_filtered_asvs)
