@@ -169,7 +169,9 @@ workflow TADA {
         ch_metrics_rds = TAXONOMY.out.ch_taxmetrics_rds
         ch_filtered_seqtab_rds = TAXONOMY.out.ch_seqtab_rds
         ch_readmap_rds = TAXONOMY.out.ch_readmap_rds
-        ch_readtracking = ch_readtracking.mix(ch_filtered_seqtab_rds)
+        if (params.tax_filter) {
+            ch_readtracking = ch_readtracking.mix(ch_filtered_seqtab_rds)
+        }
     }
     
     // For now, we need to convert the readmap back to ASVs
