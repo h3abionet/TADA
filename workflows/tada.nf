@@ -95,12 +95,11 @@ workflow TADA {
     ch_multiqc_files = ch_multiqc_files.mix(PRE_QC.out.zip.collect{it[1]})
     ch_versions = ch_versions.mix(PRE_QC.out.versions)
     
-    ch_trimmed = Channel.empty()
+    ch_trimmed = ch_samplesheet
     
-    if (params.skip_trimming) {
-        // This assumes everything has been trimmed/filtered
-        ch_trimmed = ch_samplesheet
-    } elsif (!params.preqc_only) {
+    if (params.preqc_only) {
+        ch_trimmed = Channel.empty()        
+    } else if (!params.skip_trimming) {
         FILTER_AND_TRIM (
             ch_samplesheet
         )
@@ -108,7 +107,7 @@ workflow TADA {
         ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
         ch_trimmed = FILTER_AND_TRIM.out.trimmed_infer
     }
-    
+
     // TODO: Input for these should be the trimmed reads from above, but
     // they may need to be mixed in different ways depending on the 
     // denoising workflow used
