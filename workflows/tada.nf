@@ -97,9 +97,10 @@ workflow TADA {
     
     ch_trimmed = Channel.empty()
     
-    if (params.preqc_only) {
+    if (params.skip_trimming) {
+        // This assumes everything has been trimmed/filtered
         ch_trimmed = ch_samplesheet
-    } else {
+    } elsif (!params.preqc_only) {
         FILTER_AND_TRIM (
             ch_samplesheet
         )
