@@ -1,12 +1,13 @@
 process QIIME2_FEATURETABLE {
 
-    container "quay.io/qiime2/core:2021.4"
+    container "quay.io/qiime2/amplicon:2024.10"
     
     input:
     path(seqtab)
 
     output:
-    path("seqtab.qza")
+    path("seqtab.qza"), emit: seqtab_qza
+    path("versions.yml"), emit: versions
 
     when:
     task.ext.when == null || task.ext.when 
@@ -24,11 +25,22 @@ process QIIME2_FEATURETABLE {
         --input-format BIOMV210Format \
         --output-path seqtab.qza \
         --type 'FeatureTable[Frequency]'
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        qiime2: \$( qiime --version | sed '1!d;s/.* //' )
+    END_VERSIONS
     """
 
     stub:
     def args = task.ext.args ?: ''
     
     """
+    touch seqtab.qza
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        qiime2: \$( qiime --version | sed '1!d;s/.* //' )
+    END_VERSIONS    
     """
 }

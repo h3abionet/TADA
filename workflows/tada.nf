@@ -202,6 +202,8 @@ workflow TADA {
         PHYLOGENY.out.ch_rooted_tree
     )
 
+    ch_versions = ch_versions.mix(GENERATE_OUTPUT.out.versions)
+
     //
     // Collate and save software versions
     //

@@ -50,18 +50,25 @@ workflow GENERATE_OUTPUT {
             DADA2_SEQTABLE2TEXT.out.seqtab2qiime
         )
 
+        ch_versions = ch_versions.mix(QIIME2_FEATURETABLE.out.versions)
+
         QIIME2_TAXTABLE(
             ch_taxtable_tsv
         )
+
+        ch_versions = ch_versions.mix(QIIME2_TAXTABLE.out.versions)
 
         QIIME2_SEQUENCE(
             asvs
         )
 
+        ch_versions = ch_versions.mix(QIIME2_SEQUENCE.out.versions)
+
         if (!params.skip_alignment) {
             QIIME2_ALIGNMENT(
                 alignment
             )
+            ch_versions = ch_versions.mix(QIIME2_ALIGNMENT.out.versions)
         }
 
         if (!params.skip_tree) {
@@ -69,6 +76,8 @@ workflow GENERATE_OUTPUT {
                 unrooted_tree,
                 rooted_tree
             )
+
+            ch_versions = ch_versions.mix(QIIME2_TREE.out.versions)
         }
     }
 
