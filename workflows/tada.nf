@@ -72,18 +72,6 @@ workflow TADA {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
     }
 
-    // if (!(['none', 'mmseqs_search'].contains(params.sequence_filter))) {
-    //     exit 1, "--filter can be 'none', 'mmseqs_search'\nGot ${params.filter}"
-    // }
-
-    // if (params.filter == 'mmseqs_search' && (!params.mmseqs_database || !params.mmseqs_fasta) {
-    //     exit 1, "--filter ${params.filter} requires either --mmseqs_database or --mmseqs_fasta to be set"
-    // }
-
-    // if (params.filter == 'mmseqs_aa_database' && !params.mmseqs_database) {
-    //     exit 1, "--filter ${params.filter} requires --mmseqs_database to be set (FASTA format file)"
-    // }
-
     PRE_QC(
         ch_samplesheet,
         params.skip_FASTQC,
@@ -112,23 +100,26 @@ workflow TADA {
     // they may need to be mixed in different ways depending on the 
     // denoising workflow used
     // TODO: harmonize output when possible (FASTA + TSV)
+
     DADA2_DENOISE(
         ch_trimmed
     )
 
+    ch_inferred = DADA2_DENOISE.out.inferred
+    ch_filtered_readmap_rds = DADA2_DENOISE.out.readmap
+    ch_filtered_seqtab_rds = DADA2_DENOISE.out.seqtable_renamed
+    ch_merged_rds = DADA2_DENOISE.out.merged_seqs
+    ch_filtered_asvs = DADA2_DENOISE.out.nonchimeric_asvs
     // TODO: split out chimera removal from denoise into a separate step
     // CHIMERA_REMOVAL()
 
     // TODO: mix these in a specific order? This would help when merging
     //       multiple tables from different sources
-    ch_readtracking = ch_readtracking.mix(DADA2_DENOISE.out.inferred.collect()
-            ,DADA2_DENOISE.out.seqtable_renamed
-            ,DADA2_DENOISE.out.merged_seqs)
-
-    // TODO: make a tuple?
-    ch_filtered_asvs = DADA2_DENOISE.out.nonchimeric_asvs
-    ch_filtered_seqtab_rds = DADA2_DENOISE.out.seqtable_renamed
-    ch_filtered_readmap_rds = DADA2_DENOISE.out.readmap
+    ch_readtracking = ch_readtracking.mix(
+            ch_inferred.collect(),
+            ch_filtered_readmap_rds,
+            ch_filtered_seqtab_rds
+            )
 
     // Currently implementing only MMSeqs search filtering
     if (params.search_filter == "mmseqs") {
@@ -188,8 +179,8 @@ workflow TADA {
     // Post-QC, TODO needs some checking 
     QUALITY_CONTROL(
         ch_readtracking,
-        DADA2_DENOISE.out.merged_seqs,
-        DADA2_DENOISE.out.filtered_seqtable
+        ch_merged_rds,
+        ch_filtered_seqtab_rds
     )
 
     GENERATE_OUTPUT(

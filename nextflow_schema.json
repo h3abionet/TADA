@@ -549,10 +549,6 @@
             "type": "boolean",
             "description": "Only run pre-QC stage"
         },
-        "priors": {
-            "type": "string",
-            "description": "FASTA sequences for priors to use in denoising"
-        },
         "mmseqs_method": {
             "type": "string",
             "default": "search",
@@ -588,6 +584,14 @@
         "mmseqs_args": {
             "type": "string",
             "description": "Additional arguments for mmseqs analyses"
+        },
+        "for_priors": {
+            "type": "string",
+            "description": "Path to prior sequences for R1 or single end data to use for denoising."
+        },
+        "rev_priors": {
+            "type": "string",
+            "description": "Path to prior sequences for R2, only for paired end data. Used for denoising."
         }
     }
 }
