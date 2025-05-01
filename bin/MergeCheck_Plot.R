@@ -33,6 +33,8 @@ lens_all <- bind_rows(lens_tmp, .id = "Sample") %>%
   mutate(ReadCountPerBin=sum(Count),
          RelAbPerBin=sum(RelAb)) 
 
+lens_all$Sample <- factor(lens_all$Sample)
+
 # This will become settable, but essentially anything 50nt or less is not kept
 cutoff <- 50
 
@@ -46,6 +48,10 @@ gg <- lens_all |> ggplot(aes(x=Length, y=Sample, fill=ReadCountPerBin)) +
            ymax = Inf,
            alpha=0.3, fill="blue") +
   theme_minimal()
+
+if (nlevels(lens_all$Sample) > 40) {
+    gg <- gg + theme(axis.text.y=element_blank())
+}
 
 # if(fprimer > 0) {
 #   gg <- gg+ geom_vline(xintercept=fprimer, color = "red", alpha = 0.5)
