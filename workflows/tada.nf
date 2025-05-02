@@ -10,6 +10,7 @@ include { DADA2_READMAP2ASV      } from '../modules/local/readmap2asv'
 include { PRE_QC                 } from '../subworkflows/local/pre_qc'
 include { FILTER_AND_TRIM        } from '../subworkflows/local/filter_and_trim'
 include { DADA2_DENOISE          } from '../subworkflows/local/dada2_denoise'
+include { CHIMERA_REMOVAL        } from '../subworkflows/local/chimera_removal'
 include { TAXONOMY               } from '../subworkflows/local/taxonomy'
 include { PHYLOGENY              } from '../subworkflows/local/phylogeny'
 include { QUALITY_CONTROL        } from '../subworkflows/local/qualitycontrol'
@@ -106,10 +107,15 @@ workflow TADA {
     )
 
     ch_inferred = DADA2_DENOISE.out.inferred
-    ch_filtered_readmap_rds = DADA2_DENOISE.out.readmap
-    ch_filtered_seqtab_rds = DADA2_DENOISE.out.seqtable_renamed
     ch_merged_rds = DADA2_DENOISE.out.merged_seqs
-    ch_filtered_asvs = DADA2_DENOISE.out.nonchimeric_asvs
+
+    CHIMERA_REMOVAL(
+        DADA2_DENOISE.out.filtered_seqtable
+    )
+
+    ch_filtered_readmap_rds = CHIMERA_REMOVAL.out.readmap
+    ch_filtered_seqtab_rds = CHIMERA_REMOVAL.out.seqtable_renamed
+    ch_filtered_asvs = CHIMERA_REMOVAL.out.nonchimeric_asvs
     // TODO: split out chimera removal from denoise into a separate step
     // CHIMERA_REMOVAL()
 
@@ -230,8 +236,3 @@ workflow TADA {
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 }
 
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    THE END
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/

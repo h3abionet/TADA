@@ -3,20 +3,20 @@ include { ILLUMINA_DADA2_LEARN_ERRORS           } from '../../modules/local/illu
 include { PACBIO_DADA2_LEARN_ERRORS             } from '../../modules/local/pacbio_learnerrors'
 include { DADA_INFER                            } from '../../modules/local/dadainfer'
 include { POOLED_SEQTABLE                       } from '../../modules/local/pooledseqtable'
-include { DADA2_REMOVE_CHIMERAS                 } from '../../modules/local/removechimeras'
-include { RENAME_ASVS                           } from '../../modules/local/renameasvs'
 
+// TODO: make into a general derep/denoising subworkflow; 
+// call in specific subworkflows or modules
 workflow DADA2_DENOISE {
 
     take:
     ch_trimmed_infer
-
+ 
     main:
-
     ch_versions = Channel.empty()
     ch_infer = Channel.empty()
     ch_merged = Channel.empty()
-    // TODO nf-core: substitute modules here for the modules of your subworkflow
+    
+    // START: DADA2-specific
     if (params.platform == 'pacbio') {
         PACBIO_DADA2_LEARN_ERRORS (
             ch_trimmed_infer
@@ -31,6 +31,11 @@ workflow DADA2_DENOISE {
 
     // TODO: add single-sample ('big data') run
     // this is always in pooled mode at the moment, should be adjusted
+
+    // deal with priors here, which are optional inputs
+    for_priors = params.for_priors ? file(params.for_priors, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
+    rev_priors = params.rev_priors ? file(params.rev_priors, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
+
     // if (params.pool == "T" || params.pool == 'pseudo') { 
     DADA_INFER(
         ch_infer
@@ -43,22 +48,9 @@ workflow DADA2_DENOISE {
 
     POOLED_SEQTABLE(
         DADA_INFER.out.inferred.collect(),
-        ch_trimmed
-        )
-
-    DADA2_REMOVE_CHIMERAS(
-        POOLED_SEQTABLE.out.filtered_seqtable
-    )
-
-    RENAME_ASVS(
-        DADA2_REMOVE_CHIMERAS.out.nonchim_seqtable,
-        POOLED_SEQTABLE.out.filtered_seqtable
-    )
+        ch_trimmed)
 
     emit:
-    nonchimeric_asvs = RENAME_ASVS.out.nonchimeric_asvs
-    seqtable_renamed = RENAME_ASVS.out.seqtable_renamed
-    readmap = RENAME_ASVS.out.readmap
     inferred = DADA_INFER.out.inferred
     merged_seqs = POOLED_SEQTABLE.out.merged_seqs
     filtered_seqtable = POOLED_SEQTABLE.out.filtered_seqtable
