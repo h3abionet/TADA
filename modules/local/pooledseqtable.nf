@@ -1,4 +1,5 @@
-process POOLED_SEQTABLE {
+// TODO: rename file to dada2pooledseqtable
+process DADA2_POOLED_SEQTABLE {
    label 'process_medium'
 
    container "ghcr.io/h3abionet/tada:dev"

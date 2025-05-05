@@ -1,58 +1,74 @@
-// TODO: move to a subworkflow and implement pooled vs per-sample + optional priors
 include { ILLUMINA_DADA2_LEARN_ERRORS           } from '../../modules/local/illumina_learnerrors'
 include { PACBIO_DADA2_LEARN_ERRORS             } from '../../modules/local/pacbio_learnerrors'
-include { DADA_INFER                            } from '../../modules/local/dadainfer'
-include { POOLED_SEQTABLE                       } from '../../modules/local/pooledseqtable'
+include { DADA2_POOLED_DENOISE                  } from '../../subworkflows/local/dada2_pooled_denoise'
+include { DADA2_PER_SAMPLE_DENOISE              } from '../../subworkflows/local/dada2_per_sample_denoise'
 
-// TODO: make into a general derep/denoising subworkflow; 
-// call in specific subworkflows or modules
 workflow DADA2_DENOISE {
 
     take:
-    ch_trimmed_infer
+    ch_trimmed_batch
+    ch_trimmed_parallel
  
     main:
     ch_versions = Channel.empty()
-    ch_infer = Channel.empty()
+    ch_errs = Channel.empty()
+    ch_inferred = Channel.empty()
+    ch_filtered_seqtab = Channel.empty()
     ch_merged = Channel.empty()
     
     // START: DADA2-specific
     if (params.platform == 'pacbio') {
         PACBIO_DADA2_LEARN_ERRORS (
-            ch_trimmed_infer
+            ch_trimmed_batch
         )
-        ch_infer = PACBIO_DADA2_LEARN_ERRORS.out.error_models.join(ch_trimmed_infer)
+        ch_errs = PACBIO_DADA2_LEARN_ERRORS.out.error_models
     }  else if (params.platform == 'illumina') {
         ILLUMINA_DADA2_LEARN_ERRORS (
-            ch_trimmed_infer
+            ch_trimmed_batch
         )
-        ch_infer = ILLUMINA_DADA2_LEARN_ERRORS.out.error_models.join(ch_trimmed_infer)
+        ch_errs = ILLUMINA_DADA2_LEARN_ERRORS.out.error_models
     }
-
-    // TODO: add single-sample ('big data') run
-    // this is always in pooled mode at the moment, should be adjusted
 
     // deal with priors here, which are optional inputs
     for_priors = params.for_priors ? file(params.for_priors, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
     rev_priors = params.rev_priors ? file(params.rev_priors, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
 
-    // if (params.pool == "T" || params.pool == 'pseudo') { 
-    DADA_INFER(
-        ch_infer
-    )
+    // TODO: we should disallow running "parallel-pseudo", or warn these will
+    // be ignored if they are set in favor of round 1 'pseudo' priors
+    // if (params.pool == "parallel" || params.pool == "parallel-pseudo") {
+    if (params.pool == "parallel" || params.pool == "parallel-pseudo") {
+        per_sample_errs = ch_errs.map {it -> it[1]}.collect()
+        DADA2_PER_SAMPLE_DENOISE(
+            per_sample_errs,
+            ch_trimmed_parallel,
+            for_priors,
+            rev_priors)
+        
+        ch_merged = DADA2_PER_SAMPLE_DENOISE.out.merged_seqs
+        ch_inferred = DADA2_PER_SAMPLE_DENOISE.out.inferred
+        ch_filtered_seqtab = DADA2_PER_SAMPLE_DENOISE.out.filtered_seqtable
+    } else {
+        // this runs standard denoising using DADA2, 
+        // which sequentially processes data
+        //
+        // TODO: can we even use priors with 'true' or 'pseudo'?
+        ch_batch_errs = ch_errs.join(ch_trimmed_infer)
+        DADA2_POOLED_DENOISE(
+            ch_batch_errs, ch_trimmed_batch
+        )
 
-    ch_trimmed = ch_trimmed_infer
-        .map { it[1] }
-        .flatten()
-        .collect()
+        ch_merged = DADA2_POOLED_DENOISE.out.merged_seqs
+        ch_inferred = DADA2_POOLED_DENOISE.out.inferred
+        ch_filtered_seqtab = DADA2_POOLED_DENOISE.out.filtered_seqtable
 
-    POOLED_SEQTABLE(
-        DADA_INFER.out.inferred.collect(),
-        ch_trimmed)
+    }
+
+    // ch_versions = ch_versions.mix(DADA2_POOLED_DENOISE.out.ch_versions)
 
     emit:
-    inferred = DADA_INFER.out.inferred
-    merged_seqs = POOLED_SEQTABLE.out.merged_seqs
-    filtered_seqtable = POOLED_SEQTABLE.out.filtered_seqtable
+    inferred = ch_inferred
+    merged_seqs = ch_merged
+    filtered_seqtable = ch_filtered_seqtab
+    versions = ch_versions
 }
 

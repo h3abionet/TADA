@@ -88,15 +88,16 @@ workflow FILTER_AND_TRIM {
     // 2. LearnErrors and the pooled denoising branch requires all R1 and all R2, but 
     //    the two groups can be processed in parallel.  So we set up the channels with 
     //    this in mind. No sample ID info is really needed.
-    ch_trimmed_infer = ch_trimmed_R1
+
+    ch_trimmed_batch = ch_trimmed_R1
             .map { [ 'R1', it[1]] }
             .concat(ch_trimmed_R2.map {['R2', it[1]] } )
             .groupTuple(sort: true)
 
     emit:
-    trimmed = ch_trimmed
     trimmed_report = MERGE_TRIM_TABLES.out.trimmed_report // channel: [ RDS ]
-    trimmed_infer = ch_trimmed_infer
+    trimmed_parallel = ch_trimmed
+    trimmed_batch = ch_trimmed_batch
     ch_multiqc_files
 }
 

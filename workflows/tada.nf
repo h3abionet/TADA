@@ -86,6 +86,8 @@ workflow TADA {
     
     ch_trimmed = ch_samplesheet
     
+    ch_trimmed_batch = Channel.empty()
+    ch_trimmed_parallel = Channel.empty()
     if (params.preqc_only) {
         ch_trimmed = Channel.empty()        
     } else if (!params.skip_trimming) {
@@ -94,16 +96,18 @@ workflow TADA {
         )
         ch_multiqc_files = ch_multiqc_files.mix(FILTER_AND_TRIM.out.ch_multiqc_files)
         ch_readtracking = ch_readtracking.mix(FILTER_AND_TRIM.out.trimmed_report)
-        ch_trimmed = FILTER_AND_TRIM.out.trimmed_infer
+
+        // TODO: this (and steps leading up to it) are a bit of a 
+        // kludge to get both parallel and batch runs going; it works
+        // but should be cleaned up
+        ch_trimmed_batch = FILTER_AND_TRIM.out.trimmed_batch
+        ch_trimmed_parallel = FILTER_AND_TRIM.out.trimmed_parallel
     }
 
-    // TODO: Input for these should be the trimmed reads from above, but
-    // they may need to be mixed in different ways depending on the 
-    // denoising workflow used
     // TODO: harmonize output when possible (FASTA + TSV)
 
     DADA2_DENOISE(
-        ch_trimmed
+        ch_trimmed_batch, ch_trimmed_parallel
     )
 
     ch_inferred = DADA2_DENOISE.out.inferred
@@ -116,8 +120,6 @@ workflow TADA {
     ch_filtered_readmap_rds = CHIMERA_REMOVAL.out.readmap
     ch_filtered_seqtab_rds = CHIMERA_REMOVAL.out.seqtable_renamed
     ch_filtered_asvs = CHIMERA_REMOVAL.out.nonchimeric_asvs
-    // TODO: split out chimera removal from denoise into a separate step
-    // CHIMERA_REMOVAL()
 
     // TODO: mix these in a specific order? This would help when merging
     //       multiple tables from different sources

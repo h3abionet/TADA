@@ -1,91 +1,72 @@
-// TODO nf-core: If in doubt look at other nf-core/modules to see how we are doing things! :)
-//               https://github.com/nf-core/modules/tree/master/modules/nf-core/
-//               You can also ask for help via your pull request or on the #modules channel on the nf-core Slack workspace:
-//               https://nf-co.re/join
-// TODO nf-core: A module file SHOULD only define input and output files as command-line parameters.
-//               All other parameters MUST be provided using the "task.ext" directive, see here:
-//               https://www.nextflow.io/docs/latest/process.html#ext
-//               where "task.ext" is a string.
-//               Any parameters that need to be evaluated in the context of a particular sample
-//               e.g. single-end/paired-end data MUST also be defined and evaluated appropriately.
-// TODO nf-core: Software that can be piped together SHOULD be added to separate module files
-//               unless there is a run-time, storage advantage in implementing in this way
-//               e.g. it's ok to have a single module for bwa to output BAM instead of SAM:
-//                 bwa mem | samtools view -B -T ref.fasta
-// TODO nf-core: Optional inputs are not currently supported by Nextflow. However, using an empty
-//               list (`[]`) instead of a file can be used to work around this issue.
-
-process PERSAMPLEMERGEDADARDS {
-    tag "$meta.id"
-    label 'process_lo'
-
-    // TODO nf-core: List required Conda package(s).
-    //               Software MUST be pinned to channel (i.e. "bioconda"), version (i.e. "1.10").
-    //               For Conda, the build (i.e. "h9402c20_2") must be EXCLUDED to support installation on different operating systems.
-    // TODO nf-core: See section in main README for further information regarding finding and adding container addresses to the section below.
-    conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/YOUR-TOOL-HERE':
-        'biocontainers/YOUR-TOOL-HERE' }"
+process PER_SAMPLE_MERGE {
+    container "ghcr.io/h3abionet/tada:dev"
 
     input:
-    // TODO nf-core: Where applicable all sample-specific information e.g. "id", "single_end", "read_group"
-    //               MUST be provided as an input via a Groovy Map called "meta".
-    //               This information may not be required in some instances e.g. indexing reference genome files:
-    //               https://github.com/nf-core/modules/blob/master/modules/nf-core/bwa/index/main.nf
-    // TODO nf-core: Where applicable please provide/convert compressed files as input/output
-    //               e.g. "*.fastq.gz" and NOT "*.fastq", "*.bam" and NOT "*.sam" etc.
-    tuple val(meta), path(bam)
+    path(dds)
 
     output:
-    // TODO nf-core: Named file extensions MUST be emitted for ALL output channels
-    tuple val(meta), path("*.bam"), emit: bam
-    // TODO nf-core: List additional required output channels/values here
-    path "versions.yml"           , emit: versions
+    path("all.dd.R{1,2}.RDS"), emit: inferred // to readtracking
+    path("priors.R1.fna"), optional: true, emit: priors_for
+    path("priors.R2.fna"), optional: true, emit: priors_rev
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    // TODO nf-core: Where possible, a command MUST be provided to obtain the version number of the software e.g. 1.10
-    //               If the software is unable to output a version number on the command-line then it can be manually specified
-    //               e.g. https://github.com/nf-core/modules/blob/master/modules/nf-core/homer/annotatepeaks/main.nf
-    //               Each software used MUST provide the software name and version number in the YAML version file (versions.yml)
-    // TODO nf-core: It MUST be possible to pass additional parameters to the tool as a command-line string via the "task.ext.args" directive
-    // TODO nf-core: If the tool supports multi-threading then you MUST provide the appropriate parameter
-    //               using the Nextflow "task" variable e.g. "--threads $task.cpus"
-    // TODO nf-core: Please replace the example samtools command below with your module's command
-    // TODO nf-core: Please indent the command appropriately (4 spaces!!) to help with readability ;)
+    def dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'    
     """
-    samtools \\
-        sort \\
-        $args \\
-        -@ $task.cpus \\
-        -o ${prefix}.bam \\
-        -T $prefix \\
-        $bam
+    #!/usr/bin/env Rscript
+    suppressPackageStartupMessages(library(dada2))
+    suppressPackageStartupMessages(library(ShortRead))
+    suppressPackageStartupMessages(library(openssl))
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        persamplemergedadards: \$(samtools --version |& sed '1!d ; s/samtools //')
-    END_VERSIONS
-    """
+    dadaOpt <- ${dadaOpt}
 
-    stub:
-    def args = task.ext.args ?: ''
-    def prefix = task.ext.prefix ?: "${meta.id}"
-    // TODO nf-core: A stub section should mimic the execution of the original module as best as possible
-    //               Have a look at the following examples:
-    //               Simple example: https://github.com/nf-core/modules/blob/818474a292b4860ae8ff88e149fbcda68814114d/modules/nf-core/bcftools/annotate/main.nf#L47-L63
-    //               Complex example: https://github.com/nf-core/modules/blob/818474a292b4860ae8ff88e149fbcda68814114d/modules/nf-core/bedtools/split/main.nf#L38-L54
-    """
-    touch ${prefix}.bam
+    if (!is.na(dadaOpt)) {
+      setDadaOpt(dadaOpt)
+      cat("dada Options:\\n",dadaOpt,"\\n")
+    }
 
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        persamplemergedadards: \$(samtools --version |& sed '1!d ; s/samtools //')
-    END_VERSIONS
+    dadaopts <- getDadaOpt()
+
+    # we want to standardize these for later changes, so let's generate a 
+    # simple FASTA file of the priors, using 
+    generate_priors <- function(x, opts = dadaopts, idtype="md5") {
+        st <- makeSequenceTable(x)
+        # Moving to using the pseudo priors code from Ben here:
+        # https://github.com/benjjneb/dada2/blame/278f5f3ec03a846fe157b283cc08f2dd30430ae0/R/dada.R#L400
+        priors <- colnames(st)[colSums(st>0) >= opts\$PSEUDO_PREVALENCE | colSums(st) >= opts\$PSEUDO_ABUNDANCE]
+        if (length(priors) > 0) {
+            ids <- switch(idtype, simple=paste("priorF_", 1:length(priors), sep = ""),
+                                    md5=md5(priors))
+            seqs.dna <- ShortRead(sread = DNAStringSet(priors), id = BStringSet(ids))
+            return(seqs.dna)
+        } else {
+            return(NA)
+        }
+    }
+
+    # this is necessary for QC, but we also want to do this if we want priors from the run
+    dadaFs <- lapply(list.files(path = '.', pattern = '.dd.R1.RDS'), function (x) readRDS(x))
+    dadaRs <- lapply(list.files(path = '.', pattern = '.dd.R2.RDS'), function (x) readRDS(x))
+    names(dadaFs) <- sub('.dd.R1.RDS', '', list.files('.', pattern = '.dd.R1.RDS'))
+    saveRDS(dadaFs, "all.dd.R1.RDS")
+
+    priorsF <- generate_priors(dadaFs, idtype="${params.id_type}")
+    if (is.na(priorsF)) {
+        message("No priors found for R1!")
+        file.create("priors.R1.fna")
+    } else {
+        writeFasta(priorsF, file = 'priors.R1.fna')
+    }
+    if (length(dadaRs) > 0) {
+        priorsR <- generate_priors(dadaRs, id_type="${params.id_type}")
+        if (is.na(priorsR)) {
+            message("No priors found for R2!")
+            file.create("priors.R2.fna")
+        } else {
+            writeFasta(priorsR, file = "priors.R2.fna")
+        }
+    }
     """
 }

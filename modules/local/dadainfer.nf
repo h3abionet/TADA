@@ -1,5 +1,6 @@
-process DADA_INFER {
-    tag "$readmode"    
+// TODO: rename file dada2pooledinfer?
+process DADA2_POOLED_INFER {
+    tag "${readmode}: ${params.pool}"
     label 'process_medium'
 
     container "ghcr.io/h3abionet/tada:dev"
@@ -15,9 +16,6 @@ process DADA_INFER {
 
     script:
     def args = task.ext.args ?: ''
-    // TODO: I'd like to pack the settings onto a stack of parameters for the scripts
-    //       BAND_SIZE can be set using setdadaOpt, but I think we need something 
-    //       structured that can be used. Maybe a YAML/JSON string?
     def bandsize = params.platform == 'pacbio' ? ', BAND_SIZE=32' : ''
     def dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
     """
