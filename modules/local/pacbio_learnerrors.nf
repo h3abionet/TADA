@@ -1,3 +1,4 @@
+// TODO: change to DADA2_PACBIO_LEARN_ERRORS
 process PACBIO_DADA2_LEARN_ERRORS {
     tag "$readmode"
     label 'process_medium'
@@ -5,10 +6,10 @@ process PACBIO_DADA2_LEARN_ERRORS {
     container "ghcr.io/h3abionet/tada:dev"
 
     input:
-    tuple val(readmode), file(reads)
+    tuple val(readmode), path(reads)
 
     output:
-    tuple val(readmode), file("errors.${readmode}.RDS"), emit: error_models
+    tuple val(readmode), path("errors.${readmode}.RDS"), emit: error_models
     path("${readmode}.err.pdf"), emit: pdf
 
     when:

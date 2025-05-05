@@ -1,3 +1,4 @@
+// TODO: change to DADA2_ILLUMINA_LEARN_ERRORS
 process ILLUMINA_DADA2_LEARN_ERRORS {
     tag "$readmode"
     label 'process_medium'
