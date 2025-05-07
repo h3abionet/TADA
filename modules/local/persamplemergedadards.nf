@@ -5,7 +5,7 @@ process PER_SAMPLE_MERGE {
     path(dds)
 
     output:
-    path("all.dd.R{1,2}.RDS"), emit: inferred // to readtracking
+    path("all.dd.*.RDS"), emit: inferred // to readtracking
     path("priors.R1.fna"), optional: true, emit: priors_for
     path("priors.R2.fna"), optional: true, emit: priors_rev
 
@@ -59,6 +59,8 @@ process PER_SAMPLE_MERGE {
         writeFasta(priorsF, file = 'priors.R1.fna')
     }
     if (length(dadaRs) > 0) {
+        names(dadaRs) <- sub('.dd.R2.RDS', '', list.files('.', pattern = '.dd.R2.RDS'))
+        saveRDS(dadaRs, "all.dd.R2.RDS")
         priorsR <- generate_priors(dadaRs, idtype="${params.id_type}")
         if (is.na(priorsR)) {
             message("No priors found for R2!")

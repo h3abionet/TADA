@@ -9,7 +9,7 @@ process DADA2_POOLED_INFER {
     tuple val(readmode), file(err), file(reads)
 
     output:
-    path("all.dd.${readmode}.RDS"), emit: inferred
+    path("all.dd.*.RDS"), emit: inferred
 
     when:
     task.ext.when == null || task.ext.when
