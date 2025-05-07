@@ -38,15 +38,18 @@ workflow DADA2_DENOISE {
     // if (params.pool == "parallel" || params.pool == "parallel-pseudo") {
     if (params.pool == "parallel" || params.pool == "parallel-pseudo") {
         per_sample_errs = ch_errs.map {it -> it[1]}.collect()
-        DADA2_PER_SAMPLE_DENOISE(
-            per_sample_errs,
-            ch_trimmed_parallel,
-            for_priors,
-            rev_priors)
-        
-        ch_merged = DADA2_PER_SAMPLE_DENOISE.out.merged_seqs
-        ch_inferred = DADA2_PER_SAMPLE_DENOISE.out.inferred
-        ch_filtered_seqtab = DADA2_PER_SAMPLE_DENOISE.out.filtered_seqtable
+        if (params.pool == "parallel") {
+            DADA2_PER_SAMPLE_DENOISE(
+                per_sample_errs,
+                ch_trimmed_parallel,
+                for_priors,
+                rev_priors)
+            ch_merged = DADA2_PER_SAMPLE_DENOISE.out.merged_seqs
+            ch_inferred = DADA2_PER_SAMPLE_DENOISE.out.inferred
+            ch_filtered_seqtab = DADA2_PER_SAMPLE_DENOISE.out.filtered_seqtable
+        } else {
+            error "parallel-pseudo pooling not supported yet" 
+        }
     } else {
         // this runs standard denoising using DADA2, 
         // which sequentially processes data
@@ -60,7 +63,6 @@ workflow DADA2_DENOISE {
         ch_merged = DADA2_POOLED_DENOISE.out.merged_seqs
         ch_inferred = DADA2_POOLED_DENOISE.out.inferred
         ch_filtered_seqtab = DADA2_POOLED_DENOISE.out.filtered_seqtable
-
     }
 
     // ch_versions = ch_versions.mix(DADA2_POOLED_DENOISE.out.ch_versions)
