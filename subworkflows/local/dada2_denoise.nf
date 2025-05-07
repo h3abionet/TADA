@@ -52,7 +52,7 @@ workflow DADA2_DENOISE {
         // which sequentially processes data
         //
         // TODO: can we even use priors with 'true' or 'pseudo'?
-        ch_batch_errs = ch_errs.join(ch_trimmed_parallel)
+        ch_batch_errs = ch_errs.join(ch_trimmed_batch)
         DADA2_POOLED_DENOISE(
             ch_batch_errs, ch_trimmed_batch
         )

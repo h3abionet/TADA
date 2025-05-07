@@ -35,11 +35,11 @@ process PER_SAMPLE_MERGE {
         st <- makeSequenceTable(x)
         # Moving to using the pseudo priors code from Ben here:
         # https://github.com/benjjneb/dada2/blame/278f5f3ec03a846fe157b283cc08f2dd30430ae0/R/dada.R#L400
-        priors <- colnames(st)[colSums(st>0) >= opts\$PSEUDO_PREVALENCE | colSums(st) >= opts\$PSEUDO_ABUNDANCE]
-        if (length(priors) > 0) {
-            ids <- switch(idtype, simple=paste("priorF_", 1:length(priors), sep = ""),
-                                    md5=md5(priors))
-            seqs.dna <- ShortRead(sread = DNAStringSet(priors), id = BStringSet(ids))
+        pseudo_priors <- colnames(st)[colSums(st>0) >= opts\$PSEUDO_PREVALENCE | colSums(st) >= opts\$PSEUDO_ABUNDANCE]
+        if (length(pseudo_priors) > 0) {
+            ids <- switch(idtype, simple=paste("priorF_", 1:length(pseudo_priors), sep = ""),
+                                    md5=md5(pseudo_priors))
+            seqs.dna <- ShortRead(sread = DNAStringSet(pseudo_priors), id = BStringSet(ids))
             return(seqs.dna)
         } else {
             return(NA)
@@ -55,12 +55,11 @@ process PER_SAMPLE_MERGE {
     priorsF <- generate_priors(dadaFs, idtype="${params.id_type}")
     if (is.na(priorsF)) {
         message("No priors found for R1!")
-        file.create("priors.R1.fna")
     } else {
         writeFasta(priorsF, file = 'priors.R1.fna')
     }
     if (length(dadaRs) > 0) {
-        priorsR <- generate_priors(dadaRs, id_type="${params.id_type}")
+        priorsR <- generate_priors(dadaRs, idtype="${params.id_type}")
         if (is.na(priorsR)) {
             message("No priors found for R2!")
             file.create("priors.R2.fna")
