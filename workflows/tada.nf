@@ -126,6 +126,7 @@ workflow TADA {
     ch_readtracking = ch_readtracking.mix(
             ch_inferred.collect(),
             ch_filtered_readmap_rds,
+            ch_merged_rds,
             ch_filtered_seqtab_rds)
 
     // Currently implementing only MMSeqs search filtering
