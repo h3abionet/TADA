@@ -70,7 +70,7 @@ process DADA2_TAXFILTER {
         col.names=colnames(metrics_filtered), 
         sep = "\\t")
 
-    taxtab_filtered <- taxtab_filtered %>% column_to_rownames(var="TaxID") %>% as.data.frame()
+    taxtab_filtered <- taxtab_filtered %>% column_to_rownames(var="TaxID") %>% as.matrix()
 
     writeXStringSet(asvs_filtered, file="asvs.tax_filtered.fna")
     # Write modified data
