@@ -592,6 +592,11 @@
         "rev_priors": {
             "type": "string",
             "description": "Path to prior sequences for R2, only for paired end data. Used for denoising."
+        },
+        "preqc_samples": {
+            "type": "integer",
+            "default": 0,
+            "description": "Number of samples to use for some preQC steps; set to 0 to use all samples (Default=0)"
         }
     }
 }

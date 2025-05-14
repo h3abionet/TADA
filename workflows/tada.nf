@@ -73,6 +73,10 @@ workflow TADA {
         exit 1, "--id_type can currently only be set to 'simple' or 'md5', got ${params.id_type}"
     }
 
+    if (!(['mmseqs','none'].contains(params.search_filter))) {
+        exit 1, "--search_filter can currently only be set to 'none' or 'mmseqs', got ${params.id_type}"
+    }
+
     PRE_QC(
         ch_samplesheet,
         params.skip_FASTQC,
