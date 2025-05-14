@@ -164,8 +164,8 @@ process FILTER_TADA_DATA {
     asvs <- readDNAStringSet("${asvs}", format="fasta")
     ids <- readLines("${ids}")
     writeXStringSet(asvs[ids], "asvs.${params.id_type}.search_filtered.fna")
-    saveRDS(seqtab[,ids], "seqtab.${params.id_type}.search_filtered.RDS")
-    saveRDS(readmap[readmap\$id %in% ids,], "readmap.${params.id_type}.search_filtered.RDS")
+    saveRDS(seqtab[,ids, drop=FALSE], "seqtab.${params.id_type}.search_filtered.RDS")
+    saveRDS(readmap[readmap\$id %in% ids, ,drop=FALSE], "readmap.${params.id_type}.search_filtered.RDS")
     """
     stub:
     def args = task.ext.args ?: ''
