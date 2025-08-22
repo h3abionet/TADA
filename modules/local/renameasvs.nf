@@ -1,7 +1,7 @@
 process RENAME_ASVS {
     label 'process_low'
 
-    container "ghcr.io/h3abionet/tada:dev"
+    container "ghcr.io/h3abionet/tada:docker-DADA-1.36"
 
     input:
     path(st)

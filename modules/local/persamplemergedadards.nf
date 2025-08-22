@@ -1,5 +1,6 @@
 process PER_SAMPLE_MERGE {
-    container "ghcr.io/h3abionet/tada:dev"
+
+    container "ghcr.io/h3abionet/tada:docker-DADA-1.36"
 
     input:
     path(dds)

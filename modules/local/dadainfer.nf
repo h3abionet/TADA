@@ -3,6 +3,8 @@ process DADA2_POOLED_INFER {
     tag "${readmode}: ${params.pool}"
     label 'process_medium'
 
+    container "ghcr.io/h3abionet/tada:docker-DADA-1.36"
+
     input:
     tuple val(readmode), file(err), file(reads)
 
