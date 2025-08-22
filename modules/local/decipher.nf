@@ -1,8 +1,6 @@
 process DECIPHER {
     label 'process_medium'
 
-    container "ghcr.io/h3abionet/tada:dev"
-
     input:
     path(seqs)
 
