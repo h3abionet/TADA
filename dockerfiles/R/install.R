@@ -1,7 +1,8 @@
 ## install script for R pkgs modified from https://github.com/davismcc/r-tidybioc-img/blob/master/install.R
-install.packages("BiocManager")
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
 ## update installed packages
-BiocManager::install()
+BiocManager::install(version = "3.21")
 
 pkgs <- c(
   "RCurl",

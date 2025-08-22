@@ -1,5 +1,4 @@
-FROM rocker/verse:4.4.2
-#Modified from here https://github.com/davismcc/r-tidybioc-img/blob/master/Dockerfile
+FROM rocker/verse:4.5.1
 LABEL description="Docker image containing DADA2, DECIPHER, phangorn, and latest R with tidyverse and Bioconductor packages"
  
 # Install container-wide requrements gcc, pip, zlib, libssl, make, libncurses, fortran77, g++, R
