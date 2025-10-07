@@ -589,14 +589,14 @@
             "default": 0,
             "description": "Number of samples to use for some preQC steps; set to 0 to use all samples (Default=0)"
         },
-        "dada_learnerror_function": {
+        "learnerror_function": {
             "type": "string",
             "default": "loessErrfun"
         },
-        "dada_learnerror_custom_code": {
+        "learnerror_custom_code": {
             "type": "string"
         },
-        "dada_learnerror_quality_bins": {
+        "learnerror_quality_bins": {
             "type": "string"
         }
     }
