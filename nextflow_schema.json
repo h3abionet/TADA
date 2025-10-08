@@ -598,6 +598,10 @@
         },
         "learnerror_quality_bins": {
             "type": "string"
+        },
+        "random_seed": {
+            "type": "integer",
+            "default": 100
         }
     }
 }
