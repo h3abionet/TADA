@@ -365,10 +365,6 @@
             "type": "boolean",
             "description": "DADA2 `mergePairs`: just concatentate reads"
         },
-        "dadaOpt": {
-            "type": "string",
-            "description": "YAML-based string for dadaOpts"
-        },
         "max_asv_len": {
             "type": "integer",
             "default": 0,
@@ -584,16 +580,6 @@
             "default": 0,
             "description": "Number of samples to use for some preQC steps; set to 0 to use all samples (Default=0)"
         },
-        "learnerror_function": {
-            "type": "string",
-            "default": "loessErrfun"
-        },
-        "learnerror_custom_code": {
-            "type": "string"
-        },
-        "learnerror_quality_bins": {
-            "type": "string"
-        },
         "random_seed": {
             "type": "integer",
             "default": 100
@@ -605,6 +591,23 @@
         "strategy": {
             "type": "string",
             "default": "paired"
+        },
+        "learnerrors_function": {
+            "type": "string",
+            "default": "loessErrfun"
+        },
+        "learnerrors_custom_code": {
+            "type": "string"
+        },
+        "learnerrors_custom_bins": {
+            "type": "string"
+        },
+        "learnerrors_opts": {
+            "type": "string",
+            "default": "nbases=1e+08"
+        },
+        "dada_opts": {
+            "type": "string"
         }
     }
 }
