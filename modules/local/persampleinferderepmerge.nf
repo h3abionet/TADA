@@ -23,7 +23,7 @@ process PER_SAMPLE_INFER {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def bandsize = params.platform == 'pacbio' ? ', BAND_SIZE=32' : ''
-    def dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+    def dadaOpt = !params.dada_opts.isEmpty() ? "'${params.dada_opts.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
     readmode = errs.size() == 2 ? 'merged' : 'R1'
     run_fpriors = params.for_priors ? "TRUE" : "FALSE"
     run_rpriors = params.rev_priors ? "TRUE" : "FALSE"

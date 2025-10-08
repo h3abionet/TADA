@@ -14,7 +14,7 @@ process PER_SAMPLE_MERGE {
     task.ext.when == null || task.ext.when
 
     script:
-    def dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'    
+    def dadaOpt = !params.dada_opts.isEmpty() ? "'${params.dada_opts.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'    
     """
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))

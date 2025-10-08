@@ -21,7 +21,7 @@ process ILLUMINA_DADA2_LEARN_ERRORS {
     def derepreads = 100000
     // TODO: not even sure the below will work w/ nf-core style parameters, 
     // may need to go to a string or args-type modifications
-    def dadaOpt = !params.dadaOpt.isEmpty() ? "'${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+    def dadaOpt = !params.dada_opts.isEmpty() ? "'${params.dada_opts.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
     // TODO: will need to if-else this when implementing alternative error models
     """
     #!/usr/bin/env Rscript
