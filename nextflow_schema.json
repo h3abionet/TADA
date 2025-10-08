@@ -603,8 +603,7 @@
             "type": "string"
         },
         "learnerrors_opts": {
-            "type": "string",
-            "default": "nbases=1e+08"
+            "type": "string"
         },
         "dada_opts": {
             "type": "string"

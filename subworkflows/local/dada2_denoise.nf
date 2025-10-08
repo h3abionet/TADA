@@ -1,5 +1,4 @@
-include { ILLUMINA_DADA2_LEARN_ERRORS           } from '../../modules/local/illumina_learnerrors'
-include { PACBIO_DADA2_LEARN_ERRORS             } from '../../modules/local/pacbio_learnerrors'
+include { DADA2_LEARN_ERRORS                    } from '../../modules/local/learnerrors'
 include { DADA2_POOLED_DENOISE                  } from '../../subworkflows/local/dada2_pooled_denoise'
 include { DADA2_PER_SAMPLE_DENOISE              } from '../../subworkflows/local/dada2_per_sample_denoise'
 
@@ -17,17 +16,8 @@ workflow DADA2_DENOISE {
     ch_merged = Channel.empty()
     
     // START: DADA2-specific
-    if (params.platform == 'pacbio') {
-        PACBIO_DADA2_LEARN_ERRORS (
-            ch_trimmed_batch
-        )
-        ch_errs = PACBIO_DADA2_LEARN_ERRORS.out.error_models
-    }  else if (params.platform == 'illumina') {
-        ILLUMINA_DADA2_LEARN_ERRORS (
-            ch_trimmed_batch
-        )
-        ch_errs = ILLUMINA_DADA2_LEARN_ERRORS.out.error_models
-    }
+    DADA2_LEARN_ERRORS(ch_trimmed_batch) 
+    ch_errs = DADA2_LEARN_ERRORS.out.error_models
 
     // deal with priors here, which are optional inputs
     for_priors = params.for_priors ? file(params.for_priors, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
