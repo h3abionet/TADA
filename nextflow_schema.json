@@ -456,11 +456,6 @@
             "default": "illumina",
             "description": "Sequencing platform"
         },
-        "amplicon_type": {
-            "type": "string",
-            "default": "overlapping",
-            "description": "NYI. This will affect the methods for trimming and merging of read data and may change"
-        },
         "for_primer": {
             "type": "string",
             "description": "Forward primer sequence"
@@ -602,6 +597,14 @@
         "random_seed": {
             "type": "integer",
             "default": 100
+        },
+        "paired_type": {
+            "type": "string",
+            "default": "overlapping"
+        },
+        "strategy": {
+            "type": "string",
+            "default": "paired"
         }
     }
 }
