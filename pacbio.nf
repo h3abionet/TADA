@@ -411,6 +411,7 @@ process PacBioPoolSamplesInferDerep {
     library(dada2)
     packageVersion("dada2")
     
+    setDadaOpt(${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")})
     filts <- list.files('.', pattern="filtered.fastq.gz", full.names = TRUE)
     
     errs <- readRDS("${errs}")
@@ -424,7 +425,6 @@ process PacBioPoolSamplesInferDerep {
 
     dereps <- derepFastq(filts, qualityType = "FastqQuality", verbose=TRUE)
 
-    setDadaOpt(${params.dadaOpt.collect{k,v->"$k=$v"}.join(", ")})
     dds <- dada(dereps, err=errs, multithread=${task.cpus}, pool=pool ${dadaParams})
 
     # TODO: make this a single item list with ID as the name, this is lost

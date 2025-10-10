@@ -235,15 +235,15 @@ process PacBioFilterAndTrim {
     library(Biostrings); packageVersion("Biostrings")
 
     # Remove primers
-    #out1 <- removePrimers("${reads}", 
-    #    paste0("${id}",".noprimer.fastq.gz"), 
-    #    primer.fwd="${params.fwdprimer}", 
-    #    primer.rev=dada2:::rc("${params.revprimer}"), 
-    #    orient=TRUE, 
-    #    compress=TRUE,
-    #    allow.indels=TRUE, 
-    #    max.mismatch = 2,
-    #    verbose=TRUE)
+    out1 <- removePrimers("${reads}", 
+        paste0("${id}",".noprimer.fastq.gz"), 
+        primer.fwd="${params.fwdprimer}", 
+        primer.rev=dada2:::rc("${params.revprimer}"), 
+        orient=TRUE, 
+        compress=TRUE,
+        allow.indels=TRUE, 
+        max.mismatch = 2,
+        verbose=TRUE)
 
     # filterAndTrim(nops2, filts2, minQ=3, minLen=1000, maxLen=1600, maxN=0, rm.phix=FALSE, maxEE=2)
 
