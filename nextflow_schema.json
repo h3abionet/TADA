@@ -599,13 +599,13 @@
         "learnerrors_custom_code": {
             "type": "string"
         },
-        "learnerrors_custom_bins": {
-            "type": "string"
-        },
         "learnerrors_opts": {
             "type": "string"
         },
         "dada_opts": {
+            "type": "string"
+        },
+        "learnerrors_quality_bins": {
             "type": "string"
         }
     }
