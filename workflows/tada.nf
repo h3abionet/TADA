@@ -45,6 +45,15 @@ workflow TADA {
         exit 1, "Only supported platforms (--platform argument) are currently 'pacbio' or 'illumina'"
     }
 
+    if (params.learnerror_function == "makeBinnedQualErrfun" && params.learnerrors_quality_bins == "") {
+        exit 1, "Using makeBinnedQualErrfun requires explicitly setting quality_bins"
+    }
+
+    // Make sure the older quality_binning setting and the newer selection for error model function don't collide
+    if (params.quality_binning && params.learnerror_function == "makeBinnedQualErrfun") {
+            exit 1, "${params.learnerror_function} is selected with standard quality bin correction turned on!"
+    }
+
     // TODO: implement seqtable input?
     // // ${deity} there has to be a better way to check this!
     // if ( (params.seqTables && params.reads) || 
