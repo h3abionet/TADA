@@ -1,6 +1,6 @@
 process QIIME2_SEQUENCE {
 
-    container "quay.io/qiime2/amplicon:2024.10"
+    container "quay.io/qiime2/amplicon:2025.7"
 
     input:
     path(seqs)
