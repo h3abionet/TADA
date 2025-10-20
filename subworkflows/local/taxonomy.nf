@@ -1,11 +1,12 @@
 include { DADA2_ASSIGN_TAXA_SPECIES    } from '../../modules/local/assigntaxaspecies'
 include { DADA2_TAXTABLE2TEXT          } from '../../modules/local/taxtable2txt'
 include { DADA2_TAXFILTER              } from '../../modules/local/dada2taxfilter'
+include { QIIME2_TAXONOMY_CLASSIFIER   } from '../../subworkflows/local/qiime_assign_taxonomy'
 
 workflow TAXONOMY {
-
     take:
-    readmap      // TODO: this should be modified to simple FASTA
+    asv_fasta    
+    readmap      // TODO: redundant, should be modified to use simple FASTA
     ref_file     // General use
     species_file // DADA2-specific
     seqtab       // RDS (TODO: should make this CSV or TSV)
@@ -17,16 +18,30 @@ workflow TAXONOMY {
     ch_readmap_rds = readmap
     ch_seqtab_rds =  seqtab
 
-    DADA2_ASSIGN_TAXA_SPECIES(
-        ch_readmap_rds,
-        ref_file,
-        species_file
-    )
 
-    ch_taxtab_rds = DADA2_ASSIGN_TAXA_SPECIES.out.taxtab_rds
-    ch_taxmetrics_rds =  DADA2_ASSIGN_TAXA_SPECIES.out.metrics_rds
+    if (params.tax_assignment_method == 'rdp') {
+        DADA2_ASSIGN_TAXA_SPECIES(
+            ch_readmap_rds,
+            ref_file,
+            species_file
+        )
+
+        ch_taxtab_rds = DADA2_ASSIGN_TAXA_SPECIES.out.taxtab_rds
+        ch_taxmetrics_rds =  DADA2_ASSIGN_TAXA_SPECIES.out.metrics_rds
+    } else if (params.tax_assignment_method == 'qiime2') {
+        QIIME2_TAXONOMY_CLASSIFIER(
+            asv_fasta,
+            ref_file
+        )
+
+        ch_taxtab_rds = QIIME2_TAXONOMY_CLASSIFIER.out.taxtab_rds
+        ch_taxmetrics_rds =  QIIME2_TAXONOMY_CLASSIFIER.out.metrics_rds
+    } else {
+        exit 1, "${params.tax_assignment_method} not yet supported!"
+    }
 
     if (params.tax_filter) {
+        // TODO: rename this, it's now more generic
         DADA2_TAXFILTER(
             ch_readmap_rds,
             ch_seqtab_rds,

@@ -45,13 +45,13 @@ workflow TADA {
         exit 1, "Only supported platforms (--platform argument) are currently 'pacbio' or 'illumina'"
     }
 
-    if (params.learnerror_function == "makeBinnedQualErrfun" && params.learnerrors_quality_bins == "") {
+    if (params.learnerrors_function == "makeBinnedQualErrfun" && params.learnerrors_quality_bins == "") {
         exit 1, "Using makeBinnedQualErrfun requires explicitly setting quality_bins"
     }
 
     // Make sure the older quality_binning setting and the newer selection for error model function don't collide
-    if (params.quality_binning && params.learnerror_function == "makeBinnedQualErrfun") {
-            exit 1, "${params.learnerror_function} is selected with standard quality bin correction turned on!"
+    if (params.quality_binning && params.learnerrors_function == "makeBinnedQualErrfun") {
+            exit 1, "${params.learnerrors_function} is selected with standard quality bin correction turned on!"
     }
 
     // TODO: implement seqtable input?
@@ -169,9 +169,12 @@ workflow TADA {
         species_file = params.species ? file(params.species, checkIfExists: true) : file("${projectDir}/assets/dummy_file")
 
         // TODO: add alternative callers:
-        //      DECIPHER, USEARCH/VSEARCH,q2, BLAST
-        // TODO: readmap -> FASTA?
+        //      DECIPHER, USEARCH/VSEARCH, BLAST
+        // TODO: because there is some inconsistency with input formats between tools, 
+        //      there is some redundancy here. Could be rectified somewhat, e.g. using 
+        //      a FASTA instead of the readmap.
         TAXONOMY(
+            ch_filtered_asvs,
             ch_filtered_readmap_rds,
             ref_file,
             species_file,
