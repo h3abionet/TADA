@@ -1,11 +1,11 @@
 include { DADA2_ASSIGN_TAXA_SPECIES    } from '../../modules/local/assigntaxaspecies'
 include { DADA2_TAXTABLE2TEXT          } from '../../modules/local/taxtable2txt'
-include { DADA2_TAXFILTER              } from '../../modules/local/dada2taxfilter'
+include { TAXFILTER                    } from '../../modules/local/taxfilter'
 include { QIIME2_TAXONOMY_CLASSIFIER   } from '../../subworkflows/local/qiime_assign_taxonomy'
 
 workflow TAXONOMY {
     take:
-    asv_fasta    
+    asv_fasta
     readmap      // TODO: redundant, should be modified to use simple FASTA
     ref_file     // General use
     species_file // DADA2-specific
@@ -42,7 +42,7 @@ workflow TAXONOMY {
 
     if (params.tax_filter) {
         // TODO: rename this, it's now more generic
-        DADA2_TAXFILTER(
+        TAXFILTER(
             ch_readmap_rds,
             ch_seqtab_rds,
             ch_taxtab_rds,

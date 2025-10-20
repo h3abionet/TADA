@@ -2,7 +2,7 @@
 //       we may add another option to select the specific 
 //       QIIME2 classifier to use (feature-classifier, BLAST, VSEARCH)
 
-include { QIIME2_FEATURE_CLASSIFIER             } from '../../../modules/local/qiime2featureclasssifier'
+include { QIIME2_FEATURE_CLASSIFIER             } from '../../../modules/local/qiime2featureclassifier'
 include { QIIME2_FEATURE_TO_RDS                 } from '../../../modules/local/qiime2featuretords'
 
 workflow QIIME2_TAXONOMY_CLASSIFIER {
