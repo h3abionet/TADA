@@ -48,10 +48,10 @@ workflow TAXONOMY {
             ch_taxtab_rds,
             ch_taxmetrics_rds
         )
-        ch_readmap_rds = DADA2_TAXFILTER.out.readmap_tax_filtered_rds
-        ch_seqtab_rds = DADA2_TAXFILTER.out.seqtab_tax_filtered_rds
-        ch_taxtab_rds = DADA2_TAXFILTER.out.taxtab_tax_filtered_rds
-        ch_taxmetrics_rds = DADA2_TAXFILTER.out.taxmetrics_tax_filtered_rds
+        ch_readmap_rds = TAXFILTER.out.readmap_tax_filtered_rds
+        ch_seqtab_rds = TAXFILTER.out.seqtab_tax_filtered_rds
+        ch_taxtab_rds = TAXFILTER.out.taxtab_tax_filtered_rds
+        ch_taxmetrics_rds = TAXFILTER.out.taxmetrics_tax_filtered_rds
     } 
 
     emit:
