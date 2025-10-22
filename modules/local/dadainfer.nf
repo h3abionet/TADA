@@ -17,7 +17,7 @@ process DADA2_POOLED_INFER {
     script:
     def args = task.ext.args ?: ''
     def bandsize = params.platform == 'pacbio' ? ', BAND_SIZE=32' : ''
-    def dadaOpt = params.dada_opts ? "${params.dada_opts}" : ""
+    def dadaOpt = params.dada_opts ? "${params.dada_opts}" : "NA"
     """
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))
