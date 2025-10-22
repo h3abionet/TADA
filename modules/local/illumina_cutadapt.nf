@@ -24,6 +24,8 @@ process ILLUMINA_CUTADAPT {
     script:
     // def args = task.ext.args ?: ''
     // def prefix = task.ext.prefix ?: "${meta.id}"
+    trunc_for = params.trunc_for >=0 ? "-l ${params.trunc_for}" : ""
+    trunc_rev = params.trunc_rev >=0 ? "-L ${params.trunc_rev}" : ""
     maxN = params.maxN >=0 ? "--max-n ${params.maxN}" : ""
     maxEE = "--max-ee ${[params.maxEE_for,params.maxEE_rev].max()}"
     min_len = params.min_read_len ? "-m ${params.min_read_len}" : "-m 50" 
@@ -38,7 +40,7 @@ process ILLUMINA_CUTADAPT {
         --json=${meta.id}.cutadapt.json \\
         -g ${for_primer} -a ${rev_primer_rc} ${p2} \\
         --cores ${task.cpus} \\
-        -n 2 ${maxEE} ${min_len} ${max_len} ${maxN} ${polyG} \\
+        -n 2 ${maxEE} ${min_len} ${max_len} ${maxN} ${polyG} ${trunc_for} ${trunc_rev} \\
         -o ${meta.id}.R1.filtered.fastq.gz ${outr2} \\
         ${reads} > ${meta.id}.cutadapt.out
 
