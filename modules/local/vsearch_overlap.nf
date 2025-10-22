@@ -10,7 +10,7 @@ process VSEARCH_OVERLAP {
     output:
     path("${meta.id}.lengthstats.txt"), emit: merged_stats
     path("${meta.id}.log"),             emit: merged_log
-    path("${meta.id}.merged.fastq.gz"), emit: merged_seqs
+    path("${meta.id}.eetabbed.log"),    emit: eetabbed_log
     path "versions.yml",                emit: versions
 
     when:
@@ -24,6 +24,7 @@ process VSEARCH_OVERLAP {
         "${reads[0]}" \\
         --reverse "${reads[1]}" \\
         --fastqout "${meta.id}.merged.fastq" \\
+        --eetabbedout "${meta.id}.eetabbed.log" \\
         --threads ${task.cpus} \\
         --fastq_minovlen 5 \\
         --fastq_allowmergestagger \\
@@ -33,7 +34,7 @@ process VSEARCH_OVERLAP {
         "${meta.id}.merged.fastq" \\
         > "${meta.id}.lengthstats.txt"
 
-    gzip "${meta.id}.merged.fastq"
+    rm "${meta.id}.merged.fastq"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
