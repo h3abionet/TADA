@@ -17,7 +17,7 @@ process DADA2_POOLED_INFER {
     script:
     def args = task.ext.args ?: ''
     def bandsize = params.platform == 'pacbio' ? ', BAND_SIZE=32' : ''
-    def dadaOpt = !params.dada_opts.isEmpty() ? "'${params.dada_opts.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'
+    def dadaOpt = params.dada_opts ? "${params.dada_opts}" : ""
     """
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))
@@ -29,6 +29,7 @@ process DADA2_POOLED_INFER {
       cat("dada Options:\\n",dadaOpt,"\\n")
     }
     set.seed(100)
+
     filts <- list.files('.', pattern="${readmode}.filtered.fastq.gz", full.names = TRUE)
 
     err <- readRDS("${err}")
@@ -45,7 +46,10 @@ process DADA2_POOLED_INFER {
     dereps <- derepFastq(filts, n=100000, verbose=TRUE)
 
     cat(paste0("Denoising ${readmode} reads: pool:", pool, "\\n"))
-    dds <- dada(dereps, err=err, multithread=${task.cpus}, pool=pool ${bandsize})
+    dds <- dada(dereps, 
+      err=err, 
+      multithread=${task.cpus}, 
+      pool=pool ${bandsize})
 
     saveRDS(dds, "all.dd.${readmode}.RDS")
     """

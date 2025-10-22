@@ -39,8 +39,10 @@ process ILLUMINA_DADA2_LEARN_ERRORS {
     sample.names <- sapply(strsplit(basename(filts), "_"), `[`, 1) # Assumes filename = samplename_XXX.fastq.gz
     set.seed(100)
 
+    dereps <- derepFastq(filts, n=100000, verbose=TRUE)
+
     # Learn forward error rates
-    err <- learnErrors(filts, multithread=${task.cpus}, verbose=1)
+    err <- learnErrors(dereps, multithread=${task.cpus}, verbose=1)
 
     # This is a rough correction for NovaSeq binning issues
     # See https://github.com/h3abionet/TADA/issues/31, we'll likely
