@@ -10,6 +10,7 @@ process VSEARCH_OVERLAP {
     output:
     path("${meta.id}.lengthstats.txt"), emit: merged_stats
     path("${meta.id}.log"),             emit: merged_log
+    path("${meta.id}.merged.fastq.gz"), emit: merged_seqs
     path "versions.yml",                emit: versions
 
     when:
@@ -32,7 +33,7 @@ process VSEARCH_OVERLAP {
         "${meta.id}.merged.fastq" \\
         > "${meta.id}.lengthstats.txt"
 
-    rm "${meta.id}.merged.fastq"
+    gzip "${meta.id}.merged.fastq"
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
