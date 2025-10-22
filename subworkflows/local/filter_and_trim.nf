@@ -26,8 +26,10 @@ workflow FILTER_AND_TRIM {
     //       DADA2 filtering (filter) - NYI
     //       cutadapt (trim) - implemented
 
-    // TODO: we don't have both trimmers implemented for platforms, so
+    // TODO: we don't have both trimmers implemented for all platforms, so
     // we force any pacbio runs to be cutadapt for now
+
+    // TODO: this should really be changed to single-end vs paired-end
     def trimmer = params.platform == "pacbio" ? "cutadapt" : params.trimmer
     if (params.platform == "pacbio") {
 

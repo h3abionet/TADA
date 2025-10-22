@@ -357,10 +357,6 @@
             "default": 0,
             "description": "DADA2 `mergePairs`: max mismatch allowed for overlaps"
         },
-        "trim_overhang": {
-            "type": "boolean",
-            "description": "DADA2 `mergePairs`: trim any overhanging sequence"
-        },
         "just_concatenate": {
             "type": "boolean",
             "description": "DADA2 `mergePairs`: just concatentate reads"
@@ -607,6 +603,9 @@
         },
         "learnerrors_quality_bins": {
             "type": "string"
+        },
+        "overhang_trim": {
+            "type": "boolean"
         }
     }
 }

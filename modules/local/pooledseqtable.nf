@@ -163,7 +163,7 @@ process DADA2_POOLED_SEQTABLE {
           returnRejects = TRUE,
           minOverlap = ${params.min_overlap},
           maxMismatch = ${params.max_mismatch},
-          trimOverhang = as.logical("${params.trim_overhang}"),
+          trimOverhang = as.logical("${params.overhang_trim}"),
           justConcatenate = as.logical("${params.just_concatenate}"),
           rescueUnmerged=rescuePairs,
           verbose = TRUE
@@ -173,7 +173,7 @@ process DADA2_POOLED_SEQTABLE {
           returnRejects = TRUE,
           minOverlap = ${params.min_overlap},
           maxMismatch = ${params.max_mismatch},
-          trimOverhang = as.logical("${params.trim_overhang}"),
+          trimOverhang = as.logical("${params.overhang_trim}"),
           justConcatenate = as.logical("${params.just_concatenate}"),
           verbose = TRUE
           )
