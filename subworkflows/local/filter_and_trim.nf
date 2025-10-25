@@ -42,7 +42,7 @@ workflow FILTER_AND_TRIM {
         //     PACBIO_CUTADAPT.out.cutadapt_trimmed
         // )
         ch_trimmed = PACBIO_CUTADAPT.out.trimmed
-        ch_trimmed_R1 = PACBIO_CUTADAPT.out.trimmed
+        // ch_trimmed_R1 = PACBIO_CUTADAPT.out.trimmed
         ch_reports = PACBIO_CUTADAPT.out.trimmed_report.collect()
         ch_multiqc_files = ch_multiqc_files.mix(PACBIO_CUTADAPT.out.cutadapt_json)
     } else {
@@ -53,8 +53,8 @@ workflow FILTER_AND_TRIM {
             )
             ch_trimmed = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed
             ch_reports = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_report.collect()
-            ch_trimmed_R1 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R1
-            ch_trimmed_R2 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R2
+            // ch_trimmed_R1 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R1
+            // ch_trimmed_R2 = ILLUMINA_DADA2_FILTER_AND_TRIM.out.trimmed_R2
         } else if (trimmer == "cutadapt") {
             ILLUMINA_CUTADAPT(
                 ch_input,
@@ -65,8 +65,8 @@ workflow FILTER_AND_TRIM {
             )
             ch_trimmed = ILLUMINA_CUTADAPT.out.trimmed
             ch_reports = ILLUMINA_CUTADAPT.out.trimmed_report.collect()
-            ch_trimmed_R1 = ILLUMINA_CUTADAPT.out.trimmed_R1
-            ch_trimmed_R2 = ILLUMINA_CUTADAPT.out.trimmed_R2
+            // ch_trimmed_R1 = ILLUMINA_CUTADAPT.out.trimmed_R1
+            // ch_trimmed_R2 = ILLUMINA_CUTADAPT.out.trimmed_R2
             ch_multiqc_files = ch_multiqc_files.mix(ILLUMINA_CUTADAPT.out.cutadapt_json)
         }
     }
@@ -76,28 +76,13 @@ workflow FILTER_AND_TRIM {
         trimmer
     )
 
-    // Channel setup
-
-    // We need to group data depending on which downstream steps are needed.  There
-    // are two combinations possible
-
-    // 1. The immediate downstream QC steps can use the meta info and the read pairs.
-    //    Instead of doing handstands reusing the two channels above, we emit channels 
-    //    with the reads paired if needed.
-
-    // 2. LearnErrors and the pooled denoising branch requires all R1 and all R2, but 
-    //    the two groups can be processed in parallel.  So we set up the channels with 
-    //    this in mind. No sample ID info is really needed.
-
-    ch_trimmed_batch = ch_trimmed_R1
-            .map { [ 'R1', it[1]] }
-            .concat(ch_trimmed_R2.map {['R2', it[1]] } )
-            .groupTuple(sort: true)
-
     emit:
     trimmed_report = MERGE_TRIM_TABLES.out.trimmed_report // channel: [ RDS ]
-    trimmed_parallel = ch_trimmed
-    trimmed_batch = ch_trimmed_batch
+    trimmed = ch_trimmed
+    // trimmed_parallel = ch_trimmed
+    // trimmed_R1 = ch_trimmed_R1
+    // trimmed_R2 = ch_trimmed_R2
+    // trimmed_batch = ch_trimmed_batch
     ch_multiqc_files
 }
 

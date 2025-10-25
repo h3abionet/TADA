@@ -12,8 +12,6 @@ process ILLUMINA_CUTADAPT {
     val(rev_primer_rc)
 
     output:
-    tuple val(meta), path("${meta.id}.R1.filtered.fastq.gz"), optional: true, emit: trimmed_R1
-    tuple val(meta), path("${meta.id}.R2.filtered.fastq.gz"), optional: true, emit: trimmed_R2
     tuple val(meta), path("${meta.id}.R[12].filtered.fastq.gz"), optional: true, emit: trimmed
     path("${meta.id}.cutadapt.out"), emit: trimmed_report // to merging data
     path("${meta.id}.cutadapt.json"), emit: cutadapt_json  // to MultiQC

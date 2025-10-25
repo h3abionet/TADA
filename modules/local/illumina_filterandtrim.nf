@@ -8,8 +8,6 @@ process ILLUMINA_DADA2_FILTER_AND_TRIM {
     tuple val(meta), path(reads)
 
     output:
-    tuple val(meta), path("${meta.id}.R1.filtered.fastq.gz"), optional: true, emit: trimmed_R1
-    tuple val(meta), path("${meta.id}.R2.filtered.fastq.gz"), optional: true, emit: trimmed_R2
     tuple val(meta), path("${meta.id}.R[12].filtered.fastq.gz"), optional: true, emit: trimmed
     path("*.trimmed.txt"), emit: trimmed_report
 
