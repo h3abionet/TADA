@@ -49,7 +49,6 @@ workflow DADA2_DENOISE {
                 }
         )
         .groupTuple(sort: true)
-        .dump()
 
     DADA2_LEARN_ERRORS(ch_dereps_per_read) 
     ch_errs = DADA2_LEARN_ERRORS.out.error_models
