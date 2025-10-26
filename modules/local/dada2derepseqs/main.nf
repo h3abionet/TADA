@@ -1,7 +1,6 @@
 process DADA2_DEREP_SEQS {
     tag "$meta.id"
     label 'process_medium'
-    array 100
 
     container "ghcr.io/h3abionet/tada:docker-DADA-1.36"
 
