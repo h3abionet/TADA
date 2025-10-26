@@ -148,18 +148,17 @@ process DADA2_POOLED_SEQTABLE {
    # this is to ensure this acts as if in the dada2 package (so uses any functions definted within)
    environment(mergePairsRescue) <- asNamespace('dada2')
 
-   filtFs <- list.files('.', pattern="R1.filtered.fastq.gz", full.names = TRUE)
-   filtRs <- list.files('.', pattern="R2.filtered.fastq.gz", full.names = TRUE)
-
    # read in denoised reads for both
    ddFs <- readRDS("all.dd.R1.RDS")
+
+   derepsF <- readRDS("dereps.R1.RDS")
 
    if (file.exists("all.dd.R2.RDS")) {
 
       ddRs <- readRDS("all.dd.R2.RDS")
-
+      derepsR <- readRDS("dereps.R2.RDS")
       mergers <- if(rescuePairs) {
-         mergePairsRescue(ddFs, filtFs, ddRs, filtRs,
+         mergePairsRescue(ddFs, derepsF, ddRs, derepsR,
           returnRejects = TRUE,
           minOverlap = ${params.min_overlap},
           maxMismatch = ${params.max_mismatch},
@@ -169,7 +168,7 @@ process DADA2_POOLED_SEQTABLE {
           verbose = TRUE
           ) 
          } else {
-         mergePairs(ddFs, filtFs, ddRs, filtRs,
+         mergePairs(ddFs, derepsF, ddRs, derepsR,
           returnRejects = TRUE,
           minOverlap = ${params.min_overlap},
           maxMismatch = ${params.max_mismatch},

@@ -8,7 +8,8 @@ process DADA2_LEARN_ERRORS {
     tuple val(readmode), path(reads)
 
     output:
-    tuple val(readmode), file("errors.${readmode}.RDS"), emit: error_models
+    tuple val(readmode), path("errors.${readmode}.RDS"), emit: error_models
+    tuple val(readmode), path("dereps.${readmode}.RDS"), emit: dereps_full
     path("${readmode}*.err.pdf"), emit: pdf
 
     when:
@@ -47,11 +48,16 @@ process DADA2_LEARN_ERRORS {
     }
 
     # File parsing (these come from the process input channel)
-    filts <- list.files('.', pattern=paste0("${readmode}",".filtered.fastq.gz"), full.names = TRUE)
+    derep_files <- list.files('.', pattern=paste0("${readmode}",".derep.RDS"), full.names = TRUE)
+
+    dereps <- lapply(derep_files, readRDS)
+
+    # note this is a bit of a hack, but we want the file name 
+    # included with the name of the derep object. This makes
+    # sure these are in sync if needed later
+    names(dereps) <- sapply(dereps, function(x) { x\$file })
 
     set.seed(${params.random_seed})
-
-    dereps <- derepFastq(filts, n=${derepreads}, verbose=TRUE)
 
     # Learn read error rates
     err <- learnErrors(dereps, 
@@ -61,8 +67,8 @@ process DADA2_LEARN_ERRORS {
         ${params.learnerrors_opts})
 
     # This is a rough correction for NovaSeq binning issues
-    # See https://github.com/h3abionet/TADA/issues/31, we'll likely
-    # add alternatives here soon
+    # See https://github.com/h3abionet/TADA/issues/31
+    # Now deprecated in favor of using a standard error function
 
     if (as.logical("${params.quality_binning}") == TRUE ) {
         # TODO: this is likely to be deprecated 
@@ -75,6 +81,7 @@ process DADA2_LEARN_ERRORS {
     plotErrors(err, nominalQ=TRUE)
     dev.off()
 
-    saveRDS(err, paste0("errors.","${readmode}",".RDS"))        
+    saveRDS(err, paste0("errors.","${readmode}",".RDS")) 
+    saveRDS(dereps, paste0("dereps.","${readmode}",".RDS"))
     """
 }

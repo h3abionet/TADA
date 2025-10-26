@@ -1,4 +1,3 @@
-// TODO: rename file dada2pooledinfer?
 process DADA2_POOLED_INFER {
     tag "${readmode}: ${params.pool}"
     label 'process_medium'
@@ -6,10 +5,10 @@ process DADA2_POOLED_INFER {
     container "ghcr.io/h3abionet/tada:docker-DADA-1.36"
 
     input:
-    tuple val(readmode), file(err), file(reads)
+    tuple val(readmode), path(err), path(dereps)
 
     output:
-    path("all.dd.*.RDS"), emit: inferred
+    tuple val(readmode), path("all.dd.${readmode}.RDS"), emit: inferred
 
     when:
     task.ext.when == null || task.ext.when
@@ -30,10 +29,10 @@ process DADA2_POOLED_INFER {
     }
     set.seed(100)
 
-    filts <- list.files('.', pattern="${readmode}.filtered.fastq.gz", full.names = TRUE)
+    cat("Processing all samples\\n")
 
     err <- readRDS("${err}")
-    cat("Processing all samples\\n")
+    dereps <- readRDS("${dereps}")
 
     #Variable selection from CLI input flag --pool
     pool <- "${params.pool}"
@@ -42,8 +41,6 @@ process DADA2_POOLED_INFER {
     if(pool != "pseudo"){
       pool <- as.logical(pool)
     }
-
-    dereps <- derepFastq(filts, n=100000, verbose=TRUE)
 
     cat(paste0("Denoising ${readmode} reads: pool:", pool, "\\n"))
     dds <- dada(dereps, 
