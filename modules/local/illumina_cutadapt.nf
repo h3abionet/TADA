@@ -22,13 +22,13 @@ process ILLUMINA_CUTADAPT {
     script:
     // def args = task.ext.args ?: ''
     // def prefix = task.ext.prefix ?: "${meta.id}"
-    trunc_for = params.trunc_for >=0 ? "-l ${params.trunc_for}" : ""
+    trunc_for = params.trunc_for >0 ? "-l ${params.trunc_for}" : ""
     maxN = params.maxN >=0 ? "--max-n ${params.maxN}" : ""
     maxEE = "--max-ee ${[params.maxEE_for,params.maxEE_rev].max()}"
     min_len = params.min_read_len ? "-m ${params.min_read_len}" : "-m 50" 
     max_len = params.max_read_len != "Inf" ? "-M ${params.max_read_len}" : ""
     outr2 = !meta.single_end ? "-p ${meta.id}.R2.filtered.fastq.gz" : ''
-    trunc_rev = !meta.single_end && params.trunc_rev >=0 ? "-L ${params.trunc_rev}" : ""
+    trunc_rev = !meta.single_end && params.trunc_rev >0 ? "-L ${params.trunc_rev}" : ""
     p2 = !meta.single_end ? "-G ${rev_primer} -A ${for_primer_rc}" : '' 
     polyG = params.illumina_twocolor ? "--nextseq-trim=2" : ""
 
