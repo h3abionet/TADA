@@ -4,22 +4,19 @@ include { DADA2_POOLED_SEQTABLE                 } from '../../../modules/local/p
 workflow DADA2_POOLED_DENOISE {
 
     take:
-    ch_infer
-    ch_trimmed_infer
+    ch_errs
+    ch_dereps_full
 
     main:
     ch_versions = Channel.empty()
-    
-    DADA2_POOLED_INFER(ch_infer)
 
-    ch_trimmed = ch_trimmed_infer
-        .map { it[1] }
-        .flatten()
-        .collect()
+    ch_batch_errs = ch_errs.join(ch_dereps_full)
+    
+    DADA2_POOLED_INFER(ch_batch_errs)
 
     DADA2_POOLED_SEQTABLE(
-        DADA2_POOLED_INFER.out.inferred.collect(),
-        ch_trimmed)
+        DADA2_POOLED_INFER.out.inferred.map {it[1]}.collect(),
+        ch_dereps_full.map {it[1]}.collect() )
 
     emit:
     inferred = DADA2_POOLED_INFER.out.inferred
