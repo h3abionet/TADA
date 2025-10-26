@@ -38,9 +38,18 @@ workflow DADA2_DENOISE {
     //    include whether they are R1 or R1 (a 'readmode') to distinguish them. ch_trimmed_batch
 
     ch_dereps_per_read = ch_dereps
-            .map { [ 'R1', it[1][0] ] }
-            .concat( ch_dereps.map { [ 'R2', it[1][1] ] } )
-            .groupTuple(sort: true)
+        .map { 
+            [ 'R1', it[0].single_end ? it[1] : it[1][0] ]
+        }
+        .concat(
+            ch_dereps
+                .filter { !it[0].single_end }
+                .map {
+                    [ 'R2', it[1][1] ]
+                }
+        )
+        .groupTuple(sort: true)
+        .dump()
 
     DADA2_LEARN_ERRORS(ch_dereps_per_read) 
     ch_errs = DADA2_LEARN_ERRORS.out.error_models
