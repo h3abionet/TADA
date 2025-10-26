@@ -133,7 +133,7 @@ workflow TADA {
     // TODO: mix these in a specific order? This would help when merging
     //       multiple tables from different sources
     ch_readtracking = ch_readtracking.mix(
-            ch_inferred.collect(),
+            ch_inferred.map {it[1]}.collect(),
             ch_filtered_readmap_rds,
             ch_merged_rds,
             ch_filtered_seqtab_rds)
