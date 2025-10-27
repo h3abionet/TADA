@@ -37,7 +37,6 @@ process TAXFILTER {
 
     taxtab <- readRDS("${taxtab}")
     taxtab_filtered <- taxtab %>% as_tibble(rownames = "TaxID") %>% filter( !is.na( ${rank} ))
-    taxtab_filtered[is.na(taxtab_filtered)] <- "Unclassified"
     ids <- taxtab_filtered\$TaxID
 
     readmap <- readRDS("${readmap}")

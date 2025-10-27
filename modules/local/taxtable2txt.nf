@@ -33,8 +33,6 @@ process DADA2_TAXTABLE2TEXT {
         row.names = FALSE,
         col.names=c('#OTU ID', colnames(tax)), sep = "\\t")
 
-    tax[is.na(tax)] <- "Unclassified"
-
     taxa_combined <- apply(tax, 1, function(x) paste(x, collapse=";"))
     taxa_out <- data.frame(names(taxa_combined), taxa_combined)
     colnames(taxa_out) <- c("#OTU ID", "taxonomy")
