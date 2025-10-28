@@ -26,6 +26,13 @@ process QIIME2_FEATURETABLE {
         --output-path seqtab.qza \
         --type 'FeatureTable[Frequency]'
 
+    qiime feature-table summarize \
+      --i-table seqtab.qza \
+      --o-visualization seqtab.qzv
+
+    # TODO: we don't include metadata yet
+    # --m-sample-metadata-file sample-metadata.tsv
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         qiime2: \$( qiime --version | sed '1!d;s/.* //' )

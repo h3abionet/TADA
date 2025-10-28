@@ -15,12 +15,19 @@ process QIIME2_TAXTABLE {
     script:
     def args = task.ext.args ?: ''
     """
-    tail -n +2 ${taxtab} > headerless.txt
+    tail -n +2 ${taxtab} | \
+        perl -ne 's/\\"//g; @foo = split; print "\$foo[0]\\t".join(";", @foo[1..\$#foo])."\\n"' \
+        > headerless.txt
+    
     qiime tools import \
         --input-path headerless.txt \
         --input-format HeaderlessTSVTaxonomyFormat \
         --output-path taxtab.qza \
         --type 'FeatureData[Taxonomy]'
+
+    qiime metadata tabulate \
+      --m-input-file taxtab.qza \
+      --o-visualization taxtab.qzv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

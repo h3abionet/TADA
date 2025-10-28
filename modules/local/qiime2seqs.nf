@@ -7,6 +7,7 @@ process QIIME2_SEQUENCE {
 
     output:
     path("asv_sequences.qza"), emit: asvs_qza
+    path("asv_sequences.qzv"), emit: asvs_qzv
     path("versions.yml"), emit: versions
 
     when:
@@ -19,6 +20,10 @@ process QIIME2_SEQUENCE {
         --input-path ${seqs} \
         --output-path asv_sequences.qza \
         --type 'FeatureData[Sequence]'
+
+    qiime feature-table tabulate-seqs \
+      --i-data asv_sequences.qza \
+      --o-visualization asv_sequences.qzv
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
