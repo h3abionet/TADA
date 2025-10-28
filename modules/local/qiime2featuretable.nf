@@ -7,6 +7,7 @@ process QIIME2_FEATURETABLE {
 
     output:
     path("seqtab.qza"), emit: seqtab_qza
+    path("seqtab.qzv"), emit: seqtab_qzv
     path("versions.yml"), emit: versions
 
     when:

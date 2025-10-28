@@ -41,7 +41,15 @@ workflow TAXONOMY {
     }
 
     if (params.tax_filter) {
-        // TODO: rename this, it's now more generic
+        // TODO: we should save the pre-filtered data here? This may require
+        //       allowing for a suffix indicating this
+
+        // TODO: we should add a QIIME2-specific way to filter here.
+        //       However, note the current QIIME2 ranks are built into
+        //       the names, so we may want to allow for 'p__'-like 
+        //       rank-filtering.
+        //       See: https://docs.qiime2.org/2024.10/tutorials/filtering/
+
         TAXFILTER(
             ch_readmap_rds,
             ch_seqtab_rds,

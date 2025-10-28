@@ -10,6 +10,7 @@ process QIIME2_TREE {
     path("unrooted_tree.qza"), emit: unrooted_qza
     path("rooted_tree.qza"), emit: rooted_qza
     path("versions.yml"), emit: versions
+    // path("*.qzv"), emit: tree_qzv
 
     when:
     task.ext.when == null || task.ext.when 

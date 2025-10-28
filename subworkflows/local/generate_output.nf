@@ -71,7 +71,7 @@ workflow GENERATE_OUTPUT {
             ch_versions = ch_versions.mix(QIIME2_ALIGNMENT.out.versions)
         }
 
-        if (!params.skip_tree) {
+        if (!(params.skip_alignment || params.skip_tree)) {
             QIIME2_TREE(
                 unrooted_tree,
                 rooted_tree

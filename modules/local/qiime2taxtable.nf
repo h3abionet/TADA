@@ -7,6 +7,7 @@ process QIIME2_TAXTABLE {
 
     output:
     path("taxtab.qza"), emit: taxtab_qza
+    path("taxtab.qzv"), emit: taxtab_qzv
     path("versions.yml"), emit: versions
 
     when:
@@ -16,7 +17,7 @@ process QIIME2_TAXTABLE {
     def args = task.ext.args ?: ''
     """
     tail -n +2 ${taxtab} | \
-        perl -ne 's/\\"//g; @foo = split; print "\$foo[0]\\t".join(";", @foo[1..\$#foo])."\\n"' \
+        perl -ne 's/\\"//g; @foo = split; print "\$foo[0]\\t".join("; ", grep {\$_ ne 'NA'} @foo[1..\$#foo])."\\n"' \
         > headerless.txt
     
     qiime tools import \
