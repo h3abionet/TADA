@@ -15,10 +15,40 @@ workflow PHYLOGENY {
     ch_versions = Channel.empty()
 
     if (!params.skip_alignment) {
-        DECIPHER(
-            asvs
-        )
-        ch_alignment = DECIPHER.out.alignment
+        ch_alignment = Channel.empty()
+        // This is needed b/c nf-core modules have a 
+        // meta file, so we need to create a simple 
+        // fake one for the workflow
+        // ch_aln = asvs
+        //     .map{
+        //         [id: params.aligner ], it ->
+        //             [ meta, fastafile ]
+        //     }
+        // if (params.aligner == "decipher") {
+            DECIPHER(
+                asvs
+            )
+            ch_alignment = DECIPHER.out.alignment
+        // } else if (params.aligner == "mafft") {
+        //     MAFFT_ALIGN (
+        //         ch_aln ,
+        //         [ [:], [] ],
+        //         [ [:], [] ],
+        //         [ [:], [] ],
+        //         [ [:], [] ],
+        //         [ [:], [] ],
+        //         true
+        //     )
+        //     ch_alignment = MAFFT_ALIGN.out.fas // the MAFFT module calls its output fas instead of alignment
+        //     ch_versions = ch_versions.mix(MAFFT_ALIGN.out.versions.first())
+        // } else if (params.aligner == "muscle") {
+        //     MUSCLE5_ALIGN (
+        //         ch_aln ,
+        //         true
+        //     )
+        //     ch_alignment = MUSCLE5_ALIGN.out.alignment.first() // the MAFFT module calls its output fas instead of alignment
+        //     ch_versions = ch_versions.mix(MUSCLE5_ALIGN.out.versions.first())
+        // }
         if (!params.skip_tree) {
             if (params.phylo_tool == 'phangorn') {
                 PHANGORN(
