@@ -1,7 +1,9 @@
-include { DADA2_LEARN_ERRORS                    } from '../../modules/local/learnerrors'
-include { DADA2_DEREP_SEQS                      } from '../../modules/local/dada2derepseqs'
-include { DADA2_POOLED_DENOISE                  } from '../../subworkflows/local/dada2_pooled_denoise'
-include { DADA2_PER_SAMPLE_DENOISE              } from '../../subworkflows/local/dada2_per_sample_denoise'
+include { DADA2_LEARN_ERRORS                                          } from '../../modules/local/learnerrors'
+include { DADA2_DEREP_SEQS                                            } from '../../modules/local/dada2derepseqs'
+include { DADA2_POOLED_DENOISE                                        } from '../../subworkflows/local/dada2_pooled_denoise'
+include { DADA2_PER_SAMPLE_DENOISE as DADA2_PER_SAMPLE_DENOISE_ROUND1 } from '../../subworkflows/local/dada2_per_sample_denoise'
+include { DADA2_PER_SAMPLE_DENOISE as DADA2_PER_SAMPLE_DENOISE_ROUND2 } from '../../subworkflows/local/dada2_per_sample_denoise'
+include { DADA2_PER_SAMPLE_DENOISE                                    } from '../../subworkflows/local/dada2_per_sample_denoise'
 
 workflow DADA2_DENOISE {
 
@@ -37,12 +39,12 @@ workflow DADA2_DENOISE {
     //    For this 'batch' run, we use two channels combining the data and 
     //    include whether they are R1 or R1 (a 'readmode') to distinguish them. ch_trimmed_batch
 
-    ch_dereps_per_read = ch_dereps
+    ch_trimmed_per_read = ch_trimmed
         .map { 
             [ 'R1', it[0].single_end ? it[1] : it[1][0] ]
         }
         .concat(
-            ch_dereps
+            ch_trimmed
                 .filter { !it[0].single_end }
                 .map {
                     [ 'R2', it[1][1] ]
@@ -50,7 +52,7 @@ workflow DADA2_DENOISE {
         )
         .groupTuple(sort: true)
 
-    DADA2_LEARN_ERRORS(ch_dereps_per_read) 
+    DADA2_LEARN_ERRORS(ch_trimmed_per_read) 
     ch_errs = DADA2_LEARN_ERRORS.out.error_models
 
     // deal with priors here, which are optional inputs
@@ -64,14 +66,48 @@ workflow DADA2_DENOISE {
         if (params.pool == "parallel") {
             DADA2_PER_SAMPLE_DENOISE(
                 per_sample_errs,
-                ch_trimmed_parallel,
+                ch_dereps,
                 for_priors,
-                rev_priors)
+                rev_priors,
+                "single-pass")
             ch_merged = DADA2_PER_SAMPLE_DENOISE.out.merged_seqs
             ch_inferred = DADA2_PER_SAMPLE_DENOISE.out.inferred
             ch_filtered_seqtab = DADA2_PER_SAMPLE_DENOISE.out.filtered_seqtable
+            ch_versions = ch_versions.mix(DADA2_PER_SAMPLE_DENOISE.out.versions)
         } else {
-            error "parallel-pseudo pooling not supported yet" 
+            // error "parallel-pseudo pooling not supported yet" 
+            
+            // For now we keep these separate since this method is *highly* 
+            // experimental!!!!
+
+            // Round 1, generate a new set of priors
+            // Note this can also take an older set of prior data
+            DADA2_PER_SAMPLE_DENOISE_ROUND1(
+                per_sample_errs,
+                ch_dereps,
+                for_priors,
+                rev_priors,
+                "Round1")
+            rnd1_ch_merged = DADA2_PER_SAMPLE_DENOISE_ROUND1.out.merged_seqs
+            rnd1_ch_inferred = DADA2_PER_SAMPLE_DENOISE_ROUND1.out.inferred
+            rnd1_ch_filtered_seqtab = DADA2_PER_SAMPLE_DENOISE_ROUND1.out.filtered_seqtable
+            rnd1_for_priors = DADA2_PER_SAMPLE_DENOISE_ROUND1.out.for_priors
+            rnd1_rev_priors = DADA2_PER_SAMPLE_DENOISE_ROUND1.out.rev_priors
+            ch_versions = ch_versions.mix(DADA2_PER_SAMPLE_DENOISE_ROUND1.out.versions)
+            
+            // Round 2, using priors from round 1 but same error models and dereps
+            DADA2_PER_SAMPLE_DENOISE_ROUND2(
+                per_sample_errs,
+                ch_dereps,
+                rnd1_for_priors,
+                rnd1_rev_priors, 
+                "Round2")
+            ch_merged = DADA2_PER_SAMPLE_DENOISE_ROUND2.out.merged_seqs
+            ch_inferred = DADA2_PER_SAMPLE_DENOISE_ROUND2.out.inferred
+            ch_filtered_seqtab = DADA2_PER_SAMPLE_DENOISE_ROUND2.out.filtered_seqtable
+            rnd2_for_priors = DADA2_PER_SAMPLE_DENOISE_ROUND2.out.for_priors
+            rnd2_rev_priors = DADA2_PER_SAMPLE_DENOISE_ROUND2.out.rev_priors
+            ch_versions = ch_versions.mix(DADA2_PER_SAMPLE_DENOISE_ROUND2.out.versions)
         }
     } else {
         // TODO: can we even use priors with 'true' or 'pseudo'?
@@ -84,9 +120,21 @@ workflow DADA2_DENOISE {
         // and this step, which optionally pools them. For really large runs
         // this will use a ton of memory
 
+        ch_dereps_per_read = ch_dereps
+                .map { 
+                    [ 'R1', it[0].single_end ? it[1] : it[1][0] ]
+                }
+                .concat(
+                    ch_dereps
+                        .filter { !it[0].single_end }
+                        .map {
+                            [ 'R2', it[1][1] ]
+                        }
+                )
+                .groupTuple(sort: true)
+
         DADA2_POOLED_DENOISE(
-            ch_errs,
-            DADA2_LEARN_ERRORS.out.dereps_full
+            ch_errs, ch_dereps_per_read
         )
 
         ch_merged = DADA2_POOLED_DENOISE.out.merged_seqs

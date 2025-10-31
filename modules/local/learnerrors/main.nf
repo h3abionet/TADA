@@ -9,7 +9,7 @@ process DADA2_LEARN_ERRORS {
 
     output:
     tuple val(readmode), path("errors.${readmode}.RDS"), emit: error_models
-    tuple val(readmode), path("dereps.${readmode}.RDS"), emit: dereps_full
+    // tuple val(readmode), path("dereps.${readmode}.RDS"), emit: dereps_full
     path("${readmode}*.err.pdf"), emit: pdf
 
     when:
@@ -47,20 +47,13 @@ process DADA2_LEARN_ERRORS {
         cat("dada Options:\\n","${params.dada_opts}","\\n")
     }
 
-    # File parsing (these come from the process input channel)
-    derep_files <- list.files('.', pattern=paste0("${readmode}",".derep.RDS"), full.names = TRUE)
-
-    dereps <- lapply(derep_files, readRDS)
-
-    # note this is a bit of a hack, but we want the file name 
-    # included with the name of the derep object. This makes
-    # sure these are in sync if needed later
-    names(dereps) <- sapply(dereps, function(x) { x\$file })
+    # File parsing
+    filts <- list.files('.', pattern=paste0("${readmode}",".filtered.fastq.gz"), full.names = TRUE)
 
     set.seed(${params.random_seed})
 
     # Learn read error rates
-    err <- learnErrors(dereps, 
+    err <- learnErrors(filts, 
         multithread=${task.cpus},
         errorEstimationFunction=errFunc,
         verbose=TRUE,
@@ -82,6 +75,5 @@ process DADA2_LEARN_ERRORS {
     dev.off()
 
     saveRDS(err, paste0("errors.","${readmode}",".RDS")) 
-    saveRDS(dereps, paste0("dereps.","${readmode}",".RDS"))
     """
 }

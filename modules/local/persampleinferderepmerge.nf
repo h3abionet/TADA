@@ -5,7 +5,7 @@ process PER_SAMPLE_INFER {
     container "ghcr.io/h3abionet/tada:docker-DADA-1.36"
 
     input:
-    tuple val(meta), path(reads)
+    tuple val(meta), path(dereps)
     path(errs)
     // optional inputs
     path(fp, stageAs: "priors_R1")
@@ -40,17 +40,17 @@ process PER_SAMPLE_INFER {
       return(priors)
     }
 
-    dadaOpt <- ${dadaOpt}
+    dadaOpt <- "${dadaOpt}"
 
     if (!is.na(dadaOpt)) {
-      setDadaOpt(dadaOpt)
-      cat("dada Options:\\n",dadaOpt,"\\n")
+      setDadaOpt(${dadaOpt})
+      cat("dada Options:\\n",${dadaOpt},"\\n")
     }
 
     cat("Processing:", "${meta.id}", "\\n")
 
     errF <- readRDS("errors.R1.RDS")
-    derepF <- derepFastq("${reads[0]}", n=100000)
+    derepF <- readRDS("${dereps[0]}")
 
     # TODO: there is probably a better way of doing this 
     # when using optparse
@@ -70,7 +70,7 @@ process PER_SAMPLE_INFER {
 
     if (file.exists("errors.R2.RDS")) {
         errR <- readRDS("errors.R2.RDS")
-        derepR <- derepFastq("${reads[1]}", n=100000)
+        derepR <- readRDS("${dereps[1]}")
         paramsR <- list(
             derep=derepR, 
             err=errR, 

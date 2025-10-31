@@ -5,11 +5,12 @@ process PER_SAMPLE_SEQTABLE {
     input:
     path(mr)
     val(readmode)
+    val(stage)
 
     output:
-    path("seqtab.${readmode}.RDS"), emit: filtered_seqtable
-    path("all.merged.RDS"), optional: true, emit: merged_seqs
-    path("seqtab.original.${readmode}.RDS"), emit: seqtabQC
+    path("seqtab.${stage}.${readmode}.RDS"), emit: filtered_seqtable
+    path("all.${stage}.merged.RDS"), optional: true, emit: merged_seqs
+    path("seqtab.original.${stage}.${readmode}.RDS"), emit: seqtabQC
     
     when:
     task.ext.when == null || task.ext.when
@@ -26,7 +27,7 @@ process PER_SAMPLE_SEQTABLE {
     names(combined) <- pairIds
     seqtab <- makeSequenceTable(combined)
 
-    saveRDS(seqtab, "seqtab.original.${readmode}.RDS")
+    saveRDS(seqtab, "seqtab.original.${stage}.${readmode}.RDS")
 
     # this is an optional filtering step to remove *merged* sequences based on 
     # min/max length criteria
@@ -38,7 +39,7 @@ process PER_SAMPLE_SEQTABLE {
        seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params.min_asv_len}, drop = FALSE]
     }
 
-    saveRDS(seqtab, "seqtab.${readmode}.RDS")
-    saveRDS(combined, "all.${readmode}.RDS")
+    saveRDS(seqtab, "seqtab.${stage}.${readmode}.RDS")
+    saveRDS(combined, "all.${stage}.${readmode}.RDS")
     """
 }

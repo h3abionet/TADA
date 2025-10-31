@@ -21,18 +21,17 @@ process DADA2_POOLED_INFER {
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))
 
-    dadaOpt <- ${dadaOpt}
+    dadaOpt <- "${dadaOpt}"
 
     if (!is.na(dadaOpt)) {
-      setDadaOpt(dadaOpt)
-      cat("dada Options:\\n",dadaOpt,"\\n")
+      setDadaOpt(${dadaOpt})
+      cat("dada Options:\\n",${dadaOpt},"\\n")
     }
     set.seed(100)
 
     cat("Processing all samples\\n")
 
     err <- readRDS("${err}")
-    dereps <- readRDS("${dereps}")
 
     #Variable selection from CLI input flag --pool
     pool <- "${params.pool}"
@@ -41,6 +40,16 @@ process DADA2_POOLED_INFER {
     if(pool != "pseudo"){
       pool <- as.logical(pool)
     }
+    
+    # File parsing (these come from the process input channel)
+    derep_files <- list.files('.', pattern=paste0("${readmode}",".derep.RDS"), full.names = TRUE)
+
+    dereps <- lapply(derep_files, readRDS)
+
+    # note this is a bit of a hack, but we want the file name 
+    # included with the name of the derep object. This makes
+    # sure these are in sync if needed later
+    names(dereps) <- sapply(dereps, function(x) { x\$file })
 
     cat(paste0("Denoising ${readmode} reads: pool:", pool, "\\n"))
     dds <- dada(dereps, 

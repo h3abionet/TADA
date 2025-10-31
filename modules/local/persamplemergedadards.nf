@@ -4,28 +4,29 @@ process PER_SAMPLE_MERGE {
 
     input:
     path(dds)
+    val(stage)
 
     output:
-    path("all.dd.*.RDS"), emit: inferred // to readtracking
-    path("priors.R1.fna"), optional: true, emit: priors_for
-    path("priors.R2.fna"), optional: true, emit: priors_rev
+    path("all.dd.${stage}.*.RDS"), emit: inferred // to readtracking
+    path("priors.${stage}.R1.fna"), optional: true, emit: priors_for
+    path("priors.${stage}.R2.fna"), optional: true, emit: priors_rev
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
-    def dadaOpt = !params.dada_opts.isEmpty() ? "'${params.dada_opts.collect{k,v->"$k=$v"}.join(", ")}'" : 'NA'    
+    def dadaOpt = params.dada_opts ? "${params.dada_opts}" : "NA"
     """
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))
     suppressPackageStartupMessages(library(ShortRead))
     suppressPackageStartupMessages(library(openssl))
 
-    dadaOpt <- ${dadaOpt}
+    dadaOpt <- "${dadaOpt}"
 
     if (!is.na(dadaOpt)) {
-      setDadaOpt(dadaOpt)
-      cat("dada Options:\\n",dadaOpt,"\\n")
+      setDadaOpt(${dadaOpt})
+      cat("dada Options:\\n",${dadaOpt},"\\n")
     }
 
     dadaopts <- getDadaOpt()
@@ -51,13 +52,13 @@ process PER_SAMPLE_MERGE {
     dadaFs <- lapply(list.files(path = '.', pattern = '.dd.R1.RDS'), function (x) readRDS(x))
     dadaRs <- lapply(list.files(path = '.', pattern = '.dd.R2.RDS'), function (x) readRDS(x))
     names(dadaFs) <- sub('.dd.R1.RDS', '', list.files('.', pattern = '.dd.R1.RDS'))
-    saveRDS(dadaFs, "all.dd.R1.RDS")
+    saveRDS(dadaFs, "all.dd.${stage}.R1.RDS")
 
     priorsF <- generate_priors(dadaFs, idtype="${params.id_type}")
     if (is.na(priorsF)) {
         message("No priors found for R1!")
     } else {
-        writeFasta(priorsF, file = 'priors.R1.fna')
+        writeFasta(priorsF, file = 'priors.${stage}.R1.fna')
     }
     if (length(dadaRs) > 0) {
         names(dadaRs) <- sub('.dd.R2.RDS', '', list.files('.', pattern = '.dd.R2.RDS'))
@@ -65,9 +66,9 @@ process PER_SAMPLE_MERGE {
         priorsR <- generate_priors(dadaRs, idtype="${params.id_type}")
         if (is.na(priorsR)) {
             message("No priors found for R2!")
-            file.create("priors.R2.fna")
+            file.create("priors.${stage}.R2.fna")
         } else {
-            writeFasta(priorsR, file = "priors.R2.fna")
+            writeFasta(priorsR, file = "priors.${stage}.R2.fna")
         }
     }
     """
