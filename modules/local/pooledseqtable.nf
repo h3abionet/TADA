@@ -151,12 +151,14 @@ process DADA2_POOLED_SEQTABLE {
    # read in denoised reads for both
    ddFs <- readRDS("all.dd.R1.RDS")
 
-   # File parsing (these come from the process input channel)
-   derep_files_r1 <- list.files('.', pattern="R1.derep.RDS", full.names = TRUE)
-   derepsF <- lapply(derep_files_r1, readRDS)
-   names(derepsF) <- sapply(derepsF, function(x) { x\$file })
-
    if (file.exists("all.dd.R2.RDS")) {
+      # Note we only load these if we need to, since the dereps
+      # will take a fair bit of memory
+      
+      # File parsing (these come from the process input channel)
+      derep_files_r1 <- list.files('.', pattern="R1.derep.RDS", full.names = TRUE)
+      derepsF <- lapply(derep_files_r1, readRDS)
+      names(derepsF) <- sapply(derepsF, function(x) { x\$file })
 
       ddRs <- readRDS("all.dd.R2.RDS")
       
