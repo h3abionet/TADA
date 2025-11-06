@@ -17,7 +17,7 @@ process QIIME2_TAXTABLE {
     def args = task.ext.args ?: ''
     """
     tail -n +2 ${taxtab} | \
-        perl -ne 's/\\"//g; @foo = split; print "\$foo[0]\\t".join("; ", grep {\$_ ne 'NA'} @foo[1..\$#foo])."\\n"' \
+        perl -ne 's/\\"//g; @foo = split("\\t"); print "\$foo[0]\\t".join("; ", grep {\$_ ne 'NA'} @foo[1..\$#foo])' \
         > headerless.txt
     
     qiime tools import \
