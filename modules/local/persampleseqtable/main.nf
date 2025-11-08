@@ -8,9 +8,9 @@ process PER_SAMPLE_SEQTABLE {
 
    output:
    path("seqtab.${stage}.${readmode}.RDS"), emit: filtered_seqtable
-   path("all.dd.${stage}.${readmode}.RDS"), optional: true, emit: merged_seqs
+   path("all.${stage}.merged.RDS"), optional: true, emit: merged_seqs
    path("seqtab.original.${stage}.${readmode}.RDS"), emit: seqtabQC
-   path("all.${stage}.merged.csv"), optional: true, emit: readtracking
+   path("*.csv"), optional: true, emit: readtracking
 
    when:
    task.ext.when == null || task.ext.when
@@ -31,6 +31,13 @@ process PER_SAMPLE_SEQTABLE {
    seqtab <- makeSequenceTable(combined)
    saveRDS(seqtab, "seqtab.original.${stage}.${readmode}.RDS")
 
+   seqtab_stats <- rowSums(seqtab)
+   nms <- gsub(".dd", "", names(seqtab_stats))
+   seqtab_stats <- as_tibble_col(seqtab_stats, column_name = "dada.${stage}.seqtab.raw") %>%
+      mutate(SampleID = nms, .before = 1)
+
+   write_csv(seqtab_stats, "seqtab.original.${stage}.${readmode}.csv")
+
    # this is an optional filtering step to remove *merged* sequences based on 
    # min/max length criteria
    if (${params.min_asv_len} > 0) {
@@ -43,13 +50,22 @@ process PER_SAMPLE_SEQTABLE {
 
    saveRDS(seqtab, "seqtab.${stage}.${readmode}.RDS")
 
+   if (${params.min_asv_len} > 0 | ${params.max_asv_len} > 0) {
+      seqtab_stats <- rowSums(seqtab)
+      nms <- gsub(".dd", "", names(seqtab_stats))
+      seqtab_stats <- as_tibble_col(seqtab_stats, column_name = "dada.${stage}.seqtab.lengthfiltered") %>%
+         mutate(SampleID = nms, .before = 1)
+      write_csv(seqtab_stats, "seqtab.${stage}.${readmode}.lengthfiltered.csv")
+   }
+
    if ("${readmode}" == "merged") {
       mergers <- as.data.frame(sapply(combined, function(x) sum(getUniques(x %>% filter(accept)))))
       colnames(mergers) <- c("dada2.${stage}.merged")
       mergers <- mergers %>% 
          as_tibble() %>%
          mutate(SampleID = rownames(mergers), .before = 1)
-      write_csv(mergers, "all.${stage}.merged.csv")
+      write_csv(as_tibble(mergers), "all_merged.${stage}.csv")
+      saveRDS(combined, "all.${stage}.merged.RDS")
    }
    """
 }

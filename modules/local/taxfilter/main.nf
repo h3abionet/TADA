@@ -11,11 +11,9 @@ process TAXFILTER {
     path metrics
 
     output:
-    path "seqtab.tax_filtered.tsv", emit: seqtab_tax_filtered
     path "seqtab.tax_filtered.RDS", emit: seqtab_tax_filtered_rds
-    path "taxtab.tax_filtered.tsv", emit: taxtab_tax_filtered
+    path "taxfiltered.summary.csv", emit: readtracking
     path "taxtab.tax_filtered.RDS", emit: taxtab_tax_filtered_rds
-    path "taxmetrics.tax_filtered.tsv", emit: metrics_tax_filtered
     path "taxmetrics.tax_filtered.RDS", emit: taxmetrics_tax_filtered_rds
     path "readmap.tax_filtered.RDS", emit: readmap_tax_filtered_rds
     path "asvs.tax_filtered.fna", emit: asvs_tax_filtered
@@ -45,29 +43,18 @@ process TAXFILTER {
     seqtab <- readRDS("${seqtab}")
     seqtab_filtered <- seqtab[,ids]
 
+    # read tracking
+    seqtab.taxfilter <- rowSums(seqtab_filtered)
+    nms <- names(seqtab.taxfilter)
+    seqtab.taxfilter <- as_tibble_col(seqtab.taxfilter, column_name = "dada2.taxfilter") %>%
+      mutate(SampleID = nms, .before = 1)
+    write_csv(seqtab.taxfilter, "taxfiltered.summary.csv")
+
     metrics <- readRDS("${metrics}")
     metrics_filtered <- metrics[ids,]
 
     asvs_filtered <- DNAStringSet(readmap_filtered\$seq)
     names(asvs_filtered) <- readmap_filtered\$id
-
-    # Generate table output
-    write.table(data.frame('SampleID' = row.names(seqtab_filtered), seqtab_filtered),
-        file = "seqtab.tax_filtered.tsv",
-        row.names = FALSE,
-        col.names=c('#SampleID', colnames(seqtab_filtered)), sep = "\\t")
-    
-    write.table(taxtab_filtered,
-        file = "taxtab.tax_filtered.tsv",
-        row.names = FALSE,
-        col.names=colnames(taxtab_filtered),
-        sep = "\\t")
-
-    write.table(metrics_filtered,
-        file = "taxmetrics.tax_filtered.tsv",
-        row.names = TRUE,
-        col.names=colnames(metrics_filtered), 
-        sep = "\\t")
 
     taxtab_filtered <- taxtab_filtered %>% column_to_rownames(var="TaxID") %>% as.matrix()
 

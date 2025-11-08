@@ -152,7 +152,8 @@ workflow PIPELINE_COMPLETION {
 //
 def validateInputParameters() {
     genomeExistsError()
-}//
+}
+//
 // Validate channels from input samplesheet
 //
 def validateInputSamplesheet(input) {
@@ -177,7 +178,6 @@ def getGenomeAttribute(attribute) {
     }
     return null
 }
-
 //
 // Exit pipeline if incorrect --genome key provided
 //

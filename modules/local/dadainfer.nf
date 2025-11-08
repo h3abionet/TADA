@@ -9,6 +9,7 @@ process DADA2_POOLED_INFER {
 
     output:
     tuple val(readmode), path("all.dd.${readmode}.RDS"), emit: inferred
+    path("dada2.denoised.pooled.${readmode}.csv"), emit: readtracking
 
     when:
     task.ext.when == null || task.ext.when
@@ -20,6 +21,7 @@ process DADA2_POOLED_INFER {
     """
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))
+    suppressPackageStartupMessages(library(tidyverse))
 
     dadaOpt <- "${dadaOpt}"
 
@@ -27,6 +29,9 @@ process DADA2_POOLED_INFER {
       setDadaOpt(${dadaOpt})
       cat("dada Options:\\n",${dadaOpt},"\\n")
     }
+
+    getN <- function(x) sum(getUniques(x))
+
     set.seed(100)
 
     cat("Processing all samples\\n")
@@ -58,6 +63,14 @@ process DADA2_POOLED_INFER {
       pool=pool ${bandsize})
 
     saveRDS(dds, "all.dd.${readmode}.RDS")
+
+    tracking_dds <- as.data.frame(sapply(dds, getN))
+    colnames(tracking_dds) <- c("dada2.denoised.pooled.${readmode}")
+    nms <- gsub(".R[12].filtered.fastq.gz", "", rownames(tracking_dds))
+    tracking_dds <- tracking_dds %>%
+        as_tibble() %>%
+        mutate(SampleID = nms, .before = 1)
+    write_csv(tracking_dds, "dada2.denoised.pooled.${readmode}.csv")
     """
 
     stub:

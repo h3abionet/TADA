@@ -15,9 +15,10 @@ workflow TAXONOMY {
     ch_versions = Channel.empty()
     ch_taxtab_rds = Channel.empty()
     ch_taxmetrics_rds =  Channel.empty()
+    ch_readtracking = Channel.empty()
+
     ch_readmap_rds = readmap
     ch_seqtab_rds =  seqtab
-
 
     if (params.tax_assignment_method == 'rdp') {
         DADA2_ASSIGN_TAXA_SPECIES(
@@ -60,6 +61,7 @@ workflow TAXONOMY {
         ch_seqtab_rds = TAXFILTER.out.seqtab_tax_filtered_rds
         ch_taxtab_rds = TAXFILTER.out.taxtab_tax_filtered_rds
         ch_taxmetrics_rds = TAXFILTER.out.taxmetrics_tax_filtered_rds
+        ch_readtracking = ch_readtracking.mix(TAXFILTER.out.readtracking)
     } 
 
     emit:
@@ -67,5 +69,6 @@ workflow TAXONOMY {
     ch_taxmetrics_rds = ch_taxmetrics_rds
     ch_readmap_rds = ch_readmap_rds
     ch_seqtab_rds = ch_seqtab_rds
+    readtracking = ch_readtracking
     versions = ch_versions                        // channel: [ versions.yml ]
 }

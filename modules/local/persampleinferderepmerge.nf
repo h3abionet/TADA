@@ -1,3 +1,4 @@
+// TODO: Remove!!!
 process PER_SAMPLE_INFER {
     tag "$meta.id"
     label 'process_medium'
@@ -10,10 +11,10 @@ process PER_SAMPLE_INFER {
     // optional inputs
     path(fp, stageAs: "priors_R1")
     path(rp, stageAs: "priors_R2")
+    val(stage)
 
     output:
-    path("${meta.id}.{R1,merged}.RDS"), emit: combinedReads
-    tuple val(meta), path("${meta.id}.dd.R{1,2}.RDS"), emit: dds
+    tuple val(meta), path("${meta.id}.dd.${stage}.R{1,2}.RDS"), emit: dds
     val(readmode), emit: readmode
 
     when:
@@ -22,11 +23,9 @@ process PER_SAMPLE_INFER {
     script:
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
-    def bandsize = params.platform == 'pacbio' ? ', BAND_SIZE=32' : ''
     def dadaOpt = params.dada_opts ? "${params.dada_opts}" : "NA"
-    readmode = errs.size() == 2 ? 'merged' : 'R1'
-    run_fpriors = params.for_priors ? "TRUE" : "FALSE"
-    run_rpriors = params.rev_priors ? "TRUE" : "FALSE"
+    run_fpriors = fp.size() == 0 ? "FALSE" : "TRUE"
+    run_rpriors = fp.size() == 0 ? "FALSE" : "TRUE"
     """
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))
@@ -58,7 +57,7 @@ process PER_SAMPLE_INFER {
         derep=derepF, 
         err=errF,
         multithread=${task.cpus},
-        pool=FALSE ${bandsize}
+        pool=FALSE
     )
 
     if (as.logical("${run_fpriors}")) {
@@ -66,7 +65,7 @@ process PER_SAMPLE_INFER {
     }
 
     ddF <- do.call(dada, paramsF)
-    saveRDS(ddF, "${meta.id}.dd.R1.RDS")
+    saveRDS(ddF, "${meta.id}.dd.${stage}.R1.RDS")
 
     if (file.exists("errors.R2.RDS")) {
         errR <- readRDS("errors.R2.RDS")
@@ -75,7 +74,7 @@ process PER_SAMPLE_INFER {
             derep=derepR, 
             err=errR, 
             multithread=${task.cpus}, 
-            pool=FALSE ${bandsize}
+            pool=FALSE
         )
 
         if (as.logical("${run_rpriors}")) {
@@ -84,27 +83,12 @@ process PER_SAMPLE_INFER {
 
         message("DADA2 params, R2:", paramsR, "\\n")
         ddR <- do.call(dada, paramsR)
-        saveRDS(ddR, "${meta.id}.dd.R2.RDS")
-
-        merger <- mergePairs(ddF, derepF, ddR, derepR,
-            returnRejects = TRUE,
-            minOverlap = ${params.min_overlap},
-            maxMismatch = ${params.max_mismatch},
-            trimOverhang = as.logical("${params.trim_overhang}"),
-            justConcatenate=as.logical("${params.just_concatenate}")
-        )
-
-        saveRDS(merger, paste("${meta.id}.merged.RDS", sep="."))
+        saveRDS(ddR, "${meta.id}.dd.${stage}.R2.RDS")
     } else {
         # yes this is a little silly (it's the same as the dd.R1.RDS above).
         # But it does make the logical flow through this channel easier
-        saveRDS(ddF, paste("${meta.id}.R1.RDS", sep="."))
+        # TODO: check this line!!!
+        saveRDS(ddF, paste("${meta.id}.${stage}.R1.RDS", sep="."))
     }
     """
-
-    // stub:
-    // def args = task.ext.args ?: ''
-    // def prefix = task.ext.prefix ?: "${meta.id}"
-    // """
-    // """
 }

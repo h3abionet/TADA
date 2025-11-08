@@ -8,6 +8,7 @@ process DADA2_REMOVE_CHIMERAS {
 
     output:
     path("seqtab.nonchim.RDS"), emit: nonchim_seqtable
+    path("seqtab.nonchimera.csv"), emit: readtracking
 
     when:
     task.ext.when == null || task.ext.when
@@ -19,6 +20,7 @@ process DADA2_REMOVE_CHIMERAS {
     """
     #!/usr/bin/env Rscript
     suppressPackageStartupMessages(library(dada2))
+    suppressPackageStartupMessages(library(tidyverse))
     st.all <- readRDS("${st}")
 
     # Remove chimeras
@@ -30,6 +32,14 @@ process DADA2_REMOVE_CHIMERAS {
         )
 
     saveRDS(seqtab, "seqtab.nonchim.RDS")
+
+    # read tracking
+    seqtab.nonchim <- rowSums(seqtab)
+    nms <- gsub('.R1.filtered.fastq.gz', '',names(seqtab.nonchim))
+    nms <- gsub(".dd\$", "", nms)
+    seqtab.nonchim <- as_tibble_col(seqtab.nonchim, column_name = "dada2.nonchim") %>%
+      mutate(SampleID = nms, .before = 1)
+    write_csv(seqtab.nonchim, "seqtab.nonchimera.csv")
     """
 
     stub:

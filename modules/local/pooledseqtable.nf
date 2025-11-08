@@ -12,16 +12,19 @@ process DADA2_POOLED_SEQTABLE {
    path("seqtab.lengthfiltered.RDS"), emit: filtered_seqtable
    path("all.merged.RDS"), optional: true, emit: merged_seqs
    path("seqtab.full.RDS"), emit: full_seqtable// we keep this for comparison and possible QC    
+   path("*.csv"), emit: readtracking
 
    when:
    task.ext.when == null || task.ext.when
 
    script:
    def args = task.ext.args ?: ''
+   def readmode = dds.size() == 2 ? 'merged' : 'R1'
 
    """
    #!/usr/bin/env Rscript
    suppressPackageStartupMessages(library(dada2))
+   suppressPackageStartupMessages(library(tidyverse))
 
    rescuePairs <- as.logical("${params.rescue_unmerged}")
 
@@ -192,6 +195,14 @@ process DADA2_POOLED_SEQTABLE {
       # further on
       saveRDS(mergers, "all.merged.RDS")
 
+      mergers_summary <- as.data.frame(sapply(mergers, function(x) sum(getUniques(x %>% filter(accept)))))
+      colnames(mergers_summary) <- c("dada2.pooled.merged")
+      nms <- gsub(".R1.filtered.fastq.gz", "", rownames(mergers_summary))
+      mergers_summary <- mergers_summary %>% 
+         as_tibble() %>%
+         mutate(SampleID = nms, .before = 1)
+      write_csv(as_tibble(mergers_summary), "all_merged.pooled.csv")
+
       # go ahead and make seqtable
       seqtab <- makeSequenceTable(mergers)
    } else {
@@ -200,6 +211,13 @@ process DADA2_POOLED_SEQTABLE {
    }
 
    saveRDS(seqtab, "seqtab.full.RDS")
+
+   seqtab_stats <- rowSums(seqtab)
+   nms <- gsub(".R1.filtered.fastq.gz", "", names(seqtab_stats))
+   seqtab_stats <- as_tibble_col(seqtab_stats, column_name = "dada.pooled.seqtab.raw") %>%
+      mutate(SampleID = nms, .before = 1)
+
+   write_csv(seqtab_stats, "seqtab.original.pooled.${readmode}.csv")
 
    # this is an optional filtering step to remove *merged* sequences based on 
    # min/max length criteria
@@ -211,6 +229,14 @@ process DADA2_POOLED_SEQTABLE {
       seqtab <- seqtab[,nchar(colnames(seqtab)) <= ${params.max_asv_len}]
    }
    saveRDS(seqtab, "seqtab.lengthfiltered.RDS")
+
+   if (${params.min_asv_len} > 0 | ${params.max_asv_len} > 0) {
+      seqtab_stats <- rowSums(seqtab)
+      nms <- gsub(".R1.filtered.fastq.gz", "", names(seqtab_stats))
+      seqtab_stats <- as_tibble_col(seqtab_stats, column_name = "dada.pooled.seqtab.lengthfiltered") %>%
+         mutate(SampleID = nms, .before = 1)
+      write_csv(seqtab_stats, "seqtab.${readmode}.lengthfiltered.csv")
+   }
    """
 
    stub:

@@ -54,6 +54,8 @@ workflow TADA {
             exit 1, "${params.learnerrors_function} is selected with standard quality bin correction turned on!"
     }
 
+    // TODO: implement any alternative inputs?
+    
     // TODO: implement seqtable input?
     // // ${deity} there has to be a better way to check this!
     // if ( (params.seqTables && params.reads) || 
@@ -119,8 +121,9 @@ workflow TADA {
         ch_trimmed
     )
 
-    ch_inferred = DADA2_DENOISE.out.inferred
-    ch_merged_rds = DADA2_DENOISE.out.merged_seqs
+    ch_readtracking = ch_readtracking.mix(
+        DADA2_DENOISE.out.readtracking
+    )
 
     CHIMERA_REMOVAL(
         DADA2_DENOISE.out.filtered_seqtable
@@ -130,13 +133,7 @@ workflow TADA {
     ch_filtered_seqtab_rds = CHIMERA_REMOVAL.out.seqtable_renamed
     ch_filtered_asvs = CHIMERA_REMOVAL.out.nonchimeric_asvs
 
-    // TODO: mix these in a specific order? This would help when merging
-    //       multiple tables from different sources
-    ch_readtracking = ch_readtracking.mix(
-            ch_inferred.map {it[1]}.collect(),
-            ch_filtered_readmap_rds,
-            ch_merged_rds,
-            ch_filtered_seqtab_rds)
+    ch_readtracking = ch_readtracking.mix(CHIMERA_REMOVAL.out.readtracking)
 
     // Currently implementing only MMSeqs search filtering
     if (params.search_filter == "mmseqs") {
@@ -149,14 +146,14 @@ workflow TADA {
             ch_filtered_asvs,
             ch_filtered_readmap_rds
         )
-        ch_filtered_asvs = MMSEQS_FILTER.out.ch_filtered_asvs
+        ch_filtered_asvs= MMSEQS_FILTER.out.ch_filtered_asvs
         ch_filtered_seqtab_rds  = MMSEQS_FILTER.out.ch_filtered_seqtab
         ch_filtered_readmap_rds = MMSEQS_FILTER.out.ch_filtered_readmap
         ch_readtracking = ch_readtracking.mix(ch_filtered_seqtab_rds)
     }
 
     // Subworkflows-Taxonomic assignment (optional)
-    // ch_taxtab = Channel.empty()
+    ch_taxtab = Channel.empty()
     ch_taxtab_rds = Channel.empty()
     ch_metrics_rds =  Channel.empty()
 
@@ -180,9 +177,7 @@ workflow TADA {
         ch_metrics_rds = TAXONOMY.out.ch_taxmetrics_rds
         ch_filtered_seqtab_rds = TAXONOMY.out.ch_seqtab_rds
         ch_filtered_readmap_rds = TAXONOMY.out.ch_readmap_rds
-        if (params.tax_filter) {
-            ch_readtracking = ch_readtracking.mix(ch_filtered_seqtab_rds)
-        }
+        ch_readtracking = ch_readtracking.mix(TAXONOMY.out.readtracking)
     }
     
     // For now, we need to convert the readmap back to ASVs
@@ -199,7 +194,7 @@ workflow TADA {
     // Post-QC, TODO needs some checking 
     QUALITY_CONTROL(
         ch_readtracking,
-        ch_merged_rds,
+        // DADA2_DENOISE.out.merged_seqs,
         ch_filtered_seqtab_rds
     )
 

@@ -9,6 +9,7 @@ workflow CHIMERA_REMOVAL {
     main:
 
     ch_versions = Channel.empty()
+    ch_readtracking = Channel.empty()
 
     DADA2_REMOVE_CHIMERAS(
         filtered_seqtable
@@ -19,10 +20,15 @@ workflow CHIMERA_REMOVAL {
         filtered_seqtable
     )
 
+    ch_readtracking = ch_readtracking.mix(
+        DADA2_REMOVE_CHIMERAS.out.readtracking
+    )
+
     emit:
     nonchimeric_asvs = RENAME_ASVS.out.nonchimeric_asvs
     seqtable_renamed = RENAME_ASVS.out.seqtable_renamed
     readmap = RENAME_ASVS.out.readmap
-    versions = ch_versions                     // channel: [ versions.yml ]
+    versions = ch_versions         // channel: [ versions.yml ]
+    readtracking = ch_readtracking
 }
 

@@ -6,22 +6,24 @@ workflow QUALITY_CONTROL {
 
     take:
     ch_readtracking
-    merged_seqs
-    filtered_seqtable
+    // ch_merged_seqs
+    ch_filtered_seqtable
 
     main:
     ch_versions = Channel.empty()
+
+    ch_readtracking.dump()
 
     READ_TRACKING(
         ch_readtracking.collect()
     )
 
-    PLOT_MERGED_HEATMAP(
-        merged_seqs
-    )
+    // PLOT_MERGED_HEATMAP(
+    //     ch_merged_seqs
+    // )
 
     PLOT_ASV_DIST(
-        filtered_seqtable
+        ch_filtered_seqtable
     )
 
     emit:

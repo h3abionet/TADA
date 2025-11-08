@@ -1,5 +1,10 @@
-process PER_SAMPLE_MERGE {
+// TODO: this module needs to be renamed, the current name is 
+// not technically correct and confusing with other outputs
+// The main purposes are two-fold: 
+// 1) combine the two denoised outputs for read tracking, and 
+// 2) to generate prior R1 and R2 (if present) sequences for later
 
+process PER_SAMPLE_MERGE {
     container "ghcr.io/h3abionet/tada:docker-DADA-1.36"
 
     input:
@@ -49,27 +54,33 @@ process PER_SAMPLE_MERGE {
     }
 
     # this is necessary for QC, but we also want to do this if we want priors from the run
-    dadaFs <- lapply(list.files(path = '.', pattern = '.dd.R1.RDS'), function (x) readRDS(x))
-    dadaRs <- lapply(list.files(path = '.', pattern = '.dd.R2.RDS'), function (x) readRDS(x))
-    names(dadaFs) <- sub('.dd.R1.RDS', '', list.files('.', pattern = '.dd.R1.RDS'))
+    dadaFs <- lapply(list.files(path = '.', pattern = '.dd.${stage}.R1.RDS'), function (x) readRDS(x))
+    dadaRs <- lapply(list.files(path = '.', pattern = '.dd.${stage}.R2.RDS'), function (x) readRDS(x))
+    names(dadaFs) <- sub('.dd.${stage}.R1.RDS', '', list.files('.', pattern = '.dd.${stage}.R1.RDS'))
     saveRDS(dadaFs, "all.dd.${stage}.R1.RDS")
 
     priorsF <- generate_priors(dadaFs, idtype="${params.id_type}")
     if (is.na(priorsF)) {
         message("No priors found for R1!")
+        # TODO: prior versions of this module made empty FASTA files if no 
+        # priors were found, but this should technically be a warning flag!
     } else {
         writeFasta(priorsF, file = 'priors.${stage}.R1.fna')
     }
     if (length(dadaRs) > 0) {
-        names(dadaRs) <- sub('.dd.R2.RDS', '', list.files('.', pattern = '.dd.R2.RDS'))
-        saveRDS(dadaRs, "all.dd.R2.RDS")
+        names(dadaRs) <- sub('.dd.${stage}.R2.RDS', '', list.files('.', pattern = '.dd.${stage}.R2.RDS'))
+        saveRDS(dadaRs, "all.dd.${stage}.R2.RDS")
         priorsR <- generate_priors(dadaRs, idtype="${params.id_type}")
         if (is.na(priorsR)) {
             message("No priors found for R2!")
-            file.create("priors.${stage}.R2.fna")
         } else {
             writeFasta(priorsR, file = "priors.${stage}.R2.fna")
         }
+    }
+    # create a stub empty file, which should be caught and skipped on 
+    # next round (needed for SE data)
+    if (!file.exists("priors.${stage}.R2.fna")) {
+        file.create("priors.${stage}.R2.fna")
     }
     """
 }

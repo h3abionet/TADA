@@ -53,7 +53,9 @@ process RENAME_ASVS {
 
     # replace rownames
     rownames(st) <- gsub(".R1.filtered.fastq.gz", "", rownames(st))
+    rownames(st) <- gsub(".dd\$", "", rownames(st))
     rownames(st.raw) <- gsub(".R1.filtered.fastq.gz", "", rownames(st.raw))
+    rownames(st.raw) <- gsub(".dd\$", "", rownames(st.raw))
 
     # Write modified data (note we only keep the no-chimera reads for the next stage)
     saveRDS(st, "seqtab.${params.id_type}.RDS")

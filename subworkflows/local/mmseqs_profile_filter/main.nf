@@ -1,92 +1,6 @@
 include { MMSEQS_CREATEDB       } from '../../../modules/nf-core/mmseqs/createdb'
 include { MMSEQS_EASYSEARCH     } from '../../../modules/nf-core/mmseqs/easysearch/main'
 
-// process MMSEQS_PROFILE_FULL {
-//     tag "${profile.getSimpleName()}"
-//     label 'process_low'
-
-//     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-//         'https://depot.galaxyproject.org/singularity/mmseqs2:17.b804f--hd6d6fdc_1':
-//         'biocontainers/mmseqs2:17.b804f--hd6d6fdc_1' }"
-
-//     input:
-//     // tuple val(meta), path("${prefix}/"), emit: db_search
-//     path(profile)
-//     path(asvs)
-//     path(readmap)
-
-//     output:
-//     path("asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8"), emit: db_search
-//     path("asv_vs_${profile.getSimpleName()}_filtering_results.profile.ids"), emit: db_ids
-//     path "versions.yml"           , emit: versions
-
-//     when:
-//     task.ext.when == null || task.ext.when
-
-//     script:
-//     def args = task.ext.args ?: ''
-    
-//     """
-//     ## TODO: split into separate steps!!!
-//     mmseqs convertmsa ${profile} \\
-//         ${profile.getSimpleName()}.msa_db
-    
-//     mmseqs msa2profile \\
-//         ${profile.getSimpleName()}.msa_db \\
-//         ${profile.getSimpleName()}.profile \\
-//         --match-mode 1 --threads ${task.cpus}
-
-//     mmseqs createindex \\
-//         ${profile.getSimpleName()}.profile \\
-//         tmp \\
-//         --threads ${task.cpus} \\        
-//         -k 6 -s 7
-
-//     mmseqs createdb \\
-//         ${asvs} \\
-//         asvs \\
-//         --dbtype 2
-
-//     mkdir ${profile.getSimpleName()}
-
-//     # most sensitive setting for matches
-//     mmseqs search \\
-//         asvs \\
-//         ${profile.getSimpleName()}.profile \\
-//         ${profile.getSimpleName()}/asvs.results  \\
-//         tmp \\
-//         --threads ${task.cpus} \\
-//         -k 6 -s 7 
-
-//     mmseqs convertalis \\
-//         asvs \\
-//         ${profile.getSimpleName()}.profile \\
-//         asvs.results asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8
-
-//     cut -f1 asv_vs_${profile.getSimpleName()}_filtering_results.profile.m8 | \\
-//         sort | \\
-//         uniq > \\
-//         asv_vs_${profile.getSimpleName()}_filtering_results.profile.ids
-
-//     cat <<-END_VERSIONS > versions.yml
-//     "${task.process}":
-//         mmseqs: \$(mmseqs | grep 'Version' | sed 's/MMseqs2 Version: //')
-//     END_VERSIONS
-//     """
-
-//     stub:
-//     def args = task.ext.args ?: ''
-    
-//     """
-//     touch ${prefix}.bam
-
-//     cat <<-END_VERSIONS > versions.yml
-//     "${task.process}":
-//         mmseqs: \$(samtools --version |& sed '1!d ; s/samtools //')
-//     END_VERSIONS
-//     """
-// }
-
 // TODO: this can be merged in the R-based FILTER_TADA_DATA step
 process MMSEQS_DATABASE_FILTER {
     tag "${meta2.id}"
@@ -150,7 +64,6 @@ process FILTER_TADA_DATA {
     """
     #!/usr/bin/env Rscript
 
-    # TODO: clean me up!
     suppressPackageStartupMessages(library(dada2))
     suppressPackageStartupMessages(library(Biostrings))
     suppressPackageStartupMessages(library(tidyverse))
