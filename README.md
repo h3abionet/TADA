@@ -4,9 +4,11 @@
 </br></br></br>
 </p>
 
-# TADA - Targeted Amplicon Diversity Analysis using DADA2, implemented in Nextflow
+# *NOTE* 
 
-*NOTE:* We are working on a DSL2 implementation using the nf-core tools on separate branches.  Based on some differences in focus we don't currently anticipate combining this with the nf-core `ampliseq` workflow, though we may revisit this in the future.  In the meantime: We will continue to address critical bugs on this branch, but the majority of effort will be in converting the workflow to DSL2
+The full repository for TADA is now located [here]([url](https://github.com/HPCBio/TADA)). This is an archived fork of that repository. We recommend switching to the new URL, as DSL2 and 'strict syntax' work as well as v2 deployment will be continued from that repository (currently in the `dev` branch). We are no longer supporting the original DSL1 code.
+
+# TADA - Targeted Amplicon Diversity Analysis using DADA2, implemented in Nextflow
 
 A dada2-based workflow using the Nextflow workflow manager for Targeted Amplicon Diversity Analysis.
 
